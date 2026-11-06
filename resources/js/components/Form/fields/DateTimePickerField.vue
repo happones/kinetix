@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { useKinetixFieldId } from '@/composables/useKinetixFieldId';
 import { inputClass } from '@/composables/useKinetixShadcnVariants';
 import KinetixDateTimePicker from '../../KinetixDateTimePicker.vue';
 
+const fieldId = useKinetixFieldId();
 defineProps<{ comp: any; value: any }>();
 
 const emit = defineEmits<{ (e: 'update', value: any): void }>();
@@ -11,7 +13,7 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
     <!-- shadcn by default, native when ->native() -->
     <KinetixDateTimePicker
         v-if="comp.useCalendar"
-        :id="comp.name"
+        :id="fieldId(comp.name)"
         :value="value"
         :disabled="comp.isDisabled"
         :placeholder="comp.placeholder"
@@ -28,7 +30,7 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
     />
     <input
         v-else
-        :id="comp.name"
+        :id="fieldId(comp.name)"
         :value="value"
         type="datetime-local"
         :disabled="comp.isDisabled"

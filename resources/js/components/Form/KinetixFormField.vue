@@ -10,6 +10,7 @@ import {
     KINETIX_CLEAR_VALUE,
 } from '@/composables/kinetixWriteOnly';
 import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
+import { useKinetixFieldId } from '@/composables/useKinetixFieldId';
 import KinetixButton from '../KinetixButton.vue';
 import CheckboxField from './fields/CheckboxField.vue';
 import HiddenField from './fields/HiddenField.vue';
@@ -30,6 +31,7 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: 'update', value: any): void }>();
 
 const { t } = useI18n();
+const fieldId = useKinetixFieldId();
 
 /**
  * Field-type → component map. Resolving by lookup (O(1)) rather than a ~35-way
@@ -74,7 +76,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
     'phone-input': {
         component: LAZY['phone-input'],
         props: (c) => ({
-            id: c.name,
+            id: fieldId(c.name),
             config: c.phoneConfig,
             disabled: c.isDisabled,
             placeholder: c.placeholder,
@@ -83,7 +85,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
     'slug-input': {
         component: LAZY['slug-input'],
         props: (c, values) => ({
-            id: c.name,
+            id: fieldId(c.name),
             source: c.slugConfig?.from ? values[c.slugConfig.from] : null,
             config: c.slugConfig,
             disabled: c.isDisabled,
@@ -93,7 +95,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
     'generator-input': {
         component: LAZY['generator-input'],
         props: (c, values) => ({
-            id: c.name,
+            id: fieldId(c.name),
             config: c.generatorConfig,
             // Sibling values power a username `pattern` ({first}.{last}).
             values,
@@ -104,7 +106,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
     'json-input': {
         component: LAZY['json-input'],
         props: (c) => ({
-            id: c.name,
+            id: fieldId(c.name),
             disabled: c.isDisabled,
             placeholder: c.placeholder,
             rows: Number(c.extraInputAttributes?.rows) || undefined,
@@ -117,7 +119,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
     slider: {
         component: LAZY['slider'],
         props: (c) => ({
-            id: c.name,
+            id: fieldId(c.name),
             config: c.numberConfig,
             disabled: c.isDisabled,
         }),
@@ -129,7 +131,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
     'pin-input': {
         component: LAZY['pin-input'],
         props: (c) => ({
-            id: c.name,
+            id: fieldId(c.name),
             config: c.pinConfig,
             disabled: c.isDisabled,
         }),
@@ -137,7 +139,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
     'number-field': {
         component: LAZY['number-field'],
         props: (c) => ({
-            id: c.name,
+            id: fieldId(c.name),
             config: c.numberConfig,
             disabled: c.isDisabled,
             placeholder: c.placeholder,
@@ -174,7 +176,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
     'date-range-picker': {
         component: LAZY['date-range-picker'],
         props: (c) => ({
-            id: c.name,
+            id: fieldId(c.name),
             native: !c.useCalendar,
             disabled: c.isDisabled,
             placeholder: c.placeholder,
@@ -212,7 +214,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
     'tags-input': {
         component: LAZY['tags-input'],
         props: (c) => ({
-            id: c.name,
+            id: fieldId(c.name),
             disabled: c.isDisabled,
             placeholder: c.placeholder,
             ignoreCase: c.constraints?.distinct === 'ignore_case',
@@ -222,7 +224,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
     'key-value': {
         component: LAZY['key-value'],
         props: (c) => ({
-            id: c.name,
+            id: fieldId(c.name),
             disabled: c.isDisabled,
             keys: c.constraints?.keys ?? null,
         }),
@@ -402,12 +404,14 @@ const errorA11yAttrs = computed<Record<string, string | undefined>>(() => {
     const hasError = !!props.errors[props.comp.name];
 
     const describedBy = [
-        props.comp.description ? `${props.comp.name}-help` : null,
+        props.comp.description ? fieldId(`${props.comp.name}-help`) : null,
         withheld.value
-            ? `${props.comp.name}-${cleared.value ? 'cleared' : 'withheld'}`
+            ? fieldId(
+                  `${props.comp.name}-${cleared.value ? 'cleared' : 'withheld'}`,
+              )
             : null,
         props.describedBy ?? null,
-        hasError ? `${props.comp.name}-error` : null,
+        hasError ? fieldId(`${props.comp.name}-error`) : null,
     ]
         .filter(Boolean)
         .join(' ');
@@ -452,7 +456,7 @@ const errorA11yAttrs = computed<Record<string, string | undefined>>(() => {
     <!-- A stored value exists but isn't sent: blank keeps it. -->
     <p
         v-if="withheld && !clearable && (dedicated || delegate)"
-        :id="`${comp.name}-withheld`"
+        :id="fieldId(`${comp.name}-withheld`)"
         class="text-xs mt-1 text-muted-foreground"
     >
         {{ t('kinetix.form_withheld_hint') }}
@@ -465,7 +469,7 @@ const errorA11yAttrs = computed<Record<string, string | undefined>>(() => {
         :data-test="`${comp.name}-withheld-clear`"
     >
         <template v-if="cleared">
-            <p :id="`${comp.name}-cleared`">
+            <p :id="fieldId(`${comp.name}-cleared`)">
                 {{ t('kinetix.form_withheld_cleared') }}
             </p>
             <KinetixButton
@@ -479,7 +483,7 @@ const errorA11yAttrs = computed<Record<string, string | undefined>>(() => {
             </KinetixButton>
         </template>
         <template v-else>
-            <p :id="`${comp.name}-withheld`">
+            <p :id="fieldId(`${comp.name}-withheld`)">
                 {{ t('kinetix.form_withheld_hint') }}
             </p>
             <KinetixButton

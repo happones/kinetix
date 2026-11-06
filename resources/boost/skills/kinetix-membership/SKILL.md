@@ -92,6 +92,73 @@ first and falls back to handing the link over; `kinetix:doctor` errors on it.
 Same fallback when the member has no phone on file. Keep `smsContent()` short:
 a signed URL is long and every extra character risks a second billable segment.
 
+## Custom member fields — REQUIRED reading
+
+Extra data about a member (a flag, a few inputs, branches) comes from a host
+class: `'fields' => \App\Kinetix\MemberBranches::class` in `membership`. It
+extends `Happones\Kinetix\Membership\MemberFields` and has three methods:
+`schema($context)` (Kinetix form components), `values($user, $context)` (read
+back an ACTIVE member) and `apply($user, $provision, $values, $context)`
+(write). Pending values are JSON on the provision; at activation (or direct
+provisioning) `apply()` runs inside the transaction that creates the user, and
+the JSON is cleared: the host is the source of truth from then on.
+
+### Rules
+
+- **A class-string, never a closure** (`config:cache`). `kinetix:doctor` flags a
+  closure, a class that is not a `MemberFields`, and a missing column.
+- **Run the migration**: `vendor:publish --tag=kinetix-membership-migrations`
+  then `migrate` adds `kinetix_member_provisions.fields`. Only apps adopting
+  fields need it.
+- **Never trust option ids.** Member forms are strict: Select, Radio and
+  CheckboxList only accept their own options, so resolve option lists for
+  `$context->teamId`. A remote `searchUsing()` select is NOT constrained: add a
+  team-scoped `Rule::exists()`.
+- **Re-scope ids in `apply()`** by `$provision->team_id` (`whereKey(...)` on a
+  team-scoped query). Activation happens later than validation, and a stored id
+  may have disappeared: drop it, do not fail. `$values` is the full state, and
+  keys may be missing.
+- **Only touch this team's rows** (detach the team's branches that are no longer
+  chosen, `syncWithoutDetaching` the rest), never another team's.
+- **Edits keep what the actor cannot see.** A `disabled()` field keeps its current
+  value. A field that is hidden for the actor, or inside a hidden `Section`/`Grid`/
+  `Fieldset`, takes no rules and no submitted value, is not sent to the browser, and
+  keeps its previous value on edit (so `apply()` still gets the full state); so does
+  a stored key the schema does not know. Only a `visibleWhen`-hidden field is
+  cleared. Reordering a list (TagsInput) alone is not a change for `MemberUpdated`.
+- **`relationship()`** needs the relationship defined on `membership.user_model`.
+- **Events carry PII**: `MemberProvisioned` and `MemberActivated` hold the field
+  values, so a queued listener puts them in the queue payload and `failed_jobs`.
+- **No secrets** in member fields (no write-only support: edit forms return the
+  stored values). No `FileUpload`, `MediaLibrary`, `Repeater`, `TableRepeater`,
+  `RichEditor` and no `live()`. `CheckboxList` is the multi-choice field.
+- **A field grants nothing by itself**: enforce access in your policy,
+  middleware or `Resource::getEloquentQuery()`. Exporters, importers, Spotlight,
+  `relationship()`/`searchUsing()` selects, Kanban, Calendar, widgets and your
+  own routes do NOT inherit `getEloquentQuery()`: scope each one.
+- **Gating** is `members.update` (the same trust level as a role change);
+  per-field restrictions go through `schema($context)`, where the actor is
+  known (`disabled()`/hidden are enforced server-side).
+- **Endpoints**: `GET {prefix}/members/{provision}/fields` returns the edit
+  form; `PUT {prefix}/members/{provision}` accepts `{ role, fields? }`. Errors
+  come as `fields.<name>`. An unchanged role is a no-op, so saving details does
+  not fail because the current role left the allow-list.
+
+### Lifecycle events
+
+`MemberProvisioned`, `MemberActivated` (`direct` flag), `MemberUpdated`
+(`previousRole`, `role`, `previousFields`, `fields`, `roleChanged()`,
+`fieldsChanged()`) and `MemberRevoked` (actor null from code), in
+`Happones\Kinetix\Membership\Events`. They implement `ShouldDispatchAfterCommit`
+and `SerializesModels`, so a listener never sees a rolled-back change and queued
+listeners are safe. Clean up what `apply()` wrote in a `MemberRevoked` listener
+(or `detach_member`). `KinetixMembership::revoke($provision, $actor = null)` is
+one transaction.
+
+Activation, direct provisioning, edits and revokes are transactional now: a
+throwing `attach_member`, `assign_role` or `detach_member` rolls back instead of
+leaving an orphan user.
+
 ## Documentation
 
 For full details, reference `docs/membership.md` (published at https://happones.github.io/kinetix/membership).

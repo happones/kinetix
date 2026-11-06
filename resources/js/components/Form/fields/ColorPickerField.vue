@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { useKinetixFieldId } from '@/composables/useKinetixFieldId';
 import { inputClass } from '@/composables/useKinetixShadcnVariants';
 import { cn } from '../../primitives/cn';
 
+const fieldId = useKinetixFieldId();
 defineProps<{ comp: any; value: any }>();
 
 const emit = defineEmits<{ (e: 'update', value: any): void }>();
@@ -17,7 +19,7 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
             @input="emit('update', ($event.target as HTMLInputElement).value)"
         />
         <input
-            :id="comp.name"
+            :id="fieldId(comp.name)"
             :value="value"
             type="text"
             :placeholder="comp.placeholder || '#000000'"

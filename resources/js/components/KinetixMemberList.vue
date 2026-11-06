@@ -1,21 +1,33 @@
 <script setup lang="ts">
-import { KeyRound, Link2, Search, ShieldAlert } from '@lucide/vue';
-import { computed, onMounted, ref } from 'vue';
+import { KeyRound, Link2, Pencil, Search, ShieldAlert } from '@lucide/vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import {
+    kinetixComponentOf,
+    preloadKinetixLazy,
+} from '@/composables/kinetixLazy';
+import {
+    memberFieldErrors,
     memberRoleLabel,
     useKinetixMembers,
 } from '@/composables/useKinetixMembers';
 import { inputClass } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixStatusColor } from '@/composables/useKinetixStatusColor';
-import type { KinetixMemberProvision } from '@/types/kinetix';
+import type {
+    KinetixMemberFieldsForm,
+    KinetixMemberProvision,
+} from '@/types/kinetix';
 import KinetixButton from './KinetixButton.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
 import KinetixCopyableInput from './KinetixCopyableInput.vue';
 import KinetixLabel from './KinetixLabel.vue';
 import KinetixMemberProvisioner from './KinetixMemberProvisioner.vue';
 import KinetixSelect from './KinetixSelect.vue';
+import {
+    KINETIX_LAZY_MEMBER_EDIT,
+    KINETIX_LAZY_MEMBER_FIELDS,
+} from './Members/kinetixMemberLoaders';
 import KinetixBadge from './primitives/KinetixBadge.vue';
 import KinetixModal from './primitives/KinetixModal.vue';
 
@@ -33,6 +45,11 @@ import KinetixModal from './primitives/KinetixModal.vue';
  * shown only when the viewer holds its `members.*` ability, and a credential
  * the server hands back (direct provisioning, manual delivery) is shown once,
  * ready to copy.
+ *
+ * An app with custom member fields (`membership.fields`) gets them in the
+ * provisioning form, and each row's inline role select becomes an Edit button
+ * opening a dialog with the role and those fields. The dialog's code downloads
+ * only for such apps.
  */
 const props = withDefaults(
     defineProps<{
@@ -55,12 +72,16 @@ const {
     reservedRoles,
     identifierField,
     can,
+    hasFields,
+    fieldsForm,
     loading,
     load,
     provision,
     issueCredential,
     resend,
     updateRole,
+    memberFields,
+    updateMember,
     revoke,
 } = useKinetixMembers();
 const { t, locale } = useI18n();
@@ -104,6 +125,19 @@ const STATUS_COLOR: Record<
 };
 
 onMounted(load);
+
+const MemberEditModal = kinetixComponentOf(KINETIX_LAZY_MEMBER_EDIT);
+
+// Apps with member fields download the dialog and the field renderer as soon
+// as the index says so, not on the first click.
+watch(hasFields, (enabled) => {
+    if (enabled) {
+        void preloadKinetixLazy([
+            KINETIX_LAZY_MEMBER_EDIT,
+            KINETIX_LAZY_MEMBER_FIELDS,
+        ]);
+    }
+});
 
 // --- Dates ------------------------------------------------------------------
 
@@ -168,7 +202,13 @@ function initials(member: KinetixMemberProvision): string {
 // --- Pending state -------------------------------------------------------
 // One action at a time: the busy row shows a spinner on the clicked control,
 // every other action control disables — same contract as table actions.
-type BusyKind = 'provision' | 'resend' | 'role' | 'revoke' | 'credential';
+type BusyKind =
+    | 'provision'
+    | 'resend'
+    | 'role'
+    | 'edit'
+    | 'revoke'
+    | 'credential';
 
 const busyKey = ref<string | number | null>(null);
 const busyKind = ref<BusyKind | null>(null);
@@ -179,13 +219,19 @@ const isRowBusy = (
     kind: Exclude<BusyKind, 'provision'>,
 ): boolean => busyKind.value === kind && busyKey.value === rowKey(member);
 
+/** Whether the last `run()` really ran and succeeded (not bailed out, not failed). */
+let lastRunSucceeded = false;
+
 async function run<T>(
     kind: BusyKind,
     key: string | number | null,
     action: () => Promise<T>,
     successMessage: string | ((result: T) => string),
     errorMessage: string,
+    onError?: (error: unknown) => void,
 ): Promise<T | undefined> {
+    lastRunSucceeded = false;
+
     if (isBusy.value) {
         return undefined;
     }
@@ -202,8 +248,11 @@ async function run<T>(
                 : successMessage,
         );
 
+        lastRunSucceeded = true;
+
         return result;
     } catch (e) {
+        onError?.(e);
         toast.error(e instanceof Error && e.message ? e.message : errorMessage);
 
         return undefined;
@@ -235,21 +284,41 @@ function showCredential(
     };
 }
 
+const provisioner = ref<InstanceType<typeof KinetixMemberProvisioner> | null>(
+    null,
+);
+const provisionErrors = ref<Record<string, string>>({});
+
 async function onProvision(
     identifier: string,
     role: string,
     name?: string,
+    fields?: Record<string, unknown>,
 ): Promise<void> {
+    provisionErrors.value = {};
+
     const result = await run(
         'provision',
         null,
-        () => provision(identifier, role, name ?? null),
+        () =>
+            fields
+                ? provision(identifier, role, name ?? null, fields)
+                : provision(identifier, role, name ?? null),
         (created) =>
             created?.credential
                 ? t('kinetix.member_added')
                 : t('kinetix.member_provisioned'),
         t('kinetix.member_provision_failed'),
+        (error) => {
+            provisionErrors.value = memberFieldErrors(error);
+        },
     );
+
+    // The form kept what was typed while the request ran: it clears only now
+    // that the member exists.
+    if (lastRunSucceeded) {
+        provisioner.value?.reset();
+    }
 
     showCredential(result);
 }
@@ -290,6 +359,83 @@ function onRoleChange(member: KinetixMemberProvision, role: string): void {
         t('kinetix.member_role_updated'),
         t('kinetix.save_failed'),
     );
+}
+
+// --- Edit (role + custom fields) ------------------------------------------
+const editTarget = ref<KinetixMemberProvision | null>(null);
+const isEditOpen = ref(false);
+const editForm = ref<KinetixMemberFieldsForm | null>(null);
+const editErrors = ref<Record<string, string>>({});
+
+/** With member fields a row edits through the dialog, not the inline select. */
+const editsInDialog = (member: KinetixMemberProvision): boolean =>
+    hasFields.value && can.value.update && member.status !== 'revoked';
+
+const memberLabel = (member: KinetixMemberProvision): string =>
+    member.name ?? member.identifier ?? '';
+
+async function openEdit(member: KinetixMemberProvision): Promise<void> {
+    if (isBusy.value) {
+        return;
+    }
+
+    editTarget.value = member;
+    editForm.value = null;
+    editErrors.value = {};
+    isEditOpen.value = true;
+
+    try {
+        const form = await memberFields(member);
+
+        // The dialog may have been closed (or reopened on someone else) meanwhile.
+        if (editTarget.value === member && isEditOpen.value) {
+            editForm.value = form;
+        }
+    } catch {
+        if (editTarget.value === member) {
+            toast.error(t('kinetix.member_fields_load_failed'));
+            closeEdit();
+        }
+    }
+}
+
+function closeEdit(): void {
+    if (busyKind.value === 'edit') {
+        return;
+    }
+
+    isEditOpen.value = false;
+    editTarget.value = null;
+    editForm.value = null;
+    editErrors.value = {};
+}
+
+async function onEditSubmit(
+    role: string,
+    fields: Record<string, unknown>,
+): Promise<void> {
+    const member = editTarget.value;
+
+    if (!member) {
+        return;
+    }
+
+    editErrors.value = {};
+
+    await run(
+        'edit',
+        rowKey(member),
+        () => updateMember(member, { role, fields }),
+        t('kinetix.member_updated'),
+        t('kinetix.save_failed'),
+        (error) => {
+            editErrors.value = memberFieldErrors(error);
+        },
+    );
+
+    if (lastRunSucceeded) {
+        closeEdit();
+    }
 }
 
 // --- Revoke (destructive → confirm first) ---------------------------------
@@ -408,11 +554,15 @@ function filterLabel(filter: StatusFilter): string {
             class="rounded-lg p-4 border border-border bg-card"
         >
             <KinetixMemberProvisioner
+                ref="provisioner"
                 :assignable-roles="assignableRoles"
                 :roles="roles"
                 :reserved-roles="reservedRoles"
                 :identifier-type="identifierField"
                 :submitting="busyKind === 'provision'"
+                :fields="fieldsForm"
+                :errors="provisionErrors"
+                :reset-on-submit="false"
                 @submit="onProvision"
             />
         </div>
@@ -550,7 +700,11 @@ function filterLabel(filter: StatusFilter): string {
                          this with a 422 too). Without `members.update` it is
                          read-only as well. -->
                     <span
-                        v-if="member.status === 'revoked' || !can.update"
+                        v-if="
+                            member.status === 'revoked' ||
+                            !can.update ||
+                            editsInDialog(member)
+                        "
                         class="text-xs text-muted-foreground"
                         data-test="member-role-text"
                     >
@@ -567,6 +721,27 @@ function filterLabel(filter: StatusFilter): string {
                             @update:value="onRoleChange(member, $event)"
                         />
                     </div>
+
+                    <KinetixButton
+                        v-if="editsInDialog(member)"
+                        variant="ghost"
+                        size="sm"
+                        :disabled="isBusy"
+                        :aria-label="
+                            t('kinetix.member_edit_named', {
+                                name: memberLabel(member),
+                            })
+                        "
+                        data-test="member-edit"
+                        @click="openEdit(member)"
+                    >
+                        <template #icon>
+                            <Pencil class="size-4" aria-hidden="true" />
+                        </template>
+                        <span class="@md:inline hidden">{{
+                            t('kinetix.edit')
+                        }}</span>
+                    </KinetixButton>
 
                     <KinetixButton
                         v-if="member.status === 'pending' && can.provision"
@@ -638,6 +813,19 @@ function filterLabel(filter: StatusFilter): string {
                 </KinetixButton>
             </div>
         </div>
+
+        <MemberEditModal
+            v-if="hasFields"
+            :open="isEditOpen"
+            :member="editTarget"
+            :role-options="editTarget ? roleOptionsFor(editTarget) : {}"
+            :locked-roles="editTarget ? lockedRoles(editTarget) : []"
+            :form="editForm"
+            :errors="editErrors"
+            :submitting="busyKind === 'edit'"
+            @update:open="(open: boolean) => !open && closeEdit()"
+            @submit="onEditSubmit"
+        />
 
         <KinetixConfirmModal
             v-model:open="isRevokeOpen"

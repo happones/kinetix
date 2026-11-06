@@ -8,6 +8,7 @@ import {
     requirementHints,
 } from '@/composables/kinetixFieldConstraints';
 import type { Requirement } from '@/composables/kinetixFieldConstraints';
+import { useKinetixFieldId } from '@/composables/useKinetixFieldId';
 
 /**
  * What a field's rules ask for, under the field: the requirements as one
@@ -16,6 +17,8 @@ import type { Requirement } from '@/composables/kinetixFieldConstraints';
  * id (`<name>-rules`) is on the field's `aria-describedby` chain; the
  * counter speaks only near the limit, so typing isn't narrated.
  */
+const fieldId = useKinetixFieldId();
+
 const props = defineProps<{
     name: string;
     constraints: any;
@@ -52,7 +55,7 @@ const matches = computed(() =>
         <div class="min-w-0 space-y-0.5">
             <p
                 v-if="hints.length && !hasError && !matches"
-                :id="`${name}-rules`"
+                :id="fieldId(`${name}-rules`)"
                 class="text-xs text-muted-foreground"
             >
                 {{ hints.join(' · ') }}

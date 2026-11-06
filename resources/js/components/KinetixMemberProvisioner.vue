@@ -2,12 +2,18 @@
 import { Globe, ShieldCheck } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { kinetixComponentOf } from '@/composables/kinetixLazy';
+import { firstErroredField } from '@/composables/useKinetixFormErrors';
 import { memberRoleLabel, roleLabel } from '@/composables/useKinetixMembers';
 import { inputClass } from '@/composables/useKinetixShadcnVariants';
-import type { KinetixMemberRole } from '@/types/kinetix';
+import type {
+    KinetixMemberFieldsForm,
+    KinetixMemberRole,
+} from '@/types/kinetix';
 import KinetixButton from './KinetixButton.vue';
 import KinetixLabel from './KinetixLabel.vue';
 import KinetixSelect from './KinetixSelect.vue';
+import { KINETIX_LAZY_MEMBER_FIELDS } from './Members/kinetixMemberLoaders';
 
 /**
  * The provisioning form — substitute for the starter-kit's InviteMemberModal.
@@ -22,6 +28,14 @@ import KinetixSelect from './KinetixSelect.vue';
  * Roles-screen roles — shown under the picker so the person choosing knows
  * what a role grants; `reservedRoles` are named in a note as the owner's,
  * never offered here.
+ *
+ * `fields` is the app's custom member form (`membership.fields`): when set it
+ * renders under the identifier/role row and its values travel as the fourth
+ * `submit` argument. Its renderer downloads on demand, so an app without
+ * custom fields ships none of it. `errors` (by field name) shows under each
+ * field. The form clears itself on submit, as it always did; a parent that
+ * waits for the server's answer sets `resetOnSubmit` to false and calls the
+ * exposed `reset()` on success, so a rejected submission keeps what was typed.
  */
 const props = withDefaults(
     defineProps<{
@@ -34,21 +48,40 @@ const props = withDefaults(
         reservedRoles?: string[];
         /** True while the parent's provision request is in flight. */
         submitting?: boolean;
+        /** The app's custom member fields (`membership.fields`), when it has any. */
+        fields?: KinetixMemberFieldsForm | null;
+        /** Server errors for the custom fields, by field name. */
+        errors?: Record<string, string>;
+        /** Clear the form as soon as it is submitted (default), or wait for `reset()`. */
+        resetOnSubmit?: boolean;
     }>(),
     {
         identifierType: 'email',
         roles: () => [],
         reservedRoles: () => [],
         submitting: false,
+        fields: null,
+        errors: () => ({}),
+        resetOnSubmit: true,
     },
 );
 
 const emit = defineEmits<{
-    /** `name` is passed only when one was typed. */
-    submit: [identifier: string, role: string, name?: string];
+    /**
+     * `name` is passed only when one was typed; `fields` only when the app has
+     * custom member fields (then `name` is `undefined` when left blank).
+     */
+    submit: [
+        identifier: string,
+        role: string,
+        name?: string,
+        fields?: Record<string, unknown>,
+    ];
 }>();
 
 const { t } = useI18n();
+
+const MemberFields = kinetixComponentOf(KINETIX_LAZY_MEMBER_FIELDS);
 
 const identifier = ref('');
 const name = ref('');
@@ -63,6 +96,53 @@ watch(
     (roles) => {
         if (!roles.includes(role.value)) {
             role.value = roles[0] ?? '';
+        }
+    },
+);
+
+const defaultFieldValues = (): Record<string, unknown> => ({
+    ...(props.fields?.data ?? {}),
+});
+
+const fieldsRef = ref<{ focus?: (name: string | null) => void } | null>(null);
+const fieldValues = ref<Record<string, unknown>>(defaultFieldValues());
+
+// The form arrives with the index (async): start from its defaults, and again
+// if a refresh brings a different one.
+// A list reload hands over a new object for the same form: only a different
+// set of fields (names and types) starts over, so what was typed survives it.
+const schemaSignature = (form: KinetixMemberFieldsForm | null): string => {
+    const parts: string[] = [];
+    const walk = (nodes: any[]): void => {
+        for (const node of nodes ?? []) {
+            parts.push(`${node?.type ?? ''}:${node?.name ?? ''}`);
+
+            if (Array.isArray(node?.schema)) {
+                walk(node.schema);
+            }
+        }
+    };
+
+    walk((form?.schema as any[]) ?? []);
+
+    return parts.join('|');
+};
+
+watch(
+    () => schemaSignature(props.fields),
+    () => (fieldValues.value = defaultFieldValues()),
+);
+
+// A rejected submission points at the first field with an error.
+watch(
+    () => props.errors,
+    (errors) => {
+        const keys = Object.keys(errors);
+
+        if (props.fields && keys.length > 0) {
+            fieldsRef.value?.focus?.(
+                firstErroredField(props.fields.schema as any[], keys),
+            );
         }
     },
 );
@@ -117,16 +197,34 @@ function submit(): void {
 
     const typedName = name.value.trim();
 
-    if (typedName) {
+    if (props.fields) {
+        emit(
+            'submit',
+            value,
+            role.value,
+            typedName || undefined,
+            fieldValues.value,
+        );
+    } else if (typedName) {
         emit('submit', value, role.value, typedName);
     } else {
         emit('submit', value, role.value);
     }
 
+    if (props.resetOnSubmit) {
+        reset();
+    }
+}
+
+/** Back to a blank form: identifier, name, first role, the fields' defaults. */
+function reset(): void {
     identifier.value = '';
     name.value = '';
     role.value = props.assignableRoles[0] ?? '';
+    fieldValues.value = defaultFieldValues();
 }
+
+defineExpose({ reset });
 </script>
 
 <template>
@@ -140,7 +238,12 @@ function submit(): void {
         @submit.prevent="submit"
     >
         <div
-            class="gap-3 @xl:grid-cols-2 @4xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_12rem_auto] grid grid-cols-1 items-start"
+            class="gap-3 @xl:grid-cols-2 grid grid-cols-1 items-start"
+            :class="
+                fields
+                    ? '@4xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_12rem]'
+                    : '@4xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_12rem_auto]'
+            "
         >
             <div class="space-y-2 min-w-0">
                 <KinetixLabel for="kinetix-member-email">
@@ -218,7 +321,7 @@ function submit(): void {
                 </p>
             </div>
 
-            <div class="space-y-2">
+            <div v-if="!fields" class="space-y-2">
                 <span
                     class="text-sm @xl:block hidden leading-none select-none"
                     aria-hidden="true"
@@ -233,6 +336,26 @@ function submit(): void {
                     {{ t('kinetix.member_provision') }}
                 </KinetixButton>
             </div>
+        </div>
+
+        <!-- The app's own member fields, full width under the row. -->
+        <MemberFields
+            v-if="fields"
+            ref="fieldsRef"
+            v-model="fieldValues"
+            :form="fields"
+            :errors="errors"
+        />
+
+        <div v-if="fields">
+            <KinetixButton
+                type="submit"
+                class="@xl:w-auto w-full"
+                :loading="submitting"
+                :disabled="noRoles"
+            >
+                {{ t('kinetix.member_provision') }}
+            </KinetixButton>
         </div>
 
         <p

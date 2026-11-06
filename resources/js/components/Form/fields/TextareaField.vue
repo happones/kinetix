@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { constraintInputAttributes } from '@/composables/kinetixFieldConstraints';
+import { useKinetixFieldId } from '@/composables/useKinetixFieldId';
 import { textareaClass } from '@/composables/useKinetixShadcnVariants';
 
+const fieldId = useKinetixFieldId();
 const props = defineProps<{ comp: any; value: any }>();
 
 const emit = defineEmits<{ (e: 'update', value: any): void }>();
@@ -27,7 +29,7 @@ const minHeight = computed(() => {
 
 <template>
     <textarea
-        :id="comp.name"
+        :id="fieldId(comp.name)"
         :value="value"
         :placeholder="comp.placeholder"
         :disabled="comp.isDisabled"

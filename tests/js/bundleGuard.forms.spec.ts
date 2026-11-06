@@ -88,6 +88,25 @@ const GUARDS: Array<{ from: string; forbidden: Rule[] }> = [
             rule('@tanstack/*', pkgScope('@tanstack')),
         ],
     },
+    // The members screen carries the forms engine only for apps that declare
+    // custom member fields: it arrives through the lazy member loaders.
+    ...[
+        'KinetixMemberList.vue',
+        'KinetixMemberProvisioner.vue',
+        'Members/KinetixMemberEditModal.vue',
+    ].map((from) => ({
+        from,
+        forbidden: [
+            rule('KinetixFormSchema.vue', file('KinetixFormSchema.vue')),
+            rule('KinetixForm.vue', file('KinetixForm.vue')),
+            rule(
+                'Members/KinetixMemberFields.vue',
+                file('Members/KinetixMemberFields.vue'),
+            ),
+            ...DATE_PICKERS.map((name) => rule(name, file(name))),
+            rule('@internationalized/date', pkg('@internationalized/date')),
+        ],
+    })),
     ...[
         'Kanban/KanbanColumn.vue',
         'KinetixComments.vue',

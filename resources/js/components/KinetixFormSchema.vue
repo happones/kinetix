@@ -10,6 +10,7 @@ import type { Requirement } from '@/composables/kinetixFieldConstraints';
 import { kinetixComponentOf } from '@/composables/kinetixLazy';
 import { isKinetixClearValue } from '@/composables/kinetixWriteOnly';
 import { useKinetixFieldConditions } from '@/composables/useKinetixFieldConditions';
+import { useKinetixFieldId } from '@/composables/useKinetixFieldId';
 import { useKinetixRepeater } from '@/composables/useKinetixRepeaterField';
 import './kinetix-grid.css';
 import {
@@ -44,6 +45,7 @@ const props = defineProps<{
 }>();
 
 const { t, locale } = useI18n();
+const fieldId = useKinetixFieldId();
 
 // The wizard layout downloads on first use. Read once per instance: the
 // wrapper renders the wizard as soon as it arrives, and swapping it for the
@@ -366,7 +368,7 @@ const renderSchema = computed(() =>
             <!-- Label -->
             <KinetixLabel
                 v-if="comp.type !== 'hidden' && comp.label"
-                :for="comp.name"
+                :for="fieldId(comp.name)"
             >
                 {{ comp.label }}
             </KinetixLabel>
@@ -469,7 +471,7 @@ const renderSchema = computed(() =>
                     :described-by="
                         requirementsOf(comp).some((r) => r.hint) &&
                         !shownErrors[comp.name]
-                            ? `${comp.name}-rules`
+                            ? fieldId(`${comp.name}-rules`)
                             : undefined
                     "
                     @update="(val) => emit('update:value', comp.name, val)"
@@ -491,7 +493,7 @@ const renderSchema = computed(() =>
             <!-- Helper text (id is an aria-describedby target, like the error). -->
             <p
                 v-if="comp.description"
-                :id="`${comp.name}-help`"
+                :id="fieldId(`${comp.name}-help`)"
                 class="text-xs mt-1 text-muted-foreground"
             >
                 {{ comp.description }}
@@ -501,7 +503,7 @@ const renderSchema = computed(() =>
                  role announces it to screen readers as it appears). -->
             <p
                 v-if="shownErrors[comp.name]"
-                :id="`${comp.name}-error`"
+                :id="fieldId(`${comp.name}-error`)"
                 role="alert"
                 class="text-xs font-semibold mt-1 text-destructive"
             >

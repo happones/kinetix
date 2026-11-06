@@ -8,6 +8,9 @@ use Happones\Kinetix\Activity\KinetixActivity;
 use Happones\Kinetix\Credentials\KinetixIdentity;
 use Happones\Kinetix\Credentials\KinetixPasswords;
 use Happones\Kinetix\Data\MemberProvisionData;
+use Happones\Kinetix\Membership\Events\MemberActivated;
+use Happones\Kinetix\Membership\Events\MemberProvisioned;
+use Happones\Kinetix\Membership\Events\MemberUpdated;
 use Happones\Kinetix\Permissions\AssignableRoles;
 use Happones\Kinetix\Permissions\SuperAdmin;
 use Happones\Kinetix\Permissions\TakeoverGuard;
@@ -22,13 +25,17 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Enumerable;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\MessageBag;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Spatie\Permission\Models\Role;
@@ -76,6 +83,8 @@ class MembershipController
             ->values();
 
         $assignable = $this->assignableRoles($teamId);
+        $fields     = KinetixMembership::fields();
+        $canInvite  = Gate::allows('members.provision');
 
         return response()->json([
             'provisions'       => $provisions,
@@ -88,11 +97,17 @@ class MembershipController
             'identifier_field' => $this->identifierField(),
             'reserved_roles'   => SuperAdmin::protectedRoles(),
             'can'              => [
-                'provision'   => Gate::allows('members.provision'),
+                'provision'   => $canInvite,
                 'update'      => Gate::allows('members.update'),
                 'revoke'      => Gate::allows('members.revoke'),
                 'credentials' => Gate::allows('members.credentials'),
             ],
+            'has_fields' => $fields !== null,
+            // The provisioning form of the host's custom member fields, for
+            // whoever may provision; each member's values are fetched on edit.
+            'fields_form' => $fields !== null && $canInvite
+                ? MemberFieldsForm::build($fields, $this->fieldsContext(MemberFieldsOperation::Provision, $teamId, $request->user()))->toArray()
+                : null,
         ]);
     }
 
@@ -100,15 +115,31 @@ class MembershipController
     {
         Gate::authorize('members.provision');
 
-        $field = $this->identifierField();
+        $field  = $this->identifierField();
+        $teamId = $this->teamId($request);
+        $custom = KinetixMembership::fields();
 
-        $validated = $request->validate([
+        $validator = Validator::make($request->all(), [
             $field => $this->identifierRules($field),
             'name' => ['nullable', 'string', 'max:255'],
             'role' => ['required', 'string'],
+            ...($custom !== null ? ['fields' => ['nullable', 'array']] : []),
         ]);
 
-        $teamId     = $this->teamId($request);
+        $errors = $validator->fails() ? $validator->errors() : new MessageBag;
+        $state  = [];
+
+        if ($custom !== null && ! $errors->has('fields')) {
+            $form = MemberFieldsForm::build($custom, $this->fieldsContext(MemberFieldsOperation::Provision, $teamId, $request->user()));
+
+            [$state, $fieldErrors] = MemberFieldsForm::validate($form, $this->submittedFields($request));
+
+            $errors->merge($fieldErrors);
+        }
+
+        $this->throwIfAny($errors);
+
+        $validated  = $validator->validated();
         $identifier = KinetixIdentity::normalize($field, (string) $validated[$field]);
 
         $this->assertAssignable($validated['role'], $teamId);
@@ -129,24 +160,46 @@ class MembershipController
             __('kinetix.members_already_member'),
         );
 
-        // `updateOrCreate` on purpose: a repeat invitation (pending or revoked)
-        // on a known identifier refreshes it instead of adding a second row.
-        $provision = MemberProvision::updateOrCreate(
-            ['team_id' => $teamId, $field => $identifier],
-            [
-                'role'         => $validated['role'],
-                'name'         => $validated['name'] ?? null,
-                'invited_by'   => $request->user()?->getKey(),
-                'user_id'      => null,
-                'status'       => MemberProvisionStatus::Pending,
-                'activated_at' => null,
-                'expires_at'   => now()->addHours($this->expiryHours()),
-            ],
-        );
+        // One transaction: a host callback that throws while the account is
+        // being created leaves no User and no provision behind.
+        [$provision, $credential] = DB::transaction(function () use ($request, $validated, $field, $identifier, $teamId, $custom, $state): array {
+            // `updateOrCreate` on purpose: a repeat invitation (pending or
+            // revoked) on a known identifier refreshes it instead of adding a
+            // second row. The `fields` column is only written when custom
+            // fields are configured: it may not exist otherwise.
+            $provision = MemberProvision::updateOrCreate(
+                ['team_id' => $teamId, $field => $identifier],
+                [
+                    'role'         => $validated['role'],
+                    'name'         => $validated['name'] ?? null,
+                    'invited_by'   => $request->user()?->getKey(),
+                    'user_id'      => null,
+                    'status'       => MemberProvisionStatus::Pending,
+                    'activated_at' => null,
+                    'expires_at'   => now()->addHours($this->expiryHours()),
+                    ...($custom !== null ? ['fields' => $state] : []),
+                ],
+            );
 
-        $credential = $this->isDirect()
-            ? $this->provisionDirectly($provision, $request)
-            : $this->issueActivation($provision);
+            return [
+                $provision,
+                $this->isDirect() ? $this->provisionDirectly($provision, $request, $custom !== null ? $state : null) : null,
+            ];
+        });
+
+        // The notification is sent outside the transaction: a rollback can
+        // no longer leave a link out in the world.
+        if (! $this->isDirect()) {
+            $credential = $this->issueActivation($provision);
+        }
+
+        MemberProvisioned::dispatch($provision, $request->user(), $state);
+
+        $user = $this->isDirect() ? $this->resolveUser($provision->user_id) : null;
+
+        if ($user !== null) {
+            MemberActivated::dispatch($provision, $user, $state, true);
+        }
 
         return response()->json(
             $this->payload($provision, $credential),
@@ -171,7 +224,7 @@ class MembershipController
         abort_if(
             $provision->status === MemberProvisionStatus::Revoked,
             422,
-            'This member was revoked; provision them again instead.',
+            __('kinetix.members_revoked'),
         );
 
         if ($provision->user_id !== null) {
@@ -230,7 +283,7 @@ class MembershipController
                 ? 'This member already has an account; issue a new credential instead.'
                 : 'This member is already active.',
         );
-        abort_if($provision->status === MemberProvisionStatus::Revoked, 422, 'This member was revoked; provision them again instead.');
+        abort_if($provision->status === MemberProvisionStatus::Revoked, 422, __('kinetix.members_revoked'));
 
         $provision->update([
             'status'     => MemberProvisionStatus::Pending,
@@ -242,6 +295,30 @@ class MembershipController
         return response()->json(MemberProvisionData::fromModel($provision));
     }
 
+    /**
+     * The edit form of the host's custom member fields, filled with the
+     * member's current values: the stored ones while pending, the host's
+     * `values()` once active.
+     */
+    public function fields(Request $request): JsonResponse
+    {
+        Gate::authorize('members.update');
+
+        $provision = $this->findProvision($request);
+        $custom    = KinetixMembership::fields();
+
+        abort_if($custom === null, 404);
+        abort_if($provision->status === MemberProvisionStatus::Revoked, 422, __('kinetix.members_revoked'));
+
+        $user    = $provision->user_id !== null ? $this->resolveUser($provision->user_id) : null;
+        $context = $this->fieldsContext(MemberFieldsOperation::Edit, $provision->team_id, $request->user(), $provision, $user);
+        $values  = MemberFieldsForm::currentValues($custom, $provision, $user, $context);
+
+        return response()->json([
+            'form' => MemberFieldsForm::build($custom, $context, $values)->toArray(),
+        ]);
+    }
+
     public function update(Request $request): JsonResponse
     {
         Gate::authorize('members.update');
@@ -250,18 +327,86 @@ class MembershipController
 
         // A revoked member keeps their user_id for the audit trail, so a role
         // change here would silently RE-GRANT them a role. Re-provision instead.
-        abort_if($provision->status === MemberProvisionStatus::Revoked, 422, 'This member was revoked; provision them again instead.');
+        abort_if($provision->status === MemberProvisionStatus::Revoked, 422, __('kinetix.members_revoked'));
 
-        $validated = $request->validate(['role' => ['required', 'string']]);
-        $this->assertAssignable($validated['role'], $provision->team_id);
+        $custom     = KinetixMembership::fields();
+        $withFields = $custom !== null && $request->has('fields');
+        $validator  = Validator::make($request->all(), [
+            'role' => ['required', 'string'],
+            ...($withFields ? ['fields' => ['nullable', 'array']] : []),
+        ]);
+        $errors   = $validator->fails() ? $validator->errors() : new MessageBag;
+        $user     = $provision->user_id !== null ? $this->resolveUser($provision->user_id) : null;
+        $context  = null;
+        $state    = [];
+        $previous = [];
 
+        if ($custom !== null && $withFields && ! $errors->has('fields')) {
+            $context  = $this->fieldsContext(MemberFieldsOperation::Edit, $provision->team_id, $request->user(), $provision, $user);
+            $previous = MemberFieldsForm::currentValues($custom, $provision, $user, $context);
+
+            $form = MemberFieldsForm::build($custom, $context, $previous);
+
+            [$state, $fieldErrors] = MemberFieldsForm::validate($form, $this->submittedFields($request));
+
+            // What this actor cannot see keeps its value: the state `apply()`
+            // gets and the JSON stored are the full set, not just what was shown.
+            if ($fieldErrors->isEmpty()) {
+                $state = MemberFieldsForm::merge($form, $previous, $state);
+            }
+
+            $errors->merge($fieldErrors);
+        }
+
+        $this->throwIfAny($errors);
+
+        $role         = $validator->validated()['role'];
         $previousRole = $provision->role;
-        $provision->update(['role' => $validated['role']]);
+        $roleChanged  = $role !== $previousRole;
 
-        $user = $provision->user_id !== null ? $this->resolveUser($provision->user_id) : null;
+        // Only a CHANGED role is checked against the allow-list: saving a
+        // member's details must not fail because their current role has since
+        // left it.
+        if ($roleChanged) {
+            $this->assertAssignable($role, $provision->team_id);
+        }
 
-        if ($user !== null) {
-            KinetixMembership::syncRole($user, $provision, from: $previousRole, to: $validated['role']);
+        DB::transaction(function () use ($provision, $user, $roleChanged, $role, $previousRole, $custom, $state, $context): void {
+            if ($roleChanged) {
+                $provision->update(['role' => $role]);
+
+                if ($user !== null) {
+                    KinetixMembership::syncRole($user, $provision, from: $previousRole, to: $role);
+                }
+            }
+
+            // The context only exists when fields were submitted and validated.
+            if ($custom === null || $context === null) {
+                return;
+            }
+
+            if ($provision->status === MemberProvisionStatus::Active && $user !== null) {
+                $this->withTeam($provision->team_id, static function () use ($custom, $user, $provision, $state, $context): void {
+                    $custom->apply($user, $provision, $state, $context);
+                });
+
+                return;
+            }
+
+            $provision->update(['fields' => $state]);
+        });
+
+        $fieldsChanged = $withFields && MemberFieldsForm::normalize($previous) !== MemberFieldsForm::normalize($state);
+
+        if ($roleChanged || $fieldsChanged) {
+            MemberUpdated::dispatch(
+                $provision,
+                $request->user(),
+                $previousRole,
+                $role,
+                $previous,
+                $withFields ? $state : null,
+            );
         }
 
         return response()->json(MemberProvisionData::fromModel($provision));
@@ -271,7 +416,7 @@ class MembershipController
     {
         Gate::authorize('members.revoke');
 
-        KinetixMembership::revoke($this->findProvision($request));
+        KinetixMembership::revoke($this->findProvision($request), $request->user());
 
         return response()->json(['status' => 'success']);
     }
@@ -336,34 +481,63 @@ class MembershipController
         $this->assertAssignable($provision->role, $provision->team_id, forActor: false);
 
         $userModel = $this->userModel();
+        $custom    = KinetixMembership::fields();
 
-        $user = $userModel::create([
-            ...$this->identifierAttributes($provision),
-            'name'     => $validated['name'],
-            'password' => Hash::make($validated['password']),
-        ]);
+        // One transaction: when the host's callback or `apply()` throws, no
+        // User is left behind and the invitation stays pending, so the person
+        // can try again.
+        [$user, $stored] = DB::transaction(function () use ($provision, $validated, $userModel, $custom): array {
+            // Re-read under a row lock: of two concurrent activations of the
+            // same link only the first finds it pending.
+            $locked = MemberProvision::query()->whereKey($provision->getKey())->lockForUpdate()->first();
 
-        // Kinetix never touches the host's team pivot; the host attaches the
-        // user to its team here if it tracks team membership itself.
-        $attach = ConfigCallback::resolve(config('kinetix.membership.attach_member'));
+            abort_unless($locked !== null && $locked->isPending(), 410, 'This activation link is no longer valid.');
 
-        if ($attach !== null) {
-            $attach($user, $provision);
-            KinetixTeams::forgetCurrentTeam();
-        }
+            $provision->setRawAttributes($locked->getAttributes(), true);
 
-        KinetixMembership::syncRole($user, $provision, from: null, to: $provision->role);
+            $stored = $custom !== null ? ($provision->fields ?? []) : [];
 
-        $provision->update([
-            'status'       => MemberProvisionStatus::Active,
-            'activated_at' => now(),
-            'user_id'      => $user->getKey(),
-            'name'         => $validated['name'],
-        ]);
+            $user = $userModel::create([
+                ...$this->identifierAttributes($provision),
+                'name'     => $validated['name'],
+                'password' => Hash::make($validated['password']),
+            ]);
+
+            // Kinetix never touches the host's team pivot; the host attaches the
+            // user to its team here if it tracks team membership itself.
+            $attach = ConfigCallback::resolve(config('kinetix.membership.attach_member'));
+
+            if ($attach !== null) {
+                $attach($user, $provision);
+                KinetixTeams::forgetCurrentTeam();
+            }
+
+            KinetixMembership::syncRole($user, $provision, from: null, to: $provision->role);
+
+            if ($custom !== null) {
+                $context = $this->fieldsContext(MemberFieldsOperation::Activation, $provision->team_id, null, $provision, $user);
+
+                $this->withTeam($provision->team_id, static function () use ($custom, $user, $provision, $stored, $context): void {
+                    $custom->apply($user, $provision, $stored, $context);
+                });
+            }
+
+            $provision->update([
+                'status'       => MemberProvisionStatus::Active,
+                'activated_at' => now(),
+                'user_id'      => $user->getKey(),
+                'name'         => $validated['name'],
+                ...($custom !== null ? ['fields' => null] : []),
+            ]);
+
+            return [$user, $stored];
+        });
 
         if ($user instanceof Authenticatable) {
             Auth::login($user);
         }
+
+        MemberActivated::dispatch($provision, $user, $stored, false);
 
         return redirect()->intended((string) config('kinetix.membership.redirect_after', '/'));
     }
@@ -632,6 +806,42 @@ class MembershipController
     }
 
     // -----------------------------------------------------------------
+    // Custom member fields
+    // -----------------------------------------------------------------
+
+    protected function fieldsContext(
+        MemberFieldsOperation $operation,
+        int|string|null $teamId,
+        ?Authenticatable $actor,
+        ?MemberProvision $provision = null,
+        ?Model $user = null,
+    ): MemberFieldsContext {
+        return new MemberFieldsContext($operation, $teamId, $actor, $provision, $user);
+    }
+
+    /**
+     * The `fields` object of the request; anything else is no submission.
+     *
+     * @return array<string, mixed>
+     */
+    protected function submittedFields(Request $request): array
+    {
+        $fields = $request->input('fields', []);
+
+        return is_array($fields) ? $fields : [];
+    }
+
+    /**
+     * One 422 for every error found (the request's own and the fields').
+     */
+    protected function throwIfAny(MessageBag $errors): void
+    {
+        if ($errors->isNotEmpty()) {
+            throw ValidationException::withMessages($errors->messages());
+        }
+    }
+
+    // -----------------------------------------------------------------
     // Provisioning modes
     // -----------------------------------------------------------------
 
@@ -674,8 +884,14 @@ class MembershipController
      * `direct`: create the host User now with a temporary credential, attach it
      * to the team and assign the role — the whole of activation, done by the
      * admin, because there is nobody to send a link to.
+     *
+     * `$fields` is the validated custom member fields (null when none are
+     * configured): handed to the host's `apply()` before the member is marked
+     * active. Callers run this inside a transaction.
+     *
+     * @param array<string, mixed>|null $fields
      */
-    protected function provisionDirectly(MemberProvision $provision, Request $request): MemberCredential
+    protected function provisionDirectly(MemberProvision $provision, Request $request, ?array $fields = null): MemberCredential
     {
         $userModel = $this->userModel();
 
@@ -699,11 +915,22 @@ class MembershipController
 
         KinetixMembership::syncRole($user, $provision, from: null, to: $provision->role);
 
+        $custom = $fields !== null ? KinetixMembership::fields() : null;
+
+        if ($custom !== null) {
+            $context = $this->fieldsContext(MemberFieldsOperation::Provision, $provision->team_id, $request->user(), $provision, $user);
+
+            $this->withTeam($provision->team_id, static function () use ($custom, $user, $provision, $fields, $context): void {
+                $custom->apply($user, $provision, $fields, $context);
+            });
+        }
+
         $provision->update([
             'status'       => MemberProvisionStatus::Active,
             'activated_at' => now(),
             'user_id'      => $user->getKey(),
             'expires_at'   => null,
+            ...($custom !== null ? ['fields' => null] : []),
         ]);
 
         return $credential;
@@ -744,7 +971,7 @@ class MembershipController
     ): MemberCredential {
         $user ??= $this->resolveUser($provision->user_id);
 
-        abort_if($user === null, 422, 'This member has no account yet.');
+        abort_if($user === null, 422, __('kinetix.members_account_missing'));
 
         $plain = KinetixPasswords::issueTemporary($user);
 

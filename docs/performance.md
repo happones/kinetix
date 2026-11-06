@@ -86,6 +86,12 @@ their polls pause while the tab is hidden.
   action modals of a table or relation manager load when a modal opens. The
   form chunk and its field chunks download together, and the modal's submit
   button stays busy until the form has mounted.
+- **Member fields.** Without `membership.fields` the members screen ships no
+  form code at all. With it, the field renderer and the Edit member dialog are
+  separate chunks, preloaded once the list learns the app has fields. The
+  index calls your `schema()` once per request (index the option queries by
+  team), and a member's current values are fetched only when their Edit
+  dialog opens, so a long list costs no extra queries per row.
 - **Long lists.** Kanban columns and comment threads window their rows past
   40 rows (the default threshold), and the media library past 12 rows of tiles.
   `@tanstack/vue-virtual` downloads at that moment, not before; until it has

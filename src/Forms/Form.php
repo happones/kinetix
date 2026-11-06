@@ -10,6 +10,7 @@ use Happones\Kinetix\Data\FormFieldData;
 use Happones\Kinetix\Forms\Components\Component;
 use Happones\Kinetix\Forms\Components\Field;
 use Happones\Kinetix\Forms\Components\Repeater;
+use Happones\Kinetix\Forms\Components\Select;
 use Happones\Kinetix\Resources\Resource;
 use Happones\Kinetix\Support\Contracts\ResolvesRelationships;
 use Happones\Kinetix\Support\DescriptorAudience;
@@ -46,6 +47,11 @@ class Form implements Arrayable, JsonSerializable
     protected ?string $model = null;
 
     protected string $operation = 'create';
+
+    /**
+     * Whether every server-resolved Select accepts only its own options.
+     */
+    protected bool $strictOptions = false;
 
     /**
      * Form-level validation message overrides (highest precedence).
@@ -355,6 +361,21 @@ class Form implements Arrayable, JsonSerializable
     }
 
     /**
+     * Make every Select (and so Radio and CheckboxList) whose options are
+     * resolved server-side reject a value that is not one of them. A remote
+     * `searchUsing()` select is not constrained: its options cannot be
+     * enumerated, so scope it with a rule of your own.
+     *
+     * @internal
+     */
+    public function strictOptions(bool $condition = true): static
+    {
+        $this->strictOptions = $condition;
+
+        return $this;
+    }
+
+    /**
      * Get all validation rules.
      *
      * @param  array<string, mixed>             $data The submitted values, so conditional
@@ -404,6 +425,18 @@ class Form implements Arrayable, JsonSerializable
             if ($field->isConditionallyRequired($data) && ! in_array('required', $fieldRules, true)) {
                 $fieldRules = array_values(array_filter($fieldRules, static fn ($r): bool => $r !== 'nullable'));
                 array_unshift($fieldRules, 'required');
+            }
+
+            if ($this->strictOptions && $field instanceof Select) {
+                if ($this->model !== null) {
+                    $field->forModel($this->model);
+                }
+
+                $rule = $field->strictOptionRule($this->record);
+
+                if ($rule !== null) {
+                    $fieldRules[] = $rule;
+                }
             }
 
             $rules[$name] = $fieldRules;

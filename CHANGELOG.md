@@ -13,6 +13,121 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.280.0] - 2026-11-06
+
+Members can carry data of your own: a checkbox, a few inputs, or a relation
+such as the branches a member may work in. You collect it when a member is
+invited and edit it later from an Edit member dialog. Four lifecycle events
+let the rest of the app react to members joining, changing and leaving.
+
+### Added
+
+- `membership.fields` (default `null`): the class-string of a class extending
+  `Happones\Kinetix\Membership\MemberFields`. It has three methods:
+  - `schema(MemberFieldsContext)`: the Kinetix form components to show;
+  - `values(Model $user, MemberFieldsContext)`: an active member's current
+    values;
+  - `apply(Model $user, MemberProvision $provision, array $values, MemberFieldsContext)`:
+    writes the values to your own columns or pivots.
+
+  `MemberFieldsContext` carries `operation` (`Provision`, `Edit`,
+  `Activation`), `teamId`, `actor`, `provision` and `user`.
+- Pending values are stored on the invitation in a new nullable JSON column,
+  `kinetix_member_provisions.fields`, from migration `000053`. Publish it with
+  `--tag=kinetix-membership-migrations`; it is only needed when you use fields.
+  `apply()` runs when the member activates (or at once in `direct` mode).
+  After that the column is cleared and your app owns the data.
+- Member forms validate option fields against their own options: a `Select`,
+  `Radio` or `CheckboxList` value that isn't one of the options from
+  `schema()` is rejected. Resolve options for `$context->teamId` and an id from
+  another team never validates. A `relationship()` select is checked with a
+  query on its related query (your modifier applies, no option cap). Keys
+  outside the schema are dropped. Fields
+  hidden from the acting admin (on their own or inside a hidden section, grid
+  or fieldset) or `disabled()` for them ignore any submitted value: on edit
+  they keep their current one, and at invitation they're simply not stored
+  (`apply()` may then see the key missing). Hidden fields aren't validated, and the edit form
+  doesn't send their values to the browser.
+- `GET {prefix}/members/{provision}/fields` (`members.update`) returns a
+  member's current values. `PUT {prefix}/members/{provision}` accepts
+  `fields` next to `role`. The index adds `has_fields` and `fields_form`.
+- Events, all dispatched after commit:
+  - `MemberProvisioned` (`provision`, `actor`, `fields`);
+  - `MemberActivated` (`provision`, `user`, `fields`, `direct`);
+  - `MemberUpdated` (`previousRole`/`role`, `previousFields`/`fields`, with
+    `roleChanged()` and `fieldsChanged()`; fired only when something changed);
+  - `MemberRevoked` (`provision`, `actor`).
+- `KinetixMembership::revoke($provision, $actor = null)` accepts the actor
+  for the event.
+- `kinetix:doctor` reports a `membership.fields` class that doesn't exist or
+  doesn't extend `MemberFields`, a closure in that key, and a configured
+  `fields` class whose column is missing.
+- **(published)** `<KinetixMemberList>`:
+  - With fields configured, each non-revoked row has an Edit button (for
+    viewers with `members.update`). It opens a dialog with the role and your
+    fields, replacing the inline role select.
+  - The invite form shows your fields too.
+  - Without fields, the screen is unchanged and loads no form code.
+- **(published)** `<KinetixMemberProvisioner>`:
+  - New props `fields`, `errors` and `resetOnSubmit` (default `true`), and an
+    exposed `reset()`.
+  - Submit emits the field values as a fourth argument.
+- **(published)** `useKinetixMembers()` adds:
+  - `hasFields` and `fieldsForm`;
+  - `provision(..., fields?)`;
+  - `memberFields(member)` and `updateMember(member, { role, fields })`;
+  - `memberFieldErrors()`.
+- Docs: a "Custom member fields" section in `docs/membership.md` with two
+  end-to-end recipes:
+  - an independent-portal-access checkbox;
+  - branches: a pivot table, team-scoped options, `apply()`, and record
+    scoping through `Resource::getEloquentQuery()` plus a policy, including
+    which screens honour that query.
+
+### Changed
+
+- Activation, `direct` provisioning, role/field updates and revoking now run
+  in a database transaction. Previously, an `attach_member`, `assign_role` or
+  `detach_member` callback that threw left an orphan user (and a retry hit the
+  unique identifier) or a half-revoked member. Now nothing is kept. Revoke
+  and activation also re-read the invitation under a row lock, so two
+  concurrent requests can't both act on it.
+- A `PUT` that keeps the member's current role no longer calls
+  `assign_role`/`syncRole`. It also no longer answers 422 when that role has
+  since left the assignable list, so you can edit the fields of a member
+  whose role is locked.
+- The "member was revoked" 422 message is now translated (same English text).
+- In `<KinetixMemberList>`, a rejected invitation keeps what was typed;
+  the form resets only after a successful one.
+
+### Fixed
+
+- **(published)** Two forms rendering the same field name no longer produce
+  duplicate element ids (which broke `label[for]`, `aria-describedby` and
+  error focus). Form fields now read an optional id prefix provided by
+  their container (`KINETIX_FIELD_ID_PREFIX` / `useKinetixFieldId()`). The
+  member forms provide one; without a prefix ids are unchanged.
+- **(published)** `CheckboxList` rows (and its select-all) are at least 24px
+  tall, meeting the touch-target minimum.
+
+### Upgrade notes
+
+- With `membership.fields` left `null` nothing changes: the index payload only
+  gains `has_fields: false` and `fields_form: null`, the new column is never
+  read, and the migration is optional.
+- A subclass of `MembershipController` that overrides the protected
+  `provisionDirectly()` must add the new trailing `?array $fields = null`
+  parameter. Likewise, a subclass of `KinetixMembership` overriding
+  `revoke()` must add the trailing `?Authenticatable $actor = null` parameter.
+- `MemberProvisioned` and `MemberActivated` carry the field values: a queued
+  listener serializes them into the queue payload (and `failed_jobs` on
+  failure).
+- If `values()` returns option ids, return them as strings (as the form
+  submits them). Otherwise every save counts as a change and fires
+  `MemberUpdated`.
+- Re-publish the components (`--tag=kinetix-components --force`) to get the
+  new members UI.
+
 ## [0.279.0] - 2026-11-06
 
 Per-resource control over the messages shown after a record is created,

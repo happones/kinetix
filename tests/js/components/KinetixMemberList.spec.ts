@@ -3,10 +3,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import type {
     KinetixMemberAbilities,
+    KinetixMemberFieldsForm,
     KinetixMemberProvision,
     KinetixMemberRole,
 } from '@/types/kinetix';
 import { i18n } from './i18n';
+
+i18n.global.mergeLocaleMessage('en', {
+    kinetix: {
+        edit: 'Edit',
+        member_edit: 'Edit member',
+        member_edit_named: 'Edit {name}',
+        member_edit_description: "Change {name}'s role and details.",
+        member_details: 'Details',
+        member_updated: 'Member updated.',
+        member_fields_load_failed: "Couldn't load this member's details.",
+    },
+});
 
 const load = vi.fn().mockResolvedValue(undefined);
 const revoke = vi.fn().mockResolvedValue(undefined);
@@ -27,6 +40,10 @@ const ALL: KinetixMemberAbilities = {
 };
 const can = ref<KinetixMemberAbilities>({ ...ALL });
 const loading = ref(false);
+const hasFields = ref(false);
+const fieldsForm = ref<KinetixMemberFieldsForm | null>(null);
+const memberFields = vi.fn();
+const updateMember = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('@/composables/useKinetixMembers', async (importOriginal) => {
     const original =
@@ -36,6 +53,7 @@ vi.mock('@/composables/useKinetixMembers', async (importOriginal) => {
 
     return {
         roleLabel: original.roleLabel,
+        memberFieldErrors: original.memberFieldErrors,
         memberRoleLabel: original.memberRoleLabel,
         useKinetixMembers: () => ({
             provisions,
@@ -44,12 +62,16 @@ vi.mock('@/composables/useKinetixMembers', async (importOriginal) => {
             reservedRoles,
             identifierField,
             can,
+            hasFields,
+            fieldsForm,
             loading,
             load,
             provision,
             issueCredential,
             resend,
             updateRole,
+            memberFields,
+            updateMember,
             revoke,
         }),
     };
@@ -111,6 +133,10 @@ describe('KinetixMemberList', () => {
         assignableRoles.value = ['editor', 'viewer'];
         roles.value = [];
         can.value = { ...ALL };
+        hasFields.value = false;
+        fieldsForm.value = null;
+        memberFields.mockReset();
+        updateMember.mockReset().mockResolvedValue(undefined);
     });
 
     const buttonLabelled = (
@@ -381,5 +407,265 @@ describe('KinetixMemberList', () => {
 
         expect(w.find('h2').text()).toBe('Invitations');
         w.unmount();
+    });
+});
+
+const fieldsFormOf = (
+    data: Record<string, unknown> = {},
+): KinetixMemberFieldsForm => ({
+    schema: [
+        {
+            type: 'text-input',
+            name: 'badge',
+            label: 'Badge number',
+            columnSpan: 1,
+        },
+    ],
+    data: { badge: '', ...data },
+    rules: {},
+    operation: 'edit',
+});
+
+const until = async (check: () => unknown): Promise<void> => {
+    await vi.waitFor(() => expect(check()).toBeTruthy());
+};
+
+describe('KinetixMemberList with member fields', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        provisions.value = [...MEMBERS];
+        loading.value = false;
+        assignableRoles.value = ['editor', 'viewer'];
+        roles.value = [];
+        can.value = { ...ALL };
+        hasFields.value = true;
+        fieldsForm.value = fieldsFormOf();
+        memberFields
+            .mockReset()
+            .mockResolvedValue(fieldsFormOf({ badge: 'A-7' }));
+        updateMember.mockReset().mockResolvedValue(undefined);
+    });
+
+    const editButton = (wrapper: ReturnType<typeof mountList>, who: string) =>
+        wrapper
+            .findAll('[data-test="member-edit"]')
+            .find((b) => b.attributes('aria-label') === `Edit ${who}`);
+
+    const buttonLabelled = (
+        wrapper: ReturnType<typeof mountList>,
+        prefix: string,
+    ) =>
+        wrapper
+            .findAll('button')
+            .find((b) => (b.attributes('aria-label') ?? '').startsWith(prefix));
+
+    const dialog = (): HTMLElement | null =>
+        document.querySelector('[role="dialog"]');
+
+    it('offers Edit on non-revoked rows with update rights, in place of the inline select', () => {
+        const wrapper = mountList();
+
+        expect(wrapper.findAll('[data-test="member-edit"]')).toHaveLength(2);
+        expect(editButton(wrapper, 'Gone Person')).toBeUndefined();
+        // Only the provisioner's select remains: rows show the role as text.
+        expect(wrapper.findAllComponents(KinetixSelect)).toHaveLength(1);
+        expect(wrapper.findAll('[data-test="member-role-text"]')).toHaveLength(
+            3,
+        );
+
+        can.value = { ...ALL, update: false };
+        const readOnly = mountList();
+        expect(readOnly.findAll('[data-test="member-edit"]')).toHaveLength(0);
+    });
+
+    it('keeps the inline select when the app has no member fields', () => {
+        hasFields.value = false;
+        fieldsForm.value = null;
+
+        const wrapper = mountList();
+
+        expect(wrapper.findAll('[data-test="member-edit"]')).toHaveLength(0);
+        expect(wrapper.findAllComponents(KinetixSelect)).toHaveLength(3);
+    });
+
+    it('loads the member, saves role and fields, then closes and toasts', async () => {
+        const wrapper = mountList();
+
+        await editButton(wrapper, 'Active Person')!.trigger('click');
+        await until(() =>
+            document.querySelector('[role="dialog"] input[id$="-badge"]'),
+        );
+
+        expect(memberFields).toHaveBeenCalledWith(MEMBERS[0]);
+        const input = document.querySelector(
+            '[role="dialog"] input[id$="-badge"]',
+        ) as HTMLInputElement;
+        expect(input.value).toBe('A-7');
+
+        input.value = 'B-9';
+        input.dispatchEvent(new Event('input'));
+        (
+            document.querySelector(
+                'form#kinetix-member-edit-form',
+            ) as HTMLFormElement
+        ).requestSubmit();
+
+        await until(() => updateMember.mock.calls.length > 0);
+        expect(updateMember).toHaveBeenCalledWith(MEMBERS[0], {
+            role: 'editor',
+            fields: { badge: 'B-9' },
+        });
+        await until(() => dialog() === null);
+        expect(load.mock.calls.length).toBeGreaterThan(1);
+    });
+
+    it('keeps the dialog open and shows the field errors on a 422', async () => {
+        const error = Object.assign(new Error('Invalid'), {
+            status: 422,
+            errors: { 'fields.badge': ['Badge is taken.'], role: ['Nope'] },
+        });
+        updateMember.mockRejectedValueOnce(error);
+
+        const wrapper = mountList();
+
+        await editButton(wrapper, 'Active Person')!.trigger('click');
+        await until(() =>
+            document.querySelector('[role="dialog"] input[id$="-badge"]'),
+        );
+        (
+            document.querySelector(
+                'form#kinetix-member-edit-form',
+            ) as HTMLFormElement
+        ).requestSubmit();
+
+        await until(() =>
+            document.body.textContent?.includes('Badge is taken.'),
+        );
+        expect(dialog()).not.toBeNull();
+        expect(
+            document
+                .querySelector('[role="dialog"] input[id$="-badge"]')!
+                .getAttribute('aria-invalid'),
+        ).toBe('true');
+    });
+
+    it('closes the dialog with a toast when the member cannot be loaded', async () => {
+        memberFields.mockRejectedValueOnce(new Error('boom'));
+        const { toast } = await import('vue-sonner');
+
+        const wrapper = mountList();
+
+        await editButton(wrapper, 'Active Person')!.trigger('click');
+
+        await until(
+            () => (toast.error as ReturnType<typeof vi.fn>).mock.calls.length,
+        );
+        expect(toast.error).toHaveBeenCalledWith(
+            "Couldn't load this member's details.",
+        );
+        await until(() => dialog() === null);
+    });
+
+    it('provisions with the fields and clears the form only on success', async () => {
+        provision.mockRejectedValueOnce(
+            Object.assign(new Error('Invalid'), {
+                status: 422,
+                errors: { 'fields.badge': ['Required.'] },
+            }),
+        );
+
+        const wrapper = mountList();
+
+        await wrapper.get('#kinetix-member-email').setValue('new@example.com');
+        await until(() => wrapper.find('input[id$="-badge"]').exists());
+        await wrapper.get('input[id$="-badge"]').setValue('Z-1');
+        await wrapper.get('form').trigger('submit');
+
+        await until(() => provision.mock.calls.length > 0);
+        expect(provision).toHaveBeenCalledWith(
+            'new@example.com',
+            'editor',
+            null,
+            { badge: 'Z-1' },
+        );
+
+        // Rejected: what was typed is still there, the error under the field.
+        await until(() => wrapper.text().includes('Required.'));
+        expect(
+            (wrapper.get('#kinetix-member-email').element as HTMLInputElement)
+                .value,
+        ).toBe('new@example.com');
+        expect(
+            (wrapper.get('input[id$="-badge"]').element as HTMLInputElement)
+                .value,
+        ).toBe('Z-1');
+
+        // Accepted: now it clears.
+        await wrapper.get('form').trigger('submit');
+        await until(
+            () =>
+                (
+                    wrapper.get('#kinetix-member-email')
+                        .element as HTMLInputElement
+                ).value === '',
+        );
+        expect(
+            (wrapper.get('input[id$="-badge"]').element as HTMLInputElement)
+                .value,
+        ).toBe('');
+    });
+
+    it('keeps the typed custom fields across a reload after a row action', async () => {
+        load.mockImplementation(async () => {
+            fieldsForm.value = fieldsFormOf();
+        });
+
+        const wrapper = mountList();
+
+        await until(() => wrapper.find('input[id$="-badge"]').exists());
+        await wrapper.get('input[id$="-badge"]').setValue('Z-1');
+
+        await buttonLabelled(wrapper, 'Resend — pending@example.com')!.trigger(
+            'click',
+        );
+        await until(() => resend.mock.calls.length > 0);
+        await until(() => load.mock.calls.length > 1);
+        await wrapper.vm.$nextTick();
+
+        expect(
+            (wrapper.get('input[id$="-badge"]').element as HTMLInputElement)
+                .value,
+        ).toBe('Z-1');
+        load.mockReset().mockResolvedValue(undefined);
+    });
+
+    it('does not reset the provisioner when a pending row action blocks the submit', async () => {
+        let release!: () => void;
+        resend.mockReturnValueOnce(
+            new Promise<void>((resolve) => (release = resolve)),
+        );
+
+        const wrapper = mountList();
+
+        await until(() => wrapper.find('input[id$="-badge"]').exists());
+        await buttonLabelled(wrapper, 'Resend — pending@example.com')!.trigger(
+            'click',
+        );
+        await wrapper.get('#kinetix-member-email').setValue('new@example.com');
+        await wrapper.get('input[id$="-badge"]').setValue('Z-2');
+        await wrapper.get('form').trigger('submit');
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(provision).not.toHaveBeenCalled();
+        expect(
+            (wrapper.get('#kinetix-member-email').element as HTMLInputElement)
+                .value,
+        ).toBe('new@example.com');
+        expect(
+            (wrapper.get('input[id$="-badge"]').element as HTMLInputElement)
+                .value,
+        ).toBe('Z-2');
+
+        release();
     });
 });

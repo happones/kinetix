@@ -1,10 +1,16 @@
 import { usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
-import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
+import {
+    isKinetixFetchError,
+    kinetixFetch,
+    kinetixRoutePrefix,
+} from '@/composables/useKinetixHttp';
 import type {
     KinetixMemberAbilities,
+    KinetixMemberFieldsForm,
     KinetixMemberProvision,
     KinetixMemberRole,
+    KinetixMemberUpdate,
     KinetixSharedProps,
 } from '@/types/kinetix';
 
@@ -18,6 +24,10 @@ interface MembersResponse {
     identifier_field?: KinetixMemberIdentifier;
     reserved_roles?: string[];
     can?: KinetixMemberAbilities;
+    /** Absent from servers older than v0.280.0. */
+    has_fields?: boolean;
+    /** The provisioning form; null unless the app has member fields and the viewer may provision. */
+    fields_form?: KinetixMemberFieldsForm | null;
 }
 
 const ALL_ABILITIES: KinetixMemberAbilities = {
@@ -47,6 +57,37 @@ export function memberRoleLabel(
     return roles.find((role) => role.name === name)?.label || roleLabel(name);
 }
 
+const FIELD_ERROR_PREFIX = 'fields.';
+
+/**
+ * The per-field messages of a rejected member request: the server keys custom
+ * field errors `fields.<name>`; this returns `{ <name>: firstMessage }` and
+ * ignores every other key (identifier, role) and any non-validation failure.
+ */
+export function memberFieldErrors(error: unknown): Record<string, string> {
+    if (!isKinetixFetchError(error)) {
+        return {};
+    }
+
+    const errors = (error as { errors?: Record<string, string[] | string> })
+        .errors;
+    const result: Record<string, string> = {};
+
+    for (const [key, messages] of Object.entries(errors ?? {})) {
+        if (!key.startsWith(FIELD_ERROR_PREFIX)) {
+            continue;
+        }
+
+        const message = Array.isArray(messages) ? messages[0] : messages;
+
+        if (message) {
+            result[key.slice(FIELD_ERROR_PREFIX.length)] = message;
+        }
+    }
+
+    return result;
+}
+
 /**
  * CRUD for the admin-provisioned Membership module, talking to Kinetix's
  * `members` endpoints. The route prefix (incl. any team segment) comes from the
@@ -66,6 +107,8 @@ export function useKinetixMembers() {
     const reservedRoles = ref<string[]>([]);
     const identifierField = ref<KinetixMemberIdentifier>('email');
     const can = ref<KinetixMemberAbilities>({ ...ALL_ABILITIES });
+    const hasFields = ref(false);
+    const fieldsForm = ref<KinetixMemberFieldsForm | null>(null);
     const loading = ref(false);
 
     async function load(): Promise<void> {
@@ -86,6 +129,8 @@ export function useKinetixMembers() {
             reservedRoles.value = data?.reserved_roles ?? [];
             identifierField.value = data?.identifier_field ?? 'email';
             can.value = { ...ALL_ABILITIES, ...data?.can };
+            hasFields.value = data?.has_fields ?? false;
+            fieldsForm.value = data?.fields_form ?? null;
         } finally {
             loading.value = false;
         }
@@ -100,6 +145,7 @@ export function useKinetixMembers() {
         identifier: string,
         role: string,
         name: string | null = null,
+        fields?: Record<string, unknown>,
     ): Promise<KinetixMemberProvision | null> {
         return kinetixFetch<KinetixMemberProvision>(base(), {
             method: 'POST',
@@ -107,6 +153,7 @@ export function useKinetixMembers() {
                 [identifierField.value]: identifier,
                 role,
                 ...(name ? { name } : {}),
+                ...(fields ? { fields } : {}),
             },
         });
     }
@@ -137,6 +184,28 @@ export function useKinetixMembers() {
         });
     }
 
+    /** A member's custom-field form, filled with their current values. */
+    async function memberFields(
+        member: KinetixMemberProvision,
+    ): Promise<KinetixMemberFieldsForm | null> {
+        const data = await kinetixFetch<{ form: KinetixMemberFieldsForm }>(
+            `${base()}/${member.id}/fields`,
+        );
+
+        return data?.form ?? null;
+    }
+
+    /** Change a member's role and, when the app has them, their custom fields. */
+    async function updateMember(
+        member: KinetixMemberProvision,
+        update: KinetixMemberUpdate,
+    ): Promise<unknown> {
+        return kinetixFetch(`${base()}/${member.id}`, {
+            method: 'PUT',
+            body: update,
+        });
+    }
+
     async function revoke(member: KinetixMemberProvision): Promise<unknown> {
         return kinetixFetch(`${base()}/${member.id}`, { method: 'DELETE' });
     }
@@ -148,12 +217,16 @@ export function useKinetixMembers() {
         reservedRoles,
         identifierField,
         can,
+        hasFields,
+        fieldsForm,
         loading,
         load,
         provision,
         issueCredential,
         resend,
         updateRole,
+        memberFields,
+        updateMember,
         revoke,
     };
 }

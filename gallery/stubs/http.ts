@@ -61,6 +61,66 @@ const importFields = [
     'notes',
 ];
 
+/** Set by the members-with-fields specimen: the index then reports custom member fields. */
+const membersWithFields = (): boolean =>
+    (globalThis as { __kinetixMemberFields?: boolean })
+        .__kinetixMemberFields === true;
+
+const galleryMemberFieldValues = {
+    portal_access: true,
+    badge: 'EMP-0042',
+    branch_ids: ['1', '3'],
+    shift: 'night',
+};
+
+/**
+ * The custom fields of the members specimen. The toggle is edit-only: the
+ * audit measures the page behind an open dialog too, and a switch under the
+ * overlay reads as an uncovered small target.
+ */
+const galleryMemberFieldsForm = (withToggle = true) => ({
+    schema: [
+        {
+            type: 'text-input',
+            name: 'badge',
+            label: 'Badge number',
+            columnSpan: 1,
+        },
+        ...(withToggle
+            ? [
+                  {
+                      type: 'toggle',
+                      name: 'portal_access',
+                      label: 'Independent portal access',
+                      columnSpan: 1,
+                  },
+              ]
+            : []),
+        {
+            type: 'checkbox-list',
+            name: 'branch_ids',
+            label: 'Branches',
+            columnSpan: 1,
+            isBulkToggleable: true,
+            options: { '1': 'Downtown', '2': 'Airport', '3': 'Harbor' },
+        },
+        {
+            type: 'select',
+            name: 'shift',
+            label: 'Shift',
+            columnSpan: 1,
+            options: { day: 'Day', night: 'Night' },
+        },
+    ],
+    data: { portal_access: false, badge: '', branch_ids: [], shift: 'day' },
+    rules: {},
+    operation: 'create',
+    precognitive: false,
+    validationUrl: null,
+    validationMethod: 'post',
+    recomputeDescriptor: null,
+});
+
 const fixtures: Array<{ match: RegExp; data: unknown }> = [
     // AddressPicker locations mode: Mexico's states, then Jalisco's cities.
     {
@@ -1423,6 +1483,18 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
         },
     },
     {
+        // One member's custom-field form (the Edit member dialog), filled
+        // with their current values. The PUT that saves it has no fixture:
+        // the stub answers null, which the list treats as saved.
+        match: /\/members\/\d+\/fields$/,
+        data: {
+            form: {
+                ...galleryMemberFieldsForm(),
+                data: galleryMemberFieldValues,
+            },
+        },
+    },
+    {
         match: /\/members$/,
         data: {
             provisions: galleryMembers(),
@@ -1464,6 +1536,15 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
                 update: true,
                 revoke: true,
                 credentials: true,
+            },
+            // The members-with-fields specimen switches these on.
+            get has_fields() {
+                return membersWithFields();
+            },
+            get fields_form() {
+                return membersWithFields()
+                    ? galleryMemberFieldsForm(false)
+                    : null;
             },
         },
     },

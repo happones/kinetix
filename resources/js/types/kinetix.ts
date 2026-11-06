@@ -1211,6 +1211,18 @@ export interface KinetixMemberProvision {
     };
 }
 
+/**
+ * The form a host's `MemberFields` class describes (membership.fields): the
+ * provisioning form on the index, the member's current values when editing.
+ */
+export type KinetixMemberFieldsForm = KinetixFormActionForm;
+
+/** Body of a member update: the role, plus the custom fields when the app has any. */
+export interface KinetixMemberUpdate {
+    role: string;
+    fields?: Record<string, unknown>;
+}
+
 /** A role the member picker offers, with what it means. */
 export interface KinetixMemberRole {
     name: string;

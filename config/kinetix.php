@@ -808,6 +808,14 @@ return [
         // spatie for members.
         'assign_role' => null,
 
+        // Extra data collected about a member (a flag, a few inputs, the
+        // branches they work in): the class-string of a class extending
+        // Happones\Kinetix\Membership\MemberFields. A class-string, not a
+        // closure, so it survives config:cache. Needs the
+        // `kinetix-membership-migrations` tag published and migrated.
+        // See docs/membership.md (Custom member fields).
+        'fields' => null,
+
         // Permissions that protect a member from having their password reset
         // by someone who doesn't hold them too (and team owners from
         // non-owners). Super-admins are always protected.

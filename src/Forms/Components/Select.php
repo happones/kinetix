@@ -6,6 +6,8 @@ namespace Happones\Kinetix\Forms\Components;
 
 use Closure;
 use Happones\Kinetix\Data\FormFieldData;
+use Happones\Kinetix\Forms\Form;
+use Happones\Kinetix\Forms\Rules\InOptions;
 use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\Contracts\HasLabel;
 use Happones\Kinetix\Support\Contracts\ResolvesRelationships;
@@ -13,6 +15,7 @@ use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Crypt;
 
 class Select extends Field implements ResolvesRelationships
@@ -337,6 +340,64 @@ class Select extends Field implements ResolvesRelationships
         }
 
         return $this->options;
+    }
+
+    /**
+     * The rule a strict form holds this field to: membership in the options,
+     * or — for a `relationship()` — a query on the related table, because the
+     * eager options are capped and would refuse valid ids past the cap. Null
+     * when nothing can be enforced (remote search).
+     *
+     * @internal Backs {@see Form::strictOptions()}.
+     */
+    public function strictOptionRule(?Model $record = null): ?InOptions
+    {
+        if ($this->searchModel !== null) {
+            return null;
+        }
+
+        $query = $this->relationshipName !== null ? $this->relatedQuery() : null;
+
+        if ($query !== null) {
+            $key = $query->getModel()->getKeyName();
+
+            return new InOptions(null, static fn (array $ids): Collection => (clone $query)->whereKey($ids)->pluck($key));
+        }
+
+        return new InOptions($this->allowedOptionKeys($record));
+    }
+
+    /**
+     * The option keys a submission may hold, as strings, with option groups
+     * flattened; null when they cannot be enumerated (remote search).
+     *
+     * @internal Backs {@see Form::strictOptions()}.
+     *
+     * @return array<int, string>|null
+     */
+    public function allowedOptionKeys(?Model $record = null): ?array
+    {
+        if ($this->searchModel !== null) {
+            return null;
+        }
+
+        $keys = [];
+
+        $collect = static function (array $options) use (&$collect, &$keys): void {
+            foreach ($options as $key => $label) {
+                if (is_array($label)) {
+                    $collect($label);
+
+                    continue;
+                }
+
+                $keys[(string) $key] = true;
+            }
+        };
+
+        $collect($this->getFieldOptions($record) ?? []);
+
+        return array_map('strval', array_keys($keys));
     }
 
     /**

@@ -12,6 +12,7 @@ use Happones\Kinetix\Credentials\PasswordPolicy;
 use Happones\Kinetix\Entitlements\Entitlement;
 use Happones\Kinetix\Entitlements\EntitlementRegistry;
 use Happones\Kinetix\Membership\MemberActivationNotification;
+use Happones\Kinetix\Membership\MemberFields;
 use Happones\Kinetix\Membership\MemberProvision;
 use Happones\Kinetix\Membership\MemberProvisionStatus;
 use Happones\Kinetix\NotificationPreferences\NotificationTypeRegistry;
@@ -873,6 +874,7 @@ class DoctorCommand extends Command
         }
 
         $this->checkAssignableRoles(config('kinetix.membership.assignable_roles'));
+        $this->checkMemberFields();
         $this->checkPendingProvisionsOfMembers();
 
         // Role tables scope by the PERMISSIONS flag; membership routes scope by
@@ -883,6 +885,36 @@ class DoctorCommand extends Command
                 'Provisions are scoped by membership.teams while role rows are scoped by permissions.teams — '
                 .'role assignments may land in the wrong tenant. Align both flags (or leave both null to inherit kinetix.teams).');
         }
+    }
+
+    /**
+     * `membership.fields` must name a MemberFields class, and its values need
+     * the `fields` column of the provisions table.
+     */
+    protected function checkMemberFields(): void
+    {
+        $class = config('kinetix.membership.fields');
+
+        if ($class === null || $class === '' || $class instanceof \Closure) {
+            return;
+        }
+
+        if (! is_string($class) || ! is_subclass_of($class, MemberFields::class)) {
+            $this->error_('Membership', 'membership.fields is not a MemberFields class',
+                'Set it to the class-string of a class extending '.MemberFields::class.'. '
+                .'Until then the members screen fails instead of dropping the fields silently.');
+
+            return;
+        }
+
+        if (Schema::hasTable('kinetix_member_provisions') && ! Schema::hasColumn('kinetix_member_provisions', 'fields')) {
+            $this->error_('Membership', 'member fields are configured but the provisions table has no `fields` column',
+                'Run: php artisan vendor:publish --tag=kinetix-membership-migrations && php artisan migrate');
+
+            return;
+        }
+
+        $this->ok('Membership', 'member fields configured');
     }
 
     /**
@@ -1156,6 +1188,7 @@ class DoctorCommand extends Command
             'kinetix.membership.attach_member',
             'kinetix.membership.detach_member',
             'kinetix.membership.assign_role',
+            'kinetix.membership.fields',
             'kinetix.billing.authorize',
             'kinetix.billing.resolve_billable',
             'kinetix.connected_accounts.email_verified',

@@ -16,19 +16,20 @@ use Illuminate\Support\Carbon;
  * it is created immediately with a temporary credential — the trade for working
  * with no delivery channel at all.
  *
- * @property int|string            $id
- * @property int|string|null       $team_id
- * @property string|null           $email
- * @property string|null           $username
- * @property string|null           $phone
- * @property string|null           $name
- * @property string                $role
- * @property int|string|null       $invited_by
- * @property int|string|null       $user_id
- * @property MemberProvisionStatus $status
- * @property Carbon|null           $expires_at
- * @property Carbon|null           $activated_at
- * @property Carbon|null           $created_at
+ * @property int|string                $id
+ * @property int|string|null           $team_id
+ * @property string|null               $email
+ * @property string|null               $username
+ * @property string|null               $phone
+ * @property string|null               $name
+ * @property string                    $role
+ * @property array<string, mixed>|null $fields
+ * @property int|string|null           $invited_by
+ * @property int|string|null           $user_id
+ * @property MemberProvisionStatus     $status
+ * @property Carbon|null               $expires_at
+ * @property Carbon|null               $activated_at
+ * @property Carbon|null               $created_at
  */
 class MemberProvision extends Model
 {
@@ -43,6 +44,7 @@ class MemberProvision extends Model
     {
         return [
             'status'       => MemberProvisionStatus::class,
+            'fields'       => 'array',
             'expires_at'   => 'datetime',
             'activated_at' => 'datetime',
         ];

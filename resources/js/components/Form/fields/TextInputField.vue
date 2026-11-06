@@ -9,10 +9,12 @@ import {
     fieldRequirements,
     formatHolds,
 } from '@/composables/kinetixFieldConstraints';
+import { useKinetixFieldId } from '@/composables/useKinetixFieldId';
 import { inputClass } from '@/composables/useKinetixShadcnVariants';
 import KinetixCopyableInput from '../../KinetixCopyableInput.vue';
 import KinetixPasswordInput from '../../KinetixPasswordInput.vue';
 
+const fieldId = useKinetixFieldId();
 const props = defineProps<{ comp: any; value: any }>();
 
 const emit = defineEmits<{ (e: 'update', value: any): void }>();
@@ -86,7 +88,7 @@ const onInput = (event: Event): void => {
     <!-- Copyable/revealable variant -->
     <KinetixCopyableInput
         v-if="comp.isCopyable || comp.isRevealable"
-        :id="comp.name"
+        :id="fieldId(comp.name)"
         :value="value"
         :input-type="comp.inputType || 'text'"
         :placeholder="comp.placeholder"
@@ -99,7 +101,7 @@ const onInput = (event: Event): void => {
 
     <KinetixPasswordInput
         v-else-if="isPassword"
-        :id="comp.name"
+        :id="fieldId(comp.name)"
         :value="value"
         :placeholder="comp.placeholder"
         :disabled="comp.isDisabled"
@@ -113,13 +115,13 @@ const onInput = (event: Event): void => {
     <div v-else class="relative flex">
         <span
             v-if="comp.prefix"
-            :id="`${comp.name}-prefix`"
+            :id="fieldId(`${comp.name}-prefix`)"
             class="px-3 text-sm inline-flex shrink-0 items-center rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground"
             >{{ comp.prefix }}</span
         >
         <div class="min-w-0 relative flex-1">
             <input
-                :id="comp.name"
+                :id="fieldId(comp.name)"
                 :value="value"
                 :type="comp.inputType || 'text'"
                 :placeholder="comp.placeholder"
@@ -141,7 +143,7 @@ const onInput = (event: Event): void => {
         </div>
         <span
             v-if="comp.suffix"
-            :id="`${comp.name}-suffix`"
+            :id="fieldId(`${comp.name}-suffix`)"
             class="px-3 text-sm inline-flex shrink-0 items-center rounded-r-md border border-l-0 border-input bg-muted text-muted-foreground"
             >{{ comp.suffix }}</span
         >

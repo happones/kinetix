@@ -151,7 +151,8 @@ container.
 ## 2.1 Callback options (`config:cache`-safe)
 
 Four options here take a callback: `attach_member`, `detach_member`,
-`assignable_roles`, and (in Permissions) `owner_bypass.using`. **Never write them as a
+`assignable_roles`, and (in Permissions) `owner_bypass.using`. `fields`
+([§2.6](#custom-fields)) takes a class-string instead. **Never write them as a
 closure.** A closure in a config file makes the config uncacheable, so the app
 cannot be deployed with `config:cache`:
 
@@ -493,6 +494,242 @@ field carries it — while `email`, `username` and `phone` travel alongside it.
 `<KinetixMemberProvisioner>` takes an `identifier-type` prop mirroring the
 server setting, so the field gets the right label and keyboard.
 
+## 2.6 Custom member fields {#custom-fields}
+
+Some members need more than a name and a role: a flag ("independent portal
+access"), a job title, the branches they work in. Point
+`membership.fields` at a class extending `MemberFields` and the members screen
+collects those values when a member is invited and when they are edited. The
+form is the Kinetix [forms engine](/forms), so rules, conditions, labels and
+accessibility are the ones you already know.
+
+```php
+'fields' => \App\Kinetix\MemberBranches::class,   // a class-string: config:cache-safe
+```
+
+::: warning One migration, only for fields
+Pending values live in a nullable JSON column, `kinetix_member_provisions.fields`.
+Apps that adopt fields publish and run it; apps that don't never need it:
+
+```bash
+php artisan vendor:publish --tag=kinetix-membership-migrations && php artisan migrate
+```
+
+`kinetix:doctor` reports a configured `fields` class whose column is missing.
+:::
+
+### The contract
+
+```php
+use Happones\Kinetix\Membership\MemberFields;
+use Happones\Kinetix\Membership\MemberFieldsContext;
+use Happones\Kinetix\Membership\MemberProvision;
+use Illuminate\Database\Eloquent\Model;
+
+class MemberBranches extends MemberFields
+{
+    public function schema(MemberFieldsContext $context): array;   // Kinetix form components
+    public function values(Model $user, MemberFieldsContext $context): array;   // read back, ACTIVE members
+    public function apply(Model $user, MemberProvision $provision, array $values, MemberFieldsContext $context): void;
+}
+```
+
+The class is resolved through the container, so constructor injection works.
+`MemberFieldsContext` is immutable and read by name; new properties may arrive
+in minor versions.
+
+| Property | Meaning |
+|---|---|
+| `operation` | `MemberFieldsOperation::Provision`, `Edit` or `Activation` |
+| `teamId` | The provision's team (the request's team while provisioning) |
+| `actor` | The admin acting; `null` on activation, where the member acts for themself |
+| `provision` | The `MemberProvision`; `null` while the provisioning form is built |
+| `user` | The member's account, once it exists |
+
+### Lifecycle
+
+```mermaid
+flowchart LR
+    A[Admin provisions] -->|validated| B[JSON on the pending provision]
+    B -->|member activates| C[apply: inside the transaction]
+    A -->|direct mode| C
+    C --> D[fields column set to null]
+    D --> E[The host is the source of truth]
+    E -->|admin edits| F[values to fill the form, apply to save]
+```
+
+- **Pending**: the validated values are the JSON `fields` column. Editing a
+  pending member rewrites the JSON; `apply()` is not called, there is no account yet.
+- **Activation** (and `direct` provisioning): `apply()` runs inside the same
+  database transaction that creates the user, runs `attach_member` and assigns
+  the role. If any of them throws, nothing is kept: no user, the invitation
+  stays pending. Afterwards the column is set to `null`: the host owns the
+  data, and Kinetix keeps no stale copy. The values still travel on the
+  `MemberActivated` event.
+- **Active**: the edit form opens with what `values()` returns; saving calls
+  `apply()` with the full state (not a diff) inside a transaction.
+
+`apply()` runs with spatie's team pinned to the provision's team. `$values` may
+lack keys for invitations sent before the field existed: read with a default.
+If an id stored at invitation time has disappeared by activation, activation
+still succeeds and `apply()` should drop it.
+
+### Supported components
+
+- Inputs: `TextInput`, `Textarea`, `NumberField`, `Checkbox`, `Toggle`.
+- Options: `Select` (static, closure or enum options, `relationship()`), `Radio`,
+  `CheckboxList`, `TagsInput`. The multi-choice field is `CheckboxList`.
+- Dates: `DatePicker`, `DateTimePicker`, `TimePicker`.
+- Layout: `Section`, `Grid`, `Fieldset`, `Placeholder`, `Hidden`.
+
+Not supported: `FileUpload`, `MediaLibrary`, `Repeater`, `TableRepeater` and
+`RichEditor` (they need a record or an upload descriptor), write-only secrets,
+and server reactivity (`live()`). Client-side `visibleWhen()` and
+`requiredWhen()` work.
+
+### Options are an allow-list
+
+Member forms are built in strict-options mode: every `Select`, `Radio` and
+`CheckboxList` whose options come from your `schema()` rejects a value that is
+not one of them, with the error on `fields.<name>`. Resolve option lists for
+`$context->teamId`, and a forged id from another team never validates. A
+remote `searchUsing()` select cannot be enumerated and is **not** constrained:
+add a team-scoped `Rule::exists()` to it.
+
+A `Select` built with `relationship()` works too, if the relationship is defined
+on `membership.user_model` (that model is the form's owner). It is checked with a
+query on the related table (so the eager options cap never rejects a valid id),
+the ids must match exactly (`1abc` is not `1`), and your relationship query
+modifier still applies.
+
+Only the schema's own fields reach the JSON or `apply()`, so a smuggled key is
+dropped. A `disabled()` field keeps its current value: a submitted value for it
+is ignored, not stripped. A field is **shown** to the acting admin unless it,
+or a layout around it (`Section`, `Grid`, `Fieldset`, tabs), is hidden by
+`hidden`/`visible(false)`/`hiddenOn`/`visibleOn`. A field that is not shown has
+no validation rules (a required field inside a hidden section never blocks the
+save), ignores a submitted value, and is left out of the form `data` and
+`rules` sent to the browser. On **edit** it keeps its previous value, as does
+a stored key the schema does not know, so `apply()` still receives the full
+state and one admin saving a form never wipes what another could see. A field
+that a client-side condition (`visibleWhen`) hides is still shown by this
+definition: it travels to the browser and is cleared when the condition hides it.
+
+To tell whether an edit changed anything (and so whether `MemberUpdated` fires),
+values are normalized: keys are sorted and lists of scalars are sorted too, so
+reordering alone (a `TagsInput`, a `CheckboxList`) is not a change. Return
+option ids from `values()` as strings, like the form state.
+
+Restrict who may touch a field through `schema($context)`: the actor is
+in the context, so a field can be hidden or `disabled()` for them.
+
+### Recipe A: an "Independent portal access" checkbox
+
+```php
+// users.portal_access (boolean, default false)
+class MemberPortalAccess extends MemberFields
+{
+    public function schema(MemberFieldsContext $context): array
+    {
+        return [Toggle::make('portal_access')->label('Independent portal access')];
+    }
+
+    public function values(Model $user, MemberFieldsContext $context): array
+    {
+        return ['portal_access' => (bool) $user->portal_access];
+    }
+
+    public function apply(Model $user, MemberProvision $provision, array $values, MemberFieldsContext $context): void
+    {
+        $user->forceFill(['portal_access' => (bool) ($values['portal_access'] ?? false)])->save();
+    }
+}
+```
+
+Gate the portal routes with a middleware or a `Gate` that reads the column:
+the checkbox grants nothing by itself.
+
+### Recipe B: branches, end to end
+
+1. **Schema.** A `branches` table with an indexed `team_id`, and a `branch_user`
+   pivot (`branch_id`, `user_id`).
+2. **Relation.** `User::branches()`, a `belongsToMany`.
+3. **Fields class.**
+
+```php
+class MemberBranches extends MemberFields
+{
+    public function schema(MemberFieldsContext $context): array
+    {
+        return [
+            CheckboxList::make('branch_ids')
+                ->label('Branches')
+                ->options(fn () => Branch::where('team_id', $context->teamId)->pluck('name', 'id')->all())
+                ->bulkToggleable(),
+        ];
+    }
+
+    public function values(Model $user, MemberFieldsContext $context): array
+    {
+        return [
+            'branch_ids' => $user->branches()
+                ->where('branches.team_id', $context->teamId)
+                ->pluck('branches.id')->map(fn ($id) => (string) $id)->all(),
+        ];
+    }
+
+    public function apply(Model $user, MemberProvision $provision, array $values, MemberFieldsContext $context): void
+    {
+        // Re-scope on write: activation happens later, and options may have changed.
+        $chosen = Branch::where('team_id', $provision->team_id)
+            ->whereKey($values['branch_ids'] ?? [])
+            ->pluck('id');
+
+        // Only this team's branches are detached; other teams' rows are never touched.
+        $user->branches()
+            ->where('branches.team_id', $provision->team_id)
+            ->whereNotIn('branches.id', $chosen)
+            ->detach();
+
+        $user->branches()->syncWithoutDetaching($chosen);
+    }
+}
+```
+
+4. **Scope the records.** Restrict what a restricted role sees in
+   `Resource::getEloquentQuery()`, for example `branch_id IN` the user's branches:
+
+```php
+public static function getEloquentQuery(): Builder
+{
+    $query = parent::getEloquentQuery();
+    $user  = auth()->user();
+
+    return $user->hasRole('editor')
+        ? $query->whereIn('branch_id', $user->branches()->pluck('branches.id'))
+        : $query;
+}
+```
+
+   These Kinetix surfaces honor `getEloquentQuery()`: the table (index, search,
+   filters, sort, pagination), its aggregates, the record modal (read and
+   create), inline cell edits and reorder, row actions, bulk actions, form
+   reactivity (recompute) for a record, and the attach and associate pickers of
+   a relation manager that declares `$relatedResource`.
+
+   These do **not**, and need their own scope: an `Exporter` (override
+   `query()`), an `Importer` (override `query()`), Spotlight (give
+   `SpotlightResource` a query resolver), a `Select` filled by `relationship()` or
+   `searchUsing()` (use `searchScope()` or a relationship query modifier),
+   `Kanban`, `Calendar` and widgets (they take the query you hand them), and any
+   custom page or route you write.
+
+5. **Policy.** Re-check `branch_id` in `view`, `update` and `delete` too: your
+   own routes and `KinetixQuery` callers can reach a record by id. A route
+   prefix or a hidden button is not isolation.
+6. **Clean-up.** Listen to `MemberRevoked` (or use `detach_member`) to remove
+   the pivot rows when a member leaves.
+
 ---
 
 ## 3. Lifecycle: provision → activate
@@ -550,7 +787,12 @@ host's `teams`/`users` schema is unknown to the package.
 | `invited_by` | The provisioning admin |
 | `user_id` | Set on activation |
 | `status` | `pending` · `active` · `revoked` |
+| `fields` | Nullable JSON: custom member field values while pending, cleared on activation ([§2.6](#custom-fields)). Added by migration `000053`, only needed when adopting fields |
 | `expires_at` / `activated_at` | Activation window + completion |
+
+::: tip Adopting member fields on an existing install
+Publish and run the new migration: `php artisan vendor:publish --tag=kinetix-membership-migrations && php artisan migrate`. `kinetix:upgrade` and `kinetix:doctor` point to it.
+:::
 
 > The activation **token** is not stored. The link is a Laravel
 > `temporarySignedRoute`, so validity is the signature plus the provision's
@@ -566,7 +808,7 @@ and `kinetix:permissions:sync`:
 
 * `members.viewAny` — View members
 * `members.provision` — Add / invite members
-* `members.update` — Change a member's role
+* `members.update` — Change a member's role and details
 * `members.revoke` — Remove members
 
 Endpoints (mounted under the Kinetix route prefix — the same pattern as the
@@ -578,7 +820,8 @@ permission routes). `{prefix}` is `{current_team}/_kinetix` with teams on,
 | `GET` | `{prefix}/members` | `members.viewAny` | List provisions + the assignable-role allow-list |
 | `POST` | `{prefix}/members` | `members.provision` | Provision an email + role |
 | `POST` | `{prefix}/members/{provision}/resend` | `members.provision` | Re-send the activation link |
-| `PUT` | `{prefix}/members/{provision}` | `members.update` | Change a member's role |
+| `GET` | `{prefix}/members/{provision}/fields` | `members.update` | The edit form of the custom member fields, filled with the member's current values (404 when not configured) |
+| `PUT` | `{prefix}/members/{provision}` | `members.update` | Change a member's role and, with `fields`, their custom fields |
 | `DELETE` | `{prefix}/members/{provision}` | `members.revoke` | Revoke a member |
 | `GET` | `/members/activate/{provision}` | — (signed) | Public set-password page |
 | `POST` | `/members/activate/{provision}` | — (signed) | Complete activation |
@@ -607,7 +850,38 @@ cancel the invitation.
 ```php
 use Happones\Kinetix\Membership\KinetixMembership;
 
-KinetixMembership::revoke($provision);
+KinetixMembership::revoke($provision, $actor);   // $actor is optional (null from code)
+```
+
+The revoke is one transaction that re-reads the row under a lock, so a
+concurrent double revoke (or activation) does nothing the second time; a
+throwing `detach_member` leaves the member as they were. The same holds for activation, direct provisioning and edits.
+
+### Lifecycle events
+
+Four events, in `Happones\Kinetix\Membership\Events`, fire whether or not
+custom fields are configured. All implement `ShouldDispatchAfterCommit`, so a
+listener never sees something that rolled back, and use `SerializesModels`, so
+queued listeners work.
+
+| Event | When | Properties |
+|---|---|---|
+| `MemberProvisioned` | An admin provisions a member (also a repeat invitation) | `provision`, `actor`, `fields` |
+| `MemberActivated` | The member has an account: they activated, or direct provisioning created it | `provision`, `user`, `fields`, `direct` |
+| `MemberUpdated` | A role or fields edit changed something (not on a no-op) | `provision`, `actor`, `previousRole`, `role`, `previousFields`, `fields` (null when untouched), plus `roleChanged()` and `fieldsChanged()` |
+| `MemberRevoked` | A member was revoked, once (not on the repeat) | `provision`, `actor` (null from code) |
+
+```php
+use Happones\Kinetix\Membership\Events\MemberRevoked;
+use Illuminate\Contracts\Queue\ShouldQueue;
+
+class RemoveBranches implements ShouldQueue
+{
+    public function handle(MemberRevoked $event): void
+    {
+        DB::table('branch_user')->where('user_id', $event->provision->user_id)->delete();
+    }
+}
 ```
 
 ---
@@ -702,12 +976,21 @@ const { can } = useKinetixCan();
 
 Need a custom layout? Compose the presentational
 `<KinetixMemberProvisioner :assignable-roles :roles :reserved-roles :identifier-type @submit>`
-form (`submit(identifier, role, name?)`) with the `useKinetixMembers()`
-composable: `load`, `provision(identifier, role, name?)` (returns the provision,
-with its `credential` when there is one), `issueCredential`, `resend`,
-`updateRole`, `revoke`, plus the reactive `provisions`, `assignableRoles`,
-`roles` (each with `label`, `description`, `permissions`, `global`),
-`reservedRoles`, `identifierField` and `can`.
+form (`submit(identifier, role, name?, fields?)`) with the `useKinetixMembers()`
+composable: `load`, `provision(identifier, role, name?, fields?)` (returns the
+provision, with its `credential` when there is one), `issueCredential`, `resend`,
+`updateRole`, `updateMember(member, { role, fields? })`, `memberFields(member)`,
+`revoke`, plus the reactive `provisions`, `assignableRoles`, `roles` (each with
+`label`, `description`, `permissions`, `global`), `reservedRoles`,
+`identifierField`, `can`, `hasFields` and `fieldsForm`; `memberFieldErrors(error)`
+maps a 422 to `{ <field>: message }`.
+
+With [custom member fields](#custom-fields) configured, the provisioner renders
+them under the identifier row (props `fields`, `errors` and `resetOnSubmit`; it
+keeps what was typed when the server answers 422), and each non-revoked row
+shows an **Edit** button instead of the inline role select: a modal with the
+role and the fields, loaded from `GET {prefix}/members/{provision}/fields`.
+Without fields the directory is unchanged.
 
 ### 7.2 Activation page
 
@@ -835,6 +1118,21 @@ admin, never a stray personal team.
 - **Platform roles are super-admin only** — a role carrying a platform-level
   ability (`users.impersonate`) can be assigned here only by a super-admin
   (422 for anyone else, owners included).
+- **Member fields are validated server-side** — option fields are an
+  allow-list (a forged id fails on `fields.<name>`), only schema fields are
+  kept, and `members.update` guards them, the same trust level as a role change.
+  Re-scope ids by `$provision->team_id` inside `apply()`: it can run long after
+  the form was validated. Do not put secrets in member fields: there is no
+  write-only support, and edit forms return the stored values.
+- **Events carry personal data** — `MemberProvisioned` and `MemberActivated`
+  hold the field values, so a queued listener serializes them into the queue
+  payload (and `failed_jobs`). Keep personal data out of queued listeners, or
+  queue only the provision's id.
+- **Writes are transactional** — activation, direct provisioning, edits and
+  revokes either complete or leave nothing behind (no orphan user, no phantom event).
+- **Saving a member's details does not re-check an unchanged role** — only a
+  changed role must be assignable, so a member whose role has left the
+  allow-list can still have their fields saved. Sending the current role is a no-op.
 - **Audit** who provisioned/revoked whom (`invited_by`, timestamps) — this is a
   privileged, organization-shaping action.
 

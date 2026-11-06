@@ -8,12 +8,15 @@ use Happones\Kinetix\Permissions\KinetixPermissions;
 use Happones\Kinetix\Permissions\PermissionRegistry;
 use Happones\Kinetix\Support\PublishedFiles;
 use Happones\Kinetix\Tests\Concerns\CreatesPermissionTables;
+use Happones\Kinetix\Tests\Fakes\BranchMemberFields;
 use Happones\Kinetix\Tests\TestCase;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -120,6 +123,34 @@ class DoctorCommandTest extends TestCase
 
         $this->artisan('kinetix:doctor')
             ->expectsOutputToContain('app-assigned role(s)');
+    }
+
+    public function test_member_fields_must_name_a_member_fields_class_and_need_their_column(): void
+    {
+        config()->set('kinetix.membership.enabled', true);
+        config()->set('kinetix.membership.fields', \stdClass::class);
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('membership.fields is not a MemberFields class')
+            ->assertFailed();
+
+        config()->set('kinetix.membership.fields', BranchMemberFields::class);
+        Schema::create('kinetix_member_provisions', function (Blueprint $table): void {
+            $table->id();
+        });
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('provisions table has no `fields` column')
+            ->assertFailed();
+    }
+
+    public function test_a_closure_in_member_fields_is_reported_by_the_config_scan(): void
+    {
+        config()->set('kinetix.membership.fields', fn () => null);
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('closure(s) in Kinetix config')
+            ->assertFailed();
     }
 
     public function test_a_closure_in_config_is_an_error(): void

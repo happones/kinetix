@@ -1,6 +1,6 @@
 import { Folder, LayoutDashboard, Settings, Users } from '@lucide/vue';
 import { usePage } from '@inertiajs/vue3';
-import { defineComponent, h, ref, type Component } from 'vue';
+import { defineComponent, h, onBeforeUnmount, ref, type Component } from 'vue';
 import KinetixWizard from '@/components/KinetixWizard.vue';
 import KinetixImportModal from '@/components/KinetixImportModal.vue';
 import KinetixEmptyState from '@/components/KinetixEmptyState.vue';
@@ -2220,6 +2220,26 @@ const repeatableInfolist = {
     ],
 };
 
+/**
+ * The member list of an app with custom member fields: the provisioning form
+ * carries them, and each row edits through the Edit member dialog. Flips the
+ * http stub's flag while mounted so the plain `member-list` specimen is
+ * untouched.
+ */
+const MemberListWithFieldsSpecimen = defineComponent({
+    name: 'MemberListWithFieldsSpecimen',
+    setup() {
+        const flags = globalThis as { __kinetixMemberFields?: boolean };
+
+        flags.__kinetixMemberFields = true;
+        onBeforeUnmount(() => {
+            flags.__kinetixMemberFields = false;
+        });
+
+        return () => h(KinetixMemberList);
+    },
+});
+
 const generatorField = (
     name: string,
     label: string,
@@ -3891,6 +3911,14 @@ export const specimens: Specimen[] = [
         component: KinetixMemberList,
         frame: 'card',
         width: 760,
+    },
+    {
+        name: 'member-list-fields',
+        title: 'Member list with custom fields',
+        component: MemberListWithFieldsSpecimen,
+        frame: 'card',
+        width: 760,
+        openSelector: '[data-test="member-edit"]',
     },
 
     // --- Billing ---------------------------------------------------------------

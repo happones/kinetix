@@ -82,6 +82,7 @@ trait CreatesMembershipTables
             $table->string('phone')->nullable();
             $table->string('name')->nullable();
             $table->string('role');
+            $table->json('fields')->nullable();
             $table->unsignedBigInteger('invited_by')->nullable();
             $table->unsignedBigInteger('user_id')->nullable();
             $table->string('status')->default('pending');

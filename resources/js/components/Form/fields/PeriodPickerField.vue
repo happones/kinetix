@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { useKinetixFieldId } from '@/composables/useKinetixFieldId';
 import KinetixMonthPicker from '../../KinetixMonthPicker.vue';
 import KinetixWeekPicker from '../../KinetixWeekPicker.vue';
 import KinetixYearPicker from '../../KinetixYearPicker.vue';
 
+const fieldId = useKinetixFieldId();
 defineProps<{ comp: any; value: any }>();
 
 const emit = defineEmits<{ (e: 'update', value: any): void }>();
@@ -12,7 +14,7 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
     <!-- Month / Year / Week pickers (shadcn or native via ->native()) -->
     <KinetixMonthPicker
         v-if="comp.type === 'month-picker'"
-        :id="comp.name"
+        :id="fieldId(comp.name)"
         :value="value"
         :native="!comp.useCalendar"
         :typed="comp.typed"
@@ -30,7 +32,7 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
     />
     <KinetixYearPicker
         v-else-if="comp.type === 'year-picker'"
-        :id="comp.name"
+        :id="fieldId(comp.name)"
         :value="value"
         :native="!comp.useCalendar"
         :disabled="comp.isDisabled"
@@ -45,7 +47,7 @@ const emit = defineEmits<{ (e: 'update', value: any): void }>();
     />
     <KinetixWeekPicker
         v-else-if="comp.type === 'week-picker'"
-        :id="comp.name"
+        :id="fieldId(comp.name)"
         :value="value"
         :native="!comp.useCalendar"
         :disabled="comp.isDisabled"

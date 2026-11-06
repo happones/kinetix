@@ -626,6 +626,10 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000035_add_identifiers_to_kinetix_member_provisions_table.php' => database_path('migrations/2026_01_01_000035_add_identifiers_to_kinetix_member_provisions_table.php'),
             ], 'kinetix-membership-migrations');
 
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000053_add_fields_to_kinetix_member_provisions_table.php' => database_path('migrations/2026_01_01_000053_add_fields_to_kinetix_member_provisions_table.php'),
+            ], 'kinetix-membership-migrations');
+
             // Publish the optional Settings module's migration.
             $this->publishes([
                 __DIR__.'/../database/migrations/2026_01_01_000002_create_kinetix_settings_table.php' => database_path('migrations/2026_01_01_000002_create_kinetix_settings_table.php'),
@@ -1241,6 +1245,8 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::post('{provision}/credential', [MembershipController::class, 'credential'])
                     ->middleware('kinetix.impersonation.protect')
                     ->name('kinetix.members.credential');
+                Route::get('{provision}/fields', [MembershipController::class, 'fields'])
+                    ->name('kinetix.members.fields');
                 Route::put('{provision}', [MembershipController::class, 'update'])
                     ->name('kinetix.members.update');
                 Route::delete('{provision}', [MembershipController::class, 'destroy'])

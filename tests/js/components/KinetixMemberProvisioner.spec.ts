@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { defineComponent, h } from 'vue';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import KinetixMemberProvisioner from '@/components/KinetixMemberProvisioner.vue';
 import { i18n } from './i18n';
 
@@ -212,5 +212,130 @@ describe('KinetixMemberProvisioner', () => {
             'Editor',
             'Cashier',
         ]);
+    });
+});
+
+describe('KinetixMemberProvisioner with member fields', () => {
+    const FORM = {
+        schema: [
+            {
+                type: 'text-input',
+                name: 'badge',
+                label: 'Badge number',
+                columnSpan: 1,
+            },
+        ],
+        data: { badge: 'D-1' },
+        rules: {},
+        operation: 'create',
+    };
+
+    const mountWithFields = (props: Record<string, unknown> = {}) =>
+        mount(KinetixMemberProvisioner, {
+            attachTo: document.body,
+            props: { assignableRoles: ['editor'], fields: FORM, ...props },
+            global: {
+                plugins: [i18n],
+                stubs: { KinetixSelect: KinetixSelectStub },
+            },
+        });
+
+    const until = (check: () => unknown) =>
+        vi.waitFor(() => expect(check()).toBeTruthy());
+
+    it('renders the fields and emits their values as the fourth argument', async () => {
+        const wrapper = mountWithFields();
+
+        await until(() => wrapper.find('input[id$="-badge"]').exists());
+        expect(
+            (wrapper.get('input[id$="-badge"]').element as HTMLInputElement)
+                .value,
+        ).toBe('D-1');
+
+        await wrapper.get('input[type="email"]').setValue('a@example.com');
+        await wrapper.get('input[id$="-badge"]').setValue('Z-9');
+        await wrapper.get('form').trigger('submit');
+
+        expect(wrapper.emitted('submit')?.[0]).toEqual([
+            'a@example.com',
+            'editor',
+            undefined,
+            { badge: 'Z-9' },
+        ]);
+        wrapper.unmount();
+    });
+
+    it('keeps the values with resetOnSubmit off until reset() is called', async () => {
+        const wrapper = mountWithFields({ resetOnSubmit: false });
+
+        await until(() => wrapper.find('input[id$="-badge"]').exists());
+        await wrapper.get('input[type="email"]').setValue('a@example.com');
+        await wrapper.get('input[id$="-badge"]').setValue('Z-9');
+        await wrapper.get('form').trigger('submit');
+
+        expect(
+            (wrapper.get('input[type="email"]').element as HTMLInputElement)
+                .value,
+        ).toBe('a@example.com');
+        expect(
+            (wrapper.get('input[id$="-badge"]').element as HTMLInputElement)
+                .value,
+        ).toBe('Z-9');
+
+        (wrapper.vm as unknown as { reset: () => void }).reset();
+        await wrapper.vm.$nextTick();
+
+        expect(
+            (wrapper.get('input[type="email"]').element as HTMLInputElement)
+                .value,
+        ).toBe('');
+        // Back to the form's own defaults, not blank.
+        expect(
+            (wrapper.get('input[id$="-badge"]').element as HTMLInputElement)
+                .value,
+        ).toBe('D-1');
+        wrapper.unmount();
+    });
+
+    it('shows an error under its field and marks the control invalid', async () => {
+        const wrapper = mountWithFields({
+            errors: { badge: 'Badge is required.' },
+        });
+
+        await until(() => wrapper.find('input[id$="-badge"]').exists());
+        expect(wrapper.text()).toContain('Badge is required.');
+        expect(
+            wrapper.get('input[id$="-badge"]').attributes('aria-invalid'),
+        ).toBe('true');
+        wrapper.unmount();
+    });
+
+    it('keeps typed field values when the same form arrives again, but starts over for a different one', async () => {
+        const wrapper = mountWithFields();
+
+        await until(() => wrapper.find('input[id$="-badge"]').exists());
+        await wrapper.get('input[id$="-badge"]').setValue('Z-9');
+
+        // A list reload: a new object, the same fields.
+        await wrapper.setProps({ fields: JSON.parse(JSON.stringify(FORM)) });
+        expect(
+            (wrapper.get('input[id$="-badge"]').element as HTMLInputElement)
+                .value,
+        ).toBe('Z-9');
+
+        // A different set of fields starts from its own defaults.
+        await wrapper.setProps({
+            fields: {
+                ...FORM,
+                schema: [{ type: 'text-input', name: 'desk', label: 'Desk' }],
+                data: { desk: 'D-0' },
+            },
+        });
+        await until(() => wrapper.find('input[id$="-desk"]').exists());
+        expect(
+            (wrapper.get('input[id$="-desk"]').element as HTMLInputElement)
+                .value,
+        ).toBe('D-0');
+        wrapper.unmount();
     });
 });

@@ -216,7 +216,7 @@ function toggleValue(val: string, checked: boolean): void {
              some are; a click on the dash selects them all. -->
         <label
             v-if="bulkToggleable && inView.length > 0"
-            class="gap-2 text-xs font-medium pb-2 flex items-center border-b border-border text-foreground select-none"
+            class="gap-2 text-xs font-medium min-h-6 pb-2 flex items-center border-b border-border text-foreground select-none"
             :class="
                 disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
             "
@@ -245,7 +245,7 @@ function toggleValue(val: string, checked: boolean): void {
             <label
                 v-for="item in itemsToRender"
                 :key="item.value"
-                class="gap-2 text-xs flex items-center text-foreground select-none"
+                class="gap-2 text-xs min-h-6 flex items-center text-foreground select-none"
                 :class="
                     disabled
                         ? 'cursor-not-allowed opacity-50'

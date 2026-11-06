@@ -2,8 +2,10 @@
 import { computed } from 'vue';
 import type { Component } from 'vue';
 import { kinetixComponentOf } from '@/composables/kinetixLazy';
+import { useKinetixFieldId } from '@/composables/useKinetixFieldId';
 import { KINETIX_SELECT_CONTROL_LOADERS } from '../kinetixFormFieldLoaders';
 
+const fieldId = useKinetixFieldId();
 const props = defineProps<{ comp: any; value: any }>();
 
 const emit = defineEmits<{ (e: 'update', value: any): void }>();
@@ -29,7 +31,7 @@ const control = computed<Component>(() =>
     <component
         :is="control"
         v-if="searchable"
-        :id="comp.name"
+        :id="fieldId(comp.name)"
         :value="value"
         :options="comp.options"
         :placeholder="comp.placeholder"
@@ -41,7 +43,7 @@ const control = computed<Component>(() =>
     <component
         :is="control"
         v-else
-        :id="comp.name"
+        :id="fieldId(comp.name)"
         :value="value"
         :options="comp.options"
         :placeholder="comp.placeholder"
