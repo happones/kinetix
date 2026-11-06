@@ -157,6 +157,31 @@ With `database`, the host persists through the team-aware
 `{prefix}/tours/{id}/seen` endpoints (POST = seen, DELETE = re-arm). Both
 finishing and dismissing a tour count as seen — tours never nag.
 
+### Kept between visits
+
+With inertia-laravel 3, `kinetix_tours` is in the default
+`kinetix.shared_props.once` set: the browser keeps the tour list and the seen
+ids between visits, so the server skips the `kinetix_tour_state` query and the
+per-tour permission checks (and the payload, about 1.5 KB per tour) on every
+navigation. The list is sent again when:
+
+- the user, the team or the locale changes, or the `tours` config does;
+- this session saves a tour as seen or re-arms it (the `seen` endpoints), or
+  writes to the permissions or membership endpoints;
+- the page is loaded in full, or `shared_props.once_ttl` seconds (default
+  3600) pass;
+- your code calls `\Happones\Kinetix\Support\KinetixSharedProps::refresh()`.
+
+Within a tab, the seen state is already up to date in the tours store. A tour
+whose `permission()` another admin grants or revokes appears or disappears
+after the TTL or a full reload: tours are guidance, never authorization. To
+send the list on every visit again, remove `'kinetix_tours'` from
+`shared_props.once`.
+
+Tours are registered in code, so a deploy that only changes them on the
+server, or a plan or role change made outside the user's session, reaches tabs
+that are already open after `once_ttl` (one hour by default) or a full reload.
+
 ## 4. Replaying a tour: `<KinetixTourTrigger />`
 
 Drop it in your layout's header or help menu. It replays the tour declared for

@@ -40,6 +40,22 @@ class MemoTest extends TestCase
         $this->assertSame(1, $calls);
     }
 
+    public function test_peek_reads_without_resolving(): void
+    {
+        $subject = new \stdClass;
+
+        $this->assertSame('none', Memo::peek('test.peek', $subject, 'k', 'none'));
+        $this->assertNull(Memo::peek('test.peek', $subject, 'k'));
+
+        Memo::remember('test.peek', $subject, 'k', static fn (): string => 'value');
+
+        $this->assertSame('value', Memo::peek('test.peek', $subject, 'k'));
+        $this->assertSame('none', Memo::peek('test.peek', $subject, 'other', 'none'));
+        $this->assertSame('none', Memo::peek('test.peek', new \stdClass, 'k', 'none'));
+
+        Memo::flush('test.peek');
+    }
+
     public function test_null_is_a_cacheable_value(): void
     {
         $subject = new \stdClass;

@@ -39,6 +39,19 @@ class SettingsManager
     protected int|string|null $pinnedTeam = null;
 
     /**
+     * Drop the request memo — never the persistent cache. Called by the
+     * state reset between Octane requests and queued jobs, so a value
+     * another process wrote is read again. The managers forTeam() pins
+     * share the memo by reference and see the reset too.
+     *
+     * @internal
+     */
+    public function flushMemo(): void
+    {
+        $this->memo = [];
+    }
+
+    /**
      * The same settings, scoped to one team (`null`: the global values)
      * whatever team the request serves: an admin panel, a job, the console.
      */

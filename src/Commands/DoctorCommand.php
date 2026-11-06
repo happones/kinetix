@@ -16,8 +16,15 @@ use Happones\Kinetix\Permissions\AssignableRoles;
 use Happones\Kinetix\Permissions\PermissionRegistry;
 use Happones\Kinetix\Permissions\SuperAdmin;
 use Happones\Kinetix\Permissions\TeamOwner;
+use Happones\Kinetix\ReportsCenter\Report;
+use Happones\Kinetix\ReportsCenter\ReportRegistry as ReportsCenterRegistry;
+use Happones\Kinetix\Resources\Resource;
+use Happones\Kinetix\Spotlight\SpotlightRegistry;
+use Happones\Kinetix\Spotlight\SpotlightSource;
 use Happones\Kinetix\Support\ConfigCallback;
+use Happones\Kinetix\Support\DiscoveryManifest;
 use Happones\Kinetix\Support\HostKeyColumns;
+use Happones\Kinetix\Support\KinetixSharedProps;
 use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\PublishedFiles;
 use Happones\Kinetix\Support\TailwindSourceExclusions;
@@ -29,6 +36,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Laravel\Socialite\Facades\Socialite;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -84,6 +92,9 @@ class DoctorCommand extends Command
         $this->checkConfigCallbacks();
         $this->checkConfigKeys();
         $this->checkTenantColumns();
+        $this->checkIndexes();
+        $this->checkSharedProps();
+        $this->checkDiscoveryManifest();
         $this->checkHostKeyColumns();
         $this->checkGlobalData();
         $this->checkFrontend();
@@ -484,6 +495,18 @@ class DoctorCommand extends Command
      */
     protected function checkSocialLogin(): void
     {
+        // The provider skips the module's routes without Socialite and only
+        // logs it from console processes and locally.
+        if (config('kinetix.connected_accounts.enabled', false) && ! class_exists(Socialite::class)) {
+            $this->error_(
+                'Connected accounts',
+                'the module is enabled but laravel/socialite is not installed, so its routes are not registered',
+                'Install it: composer require laravel/socialite',
+            );
+
+            return;
+        }
+
         if (! config('kinetix.connected_accounts.enabled', false) || ! config('kinetix.connected_accounts.login_enabled', false)) {
             return;
         }
@@ -1288,6 +1311,124 @@ class DoctorCommand extends Command
         $this->error_('Tenancy', count($pending).' table(s) are missing their team_id column',
             'The module is team-scoped but the table predates the tenant migration, so rows are neither '
             .'stamped nor filtered. Publish the tag and run migrate.', $pending);
+    }
+
+    /**
+     * The composite indexes the listing queries need, per enabled module:
+     * without them every page of a growing log or feed sorts the whole
+     * tenant's rows. Table-driven like {@see checkTenantColumns()}; an index
+     * counts when it STARTS with these columns in this order, whatever its
+     * name.
+     */
+    protected function checkIndexes(): void
+    {
+        $missing = [];
+
+        foreach ([
+            ['activity', 'kinetix_activity', ['team_id', 'created_at'], 'kinetix-activity-migrations'],
+            ['api_logs', 'kinetix_api_logs', ['team_id', 'created_at'], 'kinetix-api-logs-migrations'],
+            ['webhooks', 'kinetix_webhook_logs', ['webhook_endpoint_id', 'created_at'], 'kinetix-webhooks-migrations'],
+            ['reports_center', 'kinetix_report_runs', ['team_id', 'created_at'], 'kinetix-reports-center-migrations'],
+            ['inbox', 'kinetix_conversations', ['team_id', 'archived_at', 'last_message_at'], 'kinetix-inbox-migrations'],
+            ['notifications', 'notifications', ['notifiable_type', 'notifiable_id', 'created_at'], 'kinetix-notifications-migrations'],
+        ] as [$module, $table, $columns, $tag]) {
+            $enabled = $module === 'notifications'
+                ? config('kinetix.notifications.database', false)
+                : config("kinetix.{$module}.enabled", false);
+
+            if (! $enabled) {
+                continue;
+            }
+
+            try {
+                if (! Schema::hasTable($table) || static::hasIndexStartingWith($table, $columns)) {
+                    continue;
+                }
+            } catch (QueryException) {
+                continue;
+            }
+
+            $missing[] = "{$table} (".implode(', ', $columns).') — vendor:publish --tag='.$tag;
+        }
+
+        if ($missing === []) {
+            return;
+        }
+
+        $this->warn_('Indexes', count($missing).' table(s) lack the index their listing query uses',
+            'Each page of the feed sorts every row of the tenant without it. Publish the tag, then run migrate '
+            .'(idempotent; on a very large table, in a maintenance window).', $missing);
+    }
+
+    /**
+     * @param list<string> $columns
+     */
+    protected static function hasIndexStartingWith(string $table, array $columns): bool
+    {
+        $expected = array_map('strtolower', $columns);
+
+        foreach (Schema::getIndexes($table) as $index) {
+            $indexed = array_map(static fn (mixed $column): string => strtolower((string) $column), (array) ($index['columns'] ?? []));
+
+            if (array_slice($indexed, 0, count($expected)) === $expected) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Props listed in `shared_props.once` that are never kept: they change
+     * on their own or carry security state, so the listing is ignored.
+     */
+    protected function checkSharedProps(): void
+    {
+        $ignored = KinetixSharedProps::ignored();
+
+        if ($ignored === []) {
+            return;
+        }
+
+        $this->warn_('Shared props', count($ignored).' prop(s) in `shared_props.once` are never kept between visits',
+            'They change on their own or carry security state, so Kinetix sends them on every visit anyway. '
+            .'Remove them from the list.', $ignored);
+    }
+
+    /**
+     * The `kinetix:optimize` discovery manifest: stale in development, and
+     * blind to roots added after it was written (those are scanned).
+     */
+    protected function checkDiscoveryManifest(): void
+    {
+        if (! DiscoveryManifest::exists()) {
+            return;
+        }
+
+        if ($this->laravel->environment('local')) {
+            $this->warn_('Discovery', 'the discovery manifest exists in the local environment',
+                'New Resources, Spotlight sources and reports are not discovered until you run '
+                .'php artisan optimize:clear (or kinetix:optimize-clear).');
+        }
+
+        $uncovered = [];
+
+        foreach ([
+            [PermissionRegistry::class, Resource::class],
+            [SpotlightRegistry::class, SpotlightSource::class],
+            [ReportsCenterRegistry::class, Report::class],
+        ] as [$registry, $parent]) {
+            foreach ($this->laravel->make($registry)->discoveryRoots() as [$directory, $namespace]) {
+                if (! DiscoveryManifest::covers($directory, $namespace, $parent)) {
+                    $uncovered[] = "{$directory} ({$namespace})";
+                }
+            }
+        }
+
+        if ($uncovered !== []) {
+            $this->ok('Discovery', count($uncovered).' discovery root(s) are not in the manifest and are scanned per request',
+                'Run php artisan kinetix:optimize again to cache them.', $uncovered);
+        }
     }
 
     /**

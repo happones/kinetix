@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Commands;
 
+use Happones\Kinetix\KinetixServiceProvider;
 use Happones\Kinetix\Support\PublishedFiles;
 use Happones\Kinetix\Support\TailwindSourceExclusions;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\ServiceProvider;
 
 /**
  * Re-publish the Kinetix published assets that change between releases —
@@ -79,6 +81,10 @@ class UpgradeCommand extends Command
             $refreshed[] = 'Tailwind source exclusions';
         }
 
+        // Never published: migrations change the schema, which is the app's
+        // call. Only listed.
+        $this->reportNewMigrations();
+
         if ($refreshed === []) {
             $this->info('Kinetix: nothing to upgrade — no published components/translations/skills found.');
 
@@ -102,6 +108,39 @@ class UpgradeCommand extends Command
         $this->comment('Rebuild your frontend when convenient (npm run build / composer run dev).');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Name the migrations a module the app already adopted gained since its
+     * tag was published (an index, a tenant column): some of the tag's files
+     * are in `database/migrations` and some are not. A tag none of whose files
+     * were published is a module the app doesn't use, and stays silent.
+     */
+    protected function reportNewMigrations(): void
+    {
+        foreach (ServiceProvider::publishableGroups() as $tag) {
+            if (! str_starts_with($tag, 'kinetix-') || ! str_ends_with($tag, '-migrations')) {
+                continue;
+            }
+
+            $present = [];
+            $missing = [];
+
+            foreach (ServiceProvider::pathsToPublish(KinetixServiceProvider::class, $tag) as $target) {
+                if (File::exists($target)) {
+                    $present[] = $target;
+                } else {
+                    $missing[] = basename($target);
+                }
+            }
+
+            if ($present === [] || $missing === []) {
+                continue;
+            }
+
+            $this->warn("New Kinetix migrations for {$tag}: ".implode(', ', $missing)
+                ." — php artisan vendor:publish --tag={$tag} && php artisan migrate");
+        }
     }
 
     /**

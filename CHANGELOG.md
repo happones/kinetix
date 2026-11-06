@@ -13,6 +13,138 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.277.0] - 2026-11-05
+
+Server performance, plus translations on demand as an option. With every
+module on, an authenticated visit went from 29 Kinetix queries to 15 (14 on
+the visits after it); with teams and the database bell on, from 4 to 2. The
+default config still runs none. See the new Server section of
+[Performance](docs/performance.md).
+
+### Changed
+
+- The current team is resolved once per request and reused by settings,
+  `ScopedToTeam` models, activity, billing, the owner bypass, feature flags
+  and the team switcher. Ten `KinetixSettings::get()` calls under a team now
+  cost 3 queries instead of 13. A 404 answer is never cached, and the cache
+  is cleared after Kinetix's own membership changes and before every queued
+  job and Octane request.
+- When routes are cached, Kinetix no longer registers its routes at boot
+  (about 2.5 ms and 300 KB per request with every module on). Gates,
+  broadcast channels, middleware aliases and listeners are still registered.
+- **(published)** The notification bell polls `GET {prefix}/notifications`
+  instead of reloading the page's `kinetix_notifications` prop, so a poll no
+  longer re-runs the page's controller. Marking as read, deleting, clearing
+  and real-time broadcasts refresh through the same endpoint. A failed poll
+  (an expired session, a network error) logs a warning and retries on the
+  next tick; it no longer follows the redirect to the login page.
+- On inertia-laravel 3, six shared props stay on the client between visits:
+  `kinetix_tours`, `kinetix_locale`, `kinetix_cookie_consent`,
+  `kinetix_queue`, `kinetix_health` and `kinetix_reports_center`. They are
+  sent again when the user, team, locale or config changes, after a write
+  through Kinetix in a module that feeds them, after
+  `kinetix.shared_props.once_ttl` (1 hour), on a full load, or after
+  `KinetixSharedProps::refresh()`. Billing, entitlements, the bell, alerts,
+  impersonation and other security or self-changing props are never kept.
+- Generated resource and page controllers wrap their props in closures, so a
+  partial reload resolves only what it asks for.
+- The super-admin check no longer reloads the user's roles (one query less per
+  request).
+- The `kinetix_weekly_schedule` validation message is translated when
+  validation fails, in the request's locale, instead of at boot in the boot
+  locale. It also falls back to the package's translation when the app hasn't
+  published one (it used to show the raw key).
+- Misconfiguration warnings at boot are logged once, and only in console
+  processes or the `local` environment; `kinetix:doctor` reports them
+  everywhere.
+- Settings, announcements and help clear their per-request memos (and the
+  permission team is reset) before every Octane request and queued job, so a
+  long-running worker never serves stale values.
+- Permission, spotlight and report class discovery can be cached with
+  `kinetix:optimize`.
+- The notifications list query no longer orders by `created_at` twice.
+
+### Fixed
+
+- Feature flags scoped to teams resolve for the team in the URL
+  (`{current_team}`), not the user's stored `current_team_id`. The stored
+  team is used only when the request has no team context.
+- `kinetix:install` wired vue-i18n by adding a `withApp` next to an existing
+  `setup()`, which Inertia never calls, so pages had no i18n or Pinia. It now
+  builds the i18n inside `setup()` (or adds `withApp` only when there is no
+  `setup`), and when it can't read the entry unambiguously it writes nothing
+  and prints the snippet.
+- The team switcher marks the team in the URL as current instead of the
+  user's stored team, falling back to the stored team only when the request
+  has no team context.
+
+### Added
+
+- `KinetixTeams::currentTeam()` and `KinetixTeams::forgetCurrentTeam()`.
+- `GET {prefix}/notifications` (`kinetix.notifications.index`, returns
+  `KinetixNotificationsFeed`, `Cache-Control: no-store, private`) and a
+  `refresh()` action on the notifications store.
+- `kinetix.shared_props.once` / `once_ttl` and `KinetixSharedProps::refresh()`.
+- `kinetix:optimize` / `kinetix:optimize-clear`, which write and remove
+  `bootstrap/cache/kinetix-discovery.php`, hooked into `optimize` /
+  `optimize:clear` on Laravel versions with provider optimize hooks.
+- Index migrations, each in its module's migrations tag: `000045`
+  `kinetix_activity (team_id, created_at)`, `000046` `kinetix_api_logs
+  (team_id, created_at)`, `000047` `kinetix_webhook_logs
+  (webhook_endpoint_id, created_at)`, `000048` `kinetix_report_runs
+  (team_id, created_at)`, `000049` `kinetix_conversations (team_id,
+  archived_at, last_message_at)`. An optional `000050` indexes your
+  `notifications` table (`kinetix-notifications-migrations` tag). Each skips
+  an index that already exists on the same columns.
+- `kinetix:doctor` checks for missing indexes, kept props that can't be kept,
+  a discovery cache in local development, and connected accounts enabled
+  without `laravel/socialite`.
+- **(published)** Translations on demand, opt-in: `kinetix:install
+  --lazy-locales` and `@/plugins/kinetixLocales` (`registerKinetixLocales`,
+  `kinetixLocaleLoaderFromGlob`, `withKinetixLocales`, `attachKinetixI18n`,
+  `kinetixLoadedMessages`, `kinetixPageLocale`). The browser downloads only
+  the visitor's locale and the fallback, and the first paint never shows raw
+  keys; on the server, i18n is created per request. `preloadFallback: 'idle'`
+  loads the fallback after the first paint. The language switcher waits for
+  the new messages before switching. Measured on a two-locale app (`es`,
+  fallback `en`) with every entry wired: first paint 340 → 309 KB gzip for an
+  `en` visitor; for an `es` visitor 340 → 347 KB with the default
+  `preloadFallback: 'block'` and 340 → 315 KB with `'idle'`. Each extra locale adds
+  about 20–30 KB to the eager bundle. Root `lang/*.json` catalogs aren't part
+  of the default wiring (the generator's per-locale output doesn't convert
+  them); see [Locale](docs/locale.md#loading-locales-on-demand).
+
+### Upgrade notes
+
+- Publish the new index migrations for the modules you use (`kinetix:upgrade`
+  lists the missing ones) and run `php artisan migrate`.
+- Re-publish the components (`kinetix:upgrade` does it) for the bell's new
+  feed and the locale plugin.
+- If you cache routes, rebuild the cache after changing which Kinetix modules
+  are on.
+- Add `php artisan kinetix:optimize` to your deploy script if your Laravel
+  version doesn't run it from `optimize`.
+- On inertia-laravel 3, calling the closure from
+  `Inertia::getShared('kinetix_tours')` (and the other kept props) now returns
+  an `Inertia\OnceProp` instead of the plain value. Code (or tests) that
+  evaluates a Kinetix shared prop directly must resolve it. If your own code
+  changes tours, cookie consent, queue, health or Reports Center state that a
+  kept prop shows, call `KinetixSharedProps::refresh()`, or set
+  `'shared_props' => ['once' => []]` to turn keeping off.
+- Tours are registered in code, so an open tab sees a changed tour (or a tour
+  newly allowed by a plan or role change made elsewhere) after `once_ttl` or
+  a full reload.
+- Boot misconfiguration warnings no longer appear in production logs; run
+  `kinetix:doctor` to see them.
+- Hand-written pages that pass a heavy prop eagerly (`'table' => …->toArray()`)
+  should wrap it in a closure.
+- If your code read team-scoped feature flags or the team switcher's
+  `current` expecting the user's stored team while on another team's URL, it
+  now gets the URL's team.
+- Lazy translations are opt-in. To adopt them, follow
+  [Locale → Loading locales on demand](docs/locale.md#loading-locales-on-demand):
+  wire every client entry, and expect a gain from about three locales.
+
 ## [0.276.0] - 2026-11-05
 
 Browser performance. A host that uses a few Kinetix modules no longer

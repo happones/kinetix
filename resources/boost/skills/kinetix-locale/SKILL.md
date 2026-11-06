@@ -107,10 +107,53 @@ Without it the choice is still remembered in the session.
 ```
 
 `Languages` trigger → dropdown of locales (active marked). `useKinetixLocale()` →
-`{ locales, current, saving, setLocale }`. `setLocale` flips vue-i18n instantly,
-persists, then `router.reload()` (rolls back on failure). i18n `language`.
+`{ locales, current, saving, setLocale }`. `setLocale` flips vue-i18n instantly
+(after loading the messages, with lazy locales), persists, then
+`router.reload()` (rolls back on failure). i18n `language`.
 `variant="select"` renders a labelled Select field instead; that variant's
 field is loaded on demand where it's used, the default dropdown stays static.
 
 > The host app owns the vue-i18n instance (`locale: page.props.locale`). When you
 > add a locale, re-run your translation compile step so its messages are loaded.
+
+## Lazy locales (opt-in)
+
+Eager wiring imports every locale into the entry bundle. To load only the
+active locale + fallback: `vue-i18n:generate --multi-locales`,
+`'translations' => ['vue_i18n_options' => ['--multi-locales' => true]]`, then
+`php artisan kinetix:install --lazy-locales` (fresh entry) or the snippet by hand.
+
+```ts
+import { attachKinetixI18n, kinetixLoadedMessages, kinetixLocaleLoaderFromGlob, kinetixPageLocale, registerKinetixLocales, withKinetixLocales } from '@/plugins/kinetixLocales';
+
+registerKinetixLocales({
+    loader: kinetixLocaleLoaderFromGlob(import.meta.glob(['./locales/*.ts', '!./locales/index.ts'])),
+    fallbackLocale: 'en',
+});
+// createInertiaApp({ resolve: withKinetixLocales(<existing resolve>), withApp(app, { page }) {
+//     const i18n = createI18n({ legacy: false, locale: kinetixPageLocale(page), fallbackLocale: 'en', messages: kinetixLoadedMessages() });
+//     attachKinetixI18n(i18n); app.use(i18n); … } })
+```
+
+Rules:
+- REQUIRED: wrap `resolve` with `withKinetixLocales()`; never load messages
+  inside `withApp` (it is synchronous, so the first paint would show raw keys).
+- REQUIRED: create the i18n instance inside `withApp` (per request on SSR),
+  never at module scope; the SSR entry needs the same register + wrapper.
+- REQUIRED: wire EVERY entry (`ssr.ts`, `public.ts`…). An eager entry keeps all
+  locales and its static import of the per-locale files breaks their chunking.
+- Root `lang/*.json` catalogs: `--multi-locales` doesn't emit them. Adding
+  `import.meta.glob('../../lang/*.json')` as a FIRST map loads them RAW (no
+  `:name` → `{name}`, plural or `@` conversion; `@`/`{}` can break vue-i18n's
+  compiler). Opt-in only, for catalogs already in vue-i18n syntax; never in
+  the default wiring.
+- Pays off from ~3 locales or when most visitors use the fallback: lazy mode
+  always blocks on active + fallback. With 2 locales and app locale ≠ fallback
+  it is neutral to slightly worse; `withKinetixLocales(resolve, {
+  preloadFallback: 'idle' })` defers the fallback when the active locale is
+  complete (with SSR, a missing key then causes a hydration mismatch). The
+  vue-i18n runtime stays in the entry.
+- `setLocale()` awaits the messages before flipping; on a failed load it throws
+  and leaves the locale unchanged. `es-MX` falls back to `es.ts`.
+- Don't `mergeLocaleMessage()` into loaded trees on the server (they're shared
+  across requests).

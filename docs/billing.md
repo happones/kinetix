@@ -398,7 +398,11 @@ escape hatch.
 When `kinetix.billing.enabled` is on, Kinetix shares the billable's **current
 plan** (slug/name + the features JSON) as the `kinetix_billing` Inertia prop —
 so menus, buttons and CTAs gate on the same dot-paths the server enforces, with
-no controller wiring. `useKinetixPlan()` mirrors every backend helper:
+no controller wiring. The prop is sent on every visit and never kept by the
+browser between visits (`kinetix.shared_props.once` ignores it, and
+`kinetix_entitlements` likewise): the plan changes from provider webhooks,
+outside the user's session. `useKinetixPlan()`
+mirrors every backend helper:
 
 ```vue
 <script setup lang="ts">

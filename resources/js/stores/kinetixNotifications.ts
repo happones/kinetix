@@ -6,6 +6,7 @@ import { kinetixFetch } from '@/composables/useKinetixHttp';
 import type {
     KinetixAction,
     KinetixNotification,
+    KinetixNotificationsFeed,
     KinetixSharedProps,
 } from '@/types/kinetix';
 
@@ -91,39 +92,43 @@ export const useNotificationsStore = defineStore('kinetixNotifications', () => {
         }
     };
 
+    /**
+     * Re-read the list from the JSON feed (`GET {prefix}/notifications`)
+     * rather than partially reloading the page, which would re-run the host
+     * page's controller. Always settles: a failure (expired session, network)
+     * keeps the current list and the next poll tries again.
+     */
+    const refresh = async (): Promise<void> => {
+        try {
+            const feed = await kinetixFetch<KinetixNotificationsFeed>(
+                `/${routePrefix.value}/notifications`,
+            );
+
+            if (feed && Array.isArray(feed.notifications)) {
+                syncFromProps(feed.notifications);
+            }
+        } catch (e) {
+            console.warn('Kinetix notifications refresh failed:', e);
+        }
+    };
+
     const sendRequest = async (url: string, method: string): Promise<void> => {
         try {
             // kinetixFetch sends the XSRF token + Accept/X-Requested-With (so Laravel
             // returns JSON errors instead of a 302 fetch would silently follow) and
             // throws on a non-2xx response.
             await kinetixFetch(url, { method });
-
-            router.reload({
-                only: ['kinetix_notifications'],
-                onSuccess: () => {
-                    if (page.props.kinetix_notifications) {
-                        syncFromProps(page.props.kinetix_notifications);
-                    }
-                },
-            });
         } catch (e) {
             console.error(
                 `Kinetix notifications request failed: ${method} ${url}`,
                 e,
             );
-
             // The optimistic mutation already removed/changed the item locally; the
-            // server rejected it, so re-sync from the server to restore the truth
-            // (the item reappears, signalling the action did not take effect).
-            router.reload({
-                only: ['kinetix_notifications'],
-                onSuccess: () => {
-                    if (page.props.kinetix_notifications) {
-                        syncFromProps(page.props.kinetix_notifications);
-                    }
-                },
-            });
+            // server rejected it, so the refresh below restores the truth (the item
+            // reappears, signalling the action did not take effect).
         }
+
+        await refresh();
     };
 
     const triggerToast = (notif: KinetixNotification) => {
@@ -374,6 +379,7 @@ export const useNotificationsStore = defineStore('kinetixNotifications', () => {
         playNotificationSound,
         triggerToast,
         syncFromProps,
+        refresh,
         markAsRead,
         markAllAsRead,
         removeNotification,

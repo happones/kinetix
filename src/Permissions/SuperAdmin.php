@@ -103,21 +103,29 @@ class SuperAdmin
             return false;
         }
 
-        $registrar = app(PermissionRegistrar::class);
-        $current   = $registrar->getPermissionsTeamId();
-
-        if ($current === null) {
+        if (app(PermissionRegistrar::class)->getPermissionsTeamId() === null) {
             return false; // Already teamless — the first check covered it.
         }
 
-        try {
-            $registrar->setPermissionsTeamId(null);
-            $user->unsetRelation('roles');
+        // PermissionTeam drops the loaded roles/permissions on the way in and
+        // out, so neither team's leak into the other. The ones loaded for the
+        // CURRENT team are put back afterwards: dropping them would make the
+        // next check on this user (the `kinetix_permissions` prop, a policy)
+        // load them all over again.
+        $loaded = [];
 
-            return $user->hasRole($role);
+        foreach (['roles', 'permissions'] as $relation) {
+            if ($user->relationLoaded($relation)) {
+                $loaded[$relation] = $user->getRelation($relation);
+            }
+        }
+
+        try {
+            return (bool) PermissionTeam::run(null, static fn (): bool => $user->hasRole($role), $user);
         } finally {
-            $registrar->setPermissionsTeamId($current);
-            $user->unsetRelation('roles');
+            foreach ($loaded as $relation => $value) {
+                $user->setRelation($relation, $value);
+            }
         }
     }
 }

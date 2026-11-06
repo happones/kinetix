@@ -489,6 +489,45 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Shared props kept between visits
+    |--------------------------------------------------------------------------
+    |
+    | Every visit re-sends the `kinetix_*` page props. With inertia-laravel 3
+    | the props listed in `once` are sent once and kept by the browser: the
+    | server skips them (no query, no payload) until something they depend on
+    | changes — the user, the team, the locale, the prop's own config section,
+    | a successful write to the Kinetix module behind it — or `once_ttl`
+    | seconds pass (null = no expiry). A full page load always sends them.
+    | After changing that state in your own code, call
+    | `\Happones\Kinetix\Support\KinetixSharedProps::refresh()`.
+    |
+    | The default set only holds props whose freshness that key guarantees.
+    | The commented ones show per-user state: changes another user makes (an
+    | admin editing your role) appear after `once_ttl` or a full reload. The
+    | UI only — the server always decides. `[]` restores sending every prop
+    | on every visit. inertia-laravel 2 always sends every prop. Some props are
+    | never kept, even when listed (`kinetix:doctor` warns): the config, the
+    | bell, toasts and alerts, presence, impersonation, credentials, billing
+    | and entitlements (the plan changes from provider webhooks, outside the
+    | user's session).
+    |
+    */
+    'shared_props' => [
+        'once' => [
+            'kinetix_tours',
+            'kinetix_locale',
+            'kinetix_cookie_consent',
+            'kinetix_queue',
+            'kinetix_health',
+            'kinetix_reports_center',
+            // 'kinetix_teams', 'kinetix_permissions', 'kinetix_features',
+            // 'kinetix_onboarding', 'kinetix_accessibility',
+        ],
+        'once_ttl' => 3600,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Permissions (optional — requires spatie/laravel-permission)
     |--------------------------------------------------------------------------
     |

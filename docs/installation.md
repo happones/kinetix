@@ -151,6 +151,99 @@ the UI):
 ],
 ```
 
+### Load each locale on demand (optional)
+
+By default the entry file imports every locale's messages, so every visitor
+downloads all of them (Kinetix's own strings are about 20 KB gzipped per
+locale). With per-locale files you can load only the active locale and the
+fallback, and fetch the others when the user switches:
+
+```bash
+composer require happones/laravel-vue-i18n-generator
+php artisan vue-i18n:generate --multi-locales
+php artisan kinetix:install --lazy-locales
+```
+
+Also set `'vue_i18n_options' => ['--multi-locales' => true]` (above), so
+upgrades regenerate the per-locale files you load.
+
+::: tip When it pays off
+Lazy mode always loads two locales before the first paint: the active one and
+the fallback. It saves the most with **three or more locales**, or when most
+visitors use the fallback locale (then only one locale loads). With two
+locales and an app locale that differs from the fallback, it is roughly
+neutral, or slightly worse because of the extra requests. Only the message
+trees move out of the entry; the vue-i18n runtime stays in it.
+:::
+
+On a fresh entry file, `--lazy-locales` writes this wiring. The glob follows the
+generator's `jsPath`, and the fallback follows `app.fallback_locale`:
+
+```ts
+import { createI18n } from 'vue-i18n';
+import { attachKinetixI18n, kinetixLoadedMessages, kinetixLocaleLoaderFromGlob, kinetixPageLocale, registerKinetixLocales, withKinetixLocales } from '@/plugins/kinetixLocales';
+
+registerKinetixLocales({
+    loader: kinetixLocaleLoaderFromGlob(import.meta.glob(['./locales/*.ts', '!./locales/index.ts'])),
+    fallbackLocale: 'en',
+});
+
+createInertiaApp({
+    // Your existing resolver, wrapped: the first paint waits for the messages.
+    resolve: withKinetixLocales((name) => resolvePageComponent(`./pages/${name}.vue`, import.meta.glob('./pages/**/*.vue'))),
+    withApp(app, { page }) {
+        const i18n = createI18n({
+            legacy: false,
+            locale: kinetixPageLocale(page),
+            fallbackLocale: 'en',
+            messages: kinetixLoadedMessages(),
+        });
+
+        attachKinetixI18n(i18n);
+        app.use(i18n);
+        app.use(pinia);
+    },
+});
+```
+
+The wiring follows your entry's shape, because Inertia runs `setup()` INSTEAD
+of `withApp()` when both are present:
+
+- **neither** (the default): a `withApp` like the one above is added;
+- **`withApp`**: the i18n is built at the start of yours;
+- **`setup()`**: no `withApp` is added. The i18n is built inside `setup()` from
+  `props.initialPage` (`kinetixPageLocale(props.initialPage)`), and
+  `.use(i18n).use(pinia)` is chained onto its `createApp(…)` call.
+
+An entry file that already registers vue-i18n is never edited: the installer
+prints the snippet so you can switch it by hand. So is one it can't read for
+sure (a `...spread` of options, an `async setup()`, both `setup` and
+`withApp`): nothing is written and the snippet is printed.
+
+**The Inertia 3 starter kit has no `resolve:`**: the Vite plugin resolves the
+pages. There is nothing to wrap, so `--lazy-locales` writes the eager wiring
+and prints the snippet; add the printed
+`resolve: withKinetixLocales((name) => resolvePageComponent(…))` to
+`createInertiaApp()` by hand, then switch `withApp` to the on-demand form.
+
+`--multi-locales` doesn't emit your root `lang/{locale}.json` catalogs (the
+single-file bundle includes them, converted). If your app relies on them, see
+[Root JSON catalogs](/locale#root-json-catalogs) before switching: they can be
+added as a second glob, but raw, without the generator's `:name` → `{name}`
+conversion.
+
+::: warning Wire every entry
+The installer only edits `app.ts`. **Every other entry** (an SSR `ssr.ts`, a
+separate `public.ts` for guest pages…) needs the same `registerKinetixLocales()`
+call, the `withKinetixLocales()` wrapper and a `createI18n()` inside `withApp`
+(one instance per request on the server). An entry that keeps
+`import Locale from './locales'` bundles every locale, and because it imports the
+same per-locale files statically, the bundler can no longer emit them as
+standalone chunks: the lazy chunks then pull in shared code from other chunks.
+See [Language Switcher → Loading locales on demand](/locale#loading-locales-on-demand)
+for the SSR entry and the fallback rules.
+:::
+
 ## 4. Run the installer
 
 Kinetix's published Vue components import a few npm packages. The installer adds
@@ -168,6 +261,9 @@ php artisan kinetix:install --tanstack
 
 # skip the App\Providers\KinetixServiceProvider scaffold (created by default):
 php artisan kinetix:install --skip-provider
+
+# load each locale's messages on demand (needs vue-i18n:generate --multi-locales):
+php artisan kinetix:install --lazy-locales
 ```
 
 It installs these **core** runtime dependencies (`vue` and `@inertiajs/vue3` are

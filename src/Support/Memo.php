@@ -55,6 +55,25 @@ final class Memo
     }
 
     /**
+     * The memoized value for ($store, $subject, $key) WITHOUT resolving it:
+     * `$default` when nothing has been remembered yet. For callers that may
+     * reuse an answer but must never trigger the resolution themselves.
+     */
+    public static function peek(string $store, object $subject, string $key, mixed $default = null): mixed
+    {
+        $map = self::$stores[$store] ?? null;
+
+        if ($map === null || ! isset($map[$subject])) {
+            return $default;
+        }
+
+        /** @var array<string, mixed> $bucket */
+        $bucket = $map[$subject];
+
+        return array_key_exists($key, $bucket) ? $bucket[$key] : $default;
+    }
+
+    /**
      * Drop memoized values. With no arguments every store is cleared; with a
      * `$store` only that one; with a `$subject` only that subject's bucket
      * (and with a `$key`, only that entry).

@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\ReportsCenter;
 
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Str;
-use ReflectionClass;
+use Happones\Kinetix\Support\Concerns\DiscoversClasses;
 use RuntimeException;
 
 /**
@@ -21,6 +19,8 @@ use RuntimeException;
  */
 class ReportRegistry
 {
+    use DiscoversClasses;
+
     /**
      * @var array<class-string<Report>, true>
      */
@@ -51,6 +51,17 @@ class ReportRegistry
     }
 
     /**
+     * The directories (+ base namespace) scanned for `Report` subclasses,
+     * for `kinetix:optimize`.
+     *
+     * @return list<array{0: string, 1: string}>
+     */
+    public function discoveryRoots(): array
+    {
+        return array_values($this->discoverPaths);
+    }
+
+    /**
      * @return array<int, class-string<Report>>
      */
     public function all(): array
@@ -58,7 +69,7 @@ class ReportRegistry
         $found = $this->manual;
 
         foreach ($this->discoverPaths as [$directory, $namespace]) {
-            foreach ($this->scan($directory, $namespace) as $class) {
+            foreach ($this->scanForSubclasses($directory, $namespace, Report::class) as $class) {
                 $found[$class] = true;
             }
         }
@@ -72,41 +83,6 @@ class ReportRegistry
     public function get(string $reportClass): ?string
     {
         return in_array($reportClass, $this->all(), true) ? $reportClass : null;
-    }
-
-    /**
-     * @return array<int, class-string<Report>>
-     */
-    protected function scan(string $directory, string $namespace): array
-    {
-        if (! File::isDirectory($directory)) {
-            return [];
-        }
-
-        $classes = [];
-
-        foreach (File::allFiles($directory) as $file) {
-            if ($file->getExtension() !== 'php') {
-                continue;
-            }
-
-            $relative = (string) Str::of($file->getRelativePathname())
-                ->replace(['/', '\\', '.php'], ['\\', '\\', '']);
-
-            $class = $namespace.'\\'.$relative;
-
-            if (! class_exists($class) || ! is_subclass_of($class, Report::class)) {
-                continue;
-            }
-
-            if ((new ReflectionClass($class))->isAbstract()) {
-                continue;
-            }
-
-            $classes[] = $class;
-        }
-
-        return $classes;
     }
 
     protected function assertValid(string $reportClass): void

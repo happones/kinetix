@@ -269,6 +269,7 @@ IconColumn::make('is_published')
 
 ## Best Practices
 
+- **Pass the table as a closure (REQUIRED)**: `inertia('Products/Index', ['table' => fn () => $table->toArray()])`. Inertia calls only the closures a response sends, so a partial reload that asks for other props never runs the table's count, page and eager loads. Generated controllers do this.
 - **Avoid N+1 Relationship Queries**: Eager-load all relationships on the backend query definition (e.g. `Product::with('category')`). The columns extract value state cleanly using dot-notation (`category.name`).
 - **Inline Editing Architecture**: Inline editors trigger XHR updates to `/tables/cell-update`. To prevent tampering, the model class string is encrypted (`Crypt::encryptString`) on serialization and validated before updating attributes.
 - **Client-Side Column Visibility**: Visible columns are managed client-side using `visibleColumnNames: Set<string>` inside `KinetixTable.vue`. Toggles are instant and do not require server request updates.

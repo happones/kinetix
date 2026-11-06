@@ -99,7 +99,7 @@ return [
 | `notifications.database` | `false` | Persist notifications to the database via Laravel's `database` channel |
 | `notifications.broadcast` | `false` | Broadcast system notifications (export/import done, etc.) in real time. Drives `Notification::shouldBroadcast()`; enable it (env `KINETIX_NOTIFICATIONS_BROADCAST`) when you wired up Echo/Reverb yourself instead of filling the `broadcasting.echo` block |
 | `notifications.limit` | `15` | Max unread notifications loaded per page request |
-| `notifications.poll` | `30000` | Database-mode fallback poll interval in **ms** (`0` disables). Without Echo, this is what makes new notifications appear — badge update **and** toast/sound for genuinely new unread items — without a page navigation. Paused while the tab is hidden. With Echo it's redundant but harmless (partial reloads only) |
+| `notifications.poll` | `30000` | Database-mode fallback poll interval in **ms** (`0` disables). Without Echo, this is what makes new notifications appear — badge update **and** toast/sound for genuinely new unread items — without a page navigation. Paused while the tab is hidden. With Echo it's redundant but harmless (each tick is one small JSON request) |
 | `notifications.teams` | `null` | Scope the bell per team: `true`/`false` wins, `null` inherits the global `kinetix.teams` switch (see [Team-scoped notifications](#team-scoped-notifications)) |
 | `notifications.sound.enabled` | `true` | Play audio alert for incoming real-time notifications |
 | `notifications.sound.path` | `/vendor/kinetix/notification.wav` | Path to the audio file |
@@ -213,21 +213,72 @@ This sends the notification to the `database` **and** `broadcast` channels simul
 ### Polling (database-mode fallback)
 
 Without Echo, database notifications used to appear only on the next page
-navigation. The bell now **polls** on an interval (a partial Inertia reload of
-`kinetix_notifications` only) whenever database mode is on:
+navigation. The bell now **polls** the [notification feed](#the-notification-feed)
+on an interval whenever database mode is on:
 
 - Configure with `kinetix.notifications.poll` (**milliseconds**, default
-  `30000`; `0` disables it). The interval counts from the end of one reload to
+  `30000`; `0` disables it). The interval counts from the end of one request to
   the next, so a slow response is never overlapped. Polling pauses while the
-  tab is hidden and reloads once as soon as it's visible again. There's no
-  reload at mount: the page already carries the current list. The poll keeps
-  running even when a `before` listener of yours cancels one of its reloads.
+  tab is hidden and refreshes once as soon as it's visible again. There's no
+  request at mount: the page already carries the current list. A failed
+  request (offline, an expired session) only logs a console warning; the next
+  tick tries again.
 - A genuinely **new unread** notification found by a poll triggers the toast +
   sound, exactly like a broadcast arrival. The initial page load stays silent —
   persisted rows are old news.
 - If you run Echo/Reverb, polling is redundant; set
-  `KINETIX_NOTIFICATIONS_POLL=0` or just leave it (the reloads are cheap and
-  broadcast arrivals are deduplicated — nothing toasts twice).
+  `KINETIX_NOTIFICATIONS_POLL=0` or just leave it (each tick is one small JSON
+  request, and broadcast arrivals are deduplicated — nothing toasts twice).
+
+### The notification feed
+
+`GET {prefix}/notifications` (route name `kinetix.notifications.index`, under
+the team prefix when teams are on) returns the bell's list as JSON:
+
+```json
+{ "notifications": [ { "id": "…", "title": "Export ready", "status": "success", "read": false, "created_at": "…" } ] }
+```
+
+- It holds exactly what the `kinetix_notifications` page prop holds: the same
+  limit, the same [team filter](#team-scoped-notifications), newest first. Its
+  TypeScript type is `KinetixNotificationsFeed`.
+- The bell reads it on every poll tick, when a database-mode broadcast
+  arrives, after mark-as-read / delete / clear, and to roll back an optimistic
+  change that failed.
+- It runs **only** Kinetix's feed query. The bell used to refresh through a
+  partial Inertia reload, which re-ran the controller of whatever page was
+  open (a scaffolded index: count, page, eager loads) every 30 seconds per
+  open tab.
+- It carries the module's middleware like its sibling routes: the
+  `kinetix.middleware` stack and `kinetix.module_middleware.notifications`.
+  Guests get a `401`. Responses are `Cache-Control: no-store, private`.
+- To refresh the bell from your own code (after an action of yours created a
+  notification), call the store's `refresh()`:
+
+```ts
+import { useNotificationsStore } from '@/stores/kinetixNotifications';
+
+await useNotificationsStore().refresh();
+```
+
+### Index for the feed query
+
+The bell reads `where notifiable_type = ? and notifiable_id = ? order by
+created_at desc limit ?` on every page and every poll. Laravel's own
+`notifications` table only indexes the two notifiable columns, so the database
+sorts every notification the user ever received to return the newest few. The
+optional `kinetix-notifications-migrations` tag adds a
+`(notifiable_type, notifiable_id, created_at)` index:
+
+```bash
+php artisan vendor:publish --tag=kinetix-notifications-migrations
+php artisan migrate
+```
+
+The migration skips a missing table and any index that already starts with
+those columns (whatever its name), and `down()` drops only its own index.
+`php artisan kinetix:doctor` warns when database notifications are on and the
+index is missing.
 
 ### Team-scoped notifications
 
@@ -580,6 +631,6 @@ php artisan kinetix:send-notification "Alert" "CPU usage at 90%" --status=warnin
 ## Architecture
 
 1. **Session flash (local)** — Default. `send()` flashes to session; Inertia's `kinetix_notifications` shared prop delivers them on next page load.
-2. **Database persistence** — When `notifications.database = true`, notifications are written to the `notifications` table. The shared prop loads the latest unread records on every request.
+2. **Database persistence** — When `notifications.database = true`, notifications are written to the `notifications` table. The shared prop loads the latest records on every request; the bell refreshes them through the [JSON feed](#the-notification-feed).
 3. **Real-time broadcast** — `broadcast($user)` writes to the database AND fires via Laravel Echo. The Vue component listens on the user's private channel and triggers instant toasts + sound without a page reload. Echo is loaded on demand, only when [the bell listens](#when-the-bell-listens).
-4. **Background fetch** — All mark-as-read / delete calls use `fetch()` with a CSRF header to avoid triggering Inertia's JSON modal response. A subsequent `router.reload({ only: ['kinetix_notifications'] })` keeps UI in sync.
+4. **Background fetch** — All mark-as-read / delete calls use `fetch()` with a CSRF header to avoid triggering Inertia's JSON modal response. A request to the [feed](#the-notification-feed) then keeps the UI in sync, without re-running the page's controller.

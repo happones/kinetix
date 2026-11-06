@@ -107,6 +107,25 @@ class NotificationRoutesTest extends TestCase
         $this->assertNotNull($user->fresh()->notifications()->find($id)->read_at);
     }
 
+    public function test_the_feed_route_lists_the_users_notifications_with_the_module_middleware(): void
+    {
+        config(['kinetix.notifications.database' => true]);
+        $user = NotifiableUser::create(['name' => 'A']);
+        $id   = $this->seedNotification($user);
+
+        $this->actingAs($user)
+            ->getJson('/_kinetix/notifications')
+            ->assertOk()
+            ->assertJsonPath('notifications.0.id', $id)
+            ->assertJsonPath('notifications.0.title', 'Export ready');
+
+        $feed = app('router')->getRoutes()->getByName('kinetix.notifications.index');
+        $read = app('router')->getRoutes()->getByName('kinetix.notifications.read');
+
+        $this->assertNotNull($feed);
+        $this->assertSame($read?->gatherMiddleware(), $feed->gatherMiddleware());
+    }
+
     public function test_clear_all_route_removes_every_notification(): void
     {
         $user = NotifiableUser::create(['name' => 'A']);

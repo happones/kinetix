@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Membership;
 
 use Happones\Kinetix\Permissions\PermissionTeam;
 use Happones\Kinetix\Support\ConfigCallback;
+use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -38,6 +39,10 @@ class KinetixMembership
 
             if ($detach !== null) {
                 $detach($user, $provision);
+
+                // The callback changed team membership: a team resolved
+                // earlier in this request must be checked again.
+                KinetixTeams::forgetCurrentTeam();
             }
         }
 

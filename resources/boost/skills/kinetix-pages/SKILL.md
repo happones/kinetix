@@ -63,7 +63,7 @@ class InventoryAdjustPage extends Page
 
 ```php
 return inertia('Kinetix/InventoryAdjust', [
-    'page' => InventoryAdjustPage::make()->record($item)->toArray(),
+    'page' => fn () => InventoryAdjustPage::make()->record($item)->toArray(),
 ]);
 ```
 
@@ -84,4 +84,5 @@ return inertia('Kinetix/InventoryAdjust', [
 - **A footer Save for the form in the body**: `Action::make('save')->submits('form-id')`, and `<KinetixForm id="form-id" hide-submit @submit="...">` in the body — values, validation and errors stay the form's own.
 - **`Page` is optional sugar.** Composing `<KinetixPageHeader>` + `<KinetixPageFooter>` with plain `KinetixAction[]` props is equally valid and better when the layout between them is unusual.
 - **Don't confuse it with two neighbours**: `SettingsPage` is a database-backed key/value form (see `kinetix-settings`); `Table::footerActions()` renders inside a table's own footer card, not at page level.
+- **Page props are closures** (`'page' => fn () => …`, as the scaffold writes them): Inertia calls only the ones a response sends, so a partial reload never builds the chrome. Authorization stays where it is.
 - **Nothing is auto-discovered.** You register the route and return the Inertia response; there is no page router.

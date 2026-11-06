@@ -20,6 +20,7 @@ class ReportsCenterMigrationPublishTest extends TestCase
         $this->assertSame([
             '2026_01_01_000020_create_kinetix_report_schedules_table.php',
             '2026_01_01_000021_create_kinetix_report_runs_table.php',
+            '2026_01_01_000048_add_team_created_index_to_kinetix_report_runs_table.php',
         ], $published);
     }
 }

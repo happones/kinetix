@@ -156,8 +156,9 @@ class MakePageCommand extends Command
                     return inertia('Kinetix/{$name}', [
                         // The page's chrome: heading, description and both action
                         // bars, authorized per user (an action the user may not run
-                        // is dropped before it reaches the browser).
-                        'page' => {$class}::make()->toArray(),
+                        // is dropped before it reaches the browser). In a closure,
+                        // so a partial reload that doesn't ask for it skips it.
+                        'page' => fn () => {$class}::make()->toArray(),
 
                         // Everything the page BODY needs is yours to add here.
                     ]);

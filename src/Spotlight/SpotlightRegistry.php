@@ -50,6 +50,17 @@ class SpotlightRegistry
     }
 
     /**
+     * The directories (+ base namespace) scanned for `SpotlightSource` implementations, for
+     * `kinetix:optimize`.
+     *
+     * @return list<array{0: string, 1: string}>
+     */
+    public function discoveryRoots(): array
+    {
+        return array_values($this->discoverPaths);
+    }
+
+    /**
      * Discovered class names, memoized for the life of the singleton.
      *
      * @var array<int, class-string<SpotlightSource>>|null

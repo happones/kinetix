@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Features;
 use Closure;
 use Happones\Kinetix\Support\KinetixTeams;
 use Laravel\Pennant\Feature;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 /**
  * Resolves feature flags through the configured driver: `laravel/pennant` when
@@ -116,14 +117,36 @@ class FeatureManager
         return (bool) $definition($scope);
     }
 
+    /**
+     * The scope a flag resolves for when none is given: with team-scoped
+     * features, the request's team — the URL's `{current_team}`, through the
+     * same memoized resolution and membership check as every other module —
+     * else the user.
+     *
+     * The user's stored `currentTeam` is only the fallback when the request
+     * has no team context (console, a queued job, a route without a team
+     * segment). A team segment that isn't one of the user's resolves to the
+     * user alone: a feature check never 404s, and never answers for a team
+     * the URL doesn't name.
+     */
     protected function defaultScope(): mixed
     {
         $user = auth()->user();
 
-        if (KinetixTeams::enabledFor('features') && $user?->currentTeam !== null) {
-            return $user->currentTeam;
+        if ($user === null || ! KinetixTeams::enabledFor('features')) {
+            return $user;
         }
 
-        return $user;
+        try {
+            $team = KinetixTeams::currentTeam();
+        } catch (HttpExceptionInterface) {
+            return $user;
+        }
+
+        if ($team !== null) {
+            return $team;
+        }
+
+        return $user->currentTeam ?? $user;
     }
 }

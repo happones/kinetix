@@ -15,6 +15,15 @@ php artisan vendor:publish --tag=kinetix-activity-migrations
 php artisan migrate
 ```
 
+::: tip Upgrading: the listing index
+The tag also ships an index on `kinetix_activity` `(team_id, created_at)`, which the activity feed reads newest-first on every
+page. If you published the tag before 0.277, publish it again and migrate:
+`kinetix:upgrade` lists the new file and `kinetix:doctor` warns while the
+index is missing. The migration is idempotent, skips an equivalent index you
+already have (same leading columns, in order), and is a plain `CREATE INDEX`:
+on a very large table, run it in a maintenance window.
+:::
+
 Enable it in `config/kinetix.php` (opt-in, default off):
 
 ```php

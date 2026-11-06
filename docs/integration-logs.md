@@ -53,6 +53,15 @@ php artisan vendor:publish --tag=kinetix-api-logs-migrations
 php artisan migrate
 ```
 
+::: tip Upgrading: the listing index
+The tag also ships an index on `kinetix_api_logs` `(team_id, created_at)`, which the logs viewer reads newest-first on every
+page. If you published the tag before 0.277, publish it again and migrate:
+`kinetix:upgrade` lists the new file and `kinetix:doctor` warns while the
+index is missing. The migration is idempotent, skips an equivalent index you
+already have (same leading columns, in order), and is a plain `CREATE INDEX`:
+on a very large table, run it in a maintenance window.
+:::
+
 Attach the middleware to your API group — the row is written in `terminate()`
 (after the response is sent), so logging adds **no request latency**:
 

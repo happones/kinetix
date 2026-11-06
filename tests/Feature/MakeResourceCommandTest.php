@@ -89,6 +89,10 @@ class MakeResourceCommandTest extends TestCase
         // store/update/destroy (CRUD is Kinetix-owned via the modals).
         $this->assertStringContainsString('PostResource::getEloquentQuery()', $controller);
         $this->assertStringContainsString('PostResource::table(Table::make($query))->toArray()', $controller);
+        // Page props are closures, so a partial reload that asks for other
+        // props never builds the table.
+        $this->assertStringContainsString("'table' => fn () => PostResource::table(Table::make(\$query))->toArray(),", $controller);
+        $this->assertStringContainsString("'breadcrumbs' => fn () => PostResource::breadcrumbs('index'),", $controller);
         $this->assertStringNotContainsString('public function store(', $controller);
         $this->assertStringNotContainsString('public function update(', $controller);
         $this->assertStringNotContainsString('public function destroy(', $controller);
@@ -250,6 +254,15 @@ class MakeResourceCommandTest extends TestCase
         $this->assertStringContainsString('PostResource::getRedirectUrlAfterSave($record)', $controller);
         // The created record is captured so create can redirect to it.
         $this->assertStringContainsString('$record = Post::create(', $controller);
+
+        // Every page prop is a closure: a partial reload builds only what it asks for.
+        $this->assertStringContainsString("'table' => fn () => PostResource::table(Table::make(\$query))->toArray(),", $controller);
+        $this->assertStringContainsString("'form' => fn () => \$form->toArray(),", $controller);
+        $this->assertStringContainsString("'infolist' => fn () => PostResource::infolist(Infolist::make(\$record))->toArray(),", $controller);
+        $this->assertStringContainsString("'actions' => fn () => Action::toArrayMany([", $controller);
+        $this->assertStringContainsString("'relations' => fn () => collect(PostResource::relationManagersFor('view', \$record))", $controller);
+        $this->assertStringContainsString("'breadcrumbs' => fn () => PostResource::breadcrumbs('show', \$record),", $controller);
+        $this->assertDoesNotMatchRegularExpression("/^\\s+'(table|form|infolist|breadcrumbs|actions|relations)' => (?!fn \\(\\) =>)/m", $controller);
 
         exec('php -l '.escapeshellarg($controllerPath).' 2>&1', $out, $code);
         $this->assertSame(0, $code, "Generated full controller has a syntax error:\n".implode("\n", $out));

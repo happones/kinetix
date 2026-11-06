@@ -27,6 +27,17 @@ class AnnouncementManager
     protected array $seenCache = [];
 
     /**
+     * Drop the per-request read state. Called by the state reset between
+     * Octane requests and queued jobs.
+     *
+     * @internal
+     */
+    public function flushMemo(): void
+    {
+        $this->seenCache = [];
+    }
+
+    /**
      * The published feed for a user, newest first, with an `isNew` flag.
      *
      * @return array<int, AnnouncementData>

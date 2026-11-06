@@ -647,8 +647,8 @@ class {$modelName}Controller extends Controller
         \$query = {$resourceClass}::getEloquentQuery();
 
         return inertia('Kinetix/{$pluralName}/Index', [
-            'table' => {$resourceClass}::table(Table::make(\$query))->toArray(),
-            'breadcrumbs' => {$resourceClass}::breadcrumbs('index'),
+            'table' => fn () => {$resourceClass}::table(Table::make(\$query))->toArray(),
+            'breadcrumbs' => fn () => {$resourceClass}::breadcrumbs('index'),
         ]);
     }
 {$softDeletesMethods}{$authorizeHelper}
@@ -691,8 +691,8 @@ class {$modelName}Controller extends Controller
         // Columns + row/toolbar actions (View / Edit / Delete / Create) are
         // declared on the resource's table(); here we just render the query.
         return inertia('Kinetix/{$pluralName}/Index', [
-            'table' => {$resourceClass}::table(Table::make(\$query))->toArray(),
-            'breadcrumbs' => {$resourceClass}::breadcrumbs('index'),
+            'table' => fn () => {$resourceClass}::table(Table::make(\$query))->toArray(),
+            'breadcrumbs' => fn () => {$resourceClass}::breadcrumbs('index'),
         ]);
     }
 
@@ -705,10 +705,10 @@ class {$modelName}Controller extends Controller
         // URLs are resolved server-side (getUrl() fills the `{current_team}`
         // segment and route keys), so the page never rebuilds routes itself.
         return inertia('Kinetix/{$pluralName}/Create', [
-            'form' => \$form->toArray(),
+            'form' => fn () => \$form->toArray(),
             'storeUrl' => {$resourceClass}::getUrl('store'),
             'cancelUrl' => {$resourceClass}::getUrl('index'),
-            'breadcrumbs' => {$resourceClass}::breadcrumbs('create'),
+            'breadcrumbs' => fn () => {$resourceClass}::breadcrumbs('create'),
         ]);
     }
 
@@ -756,17 +756,17 @@ class {$modelName}Controller extends Controller
         // Read-only detail: the resource's infolist() plus Edit/Delete actions
         // rendered in the page header (KinetixPageHeader) for quick redirects.
         return inertia('Kinetix/{$pluralName}/Show', [
-            'infolist' => {$resourceClass}::infolist(Infolist::make(\$record))->toArray(),
-            'actions' => Action::toArrayMany([
+            'infolist' => fn () => {$resourceClass}::infolist(Infolist::make(\$record))->toArray(),
+            'actions' => fn () => Action::toArrayMany([
                 // route() resolves per record and auto-hides if the route is absent.
                 EditAction::make()->route('{$routePrefix}.edit'),
                 DeleteAction::make()->route('{$routePrefix}.destroy', method: 'delete'),
             ], \$record),
             // Relation managers declared on the resource (auto-tabs when >1).
-            'relations' => collect({$resourceClass}::relationManagersFor('view', \$record))
+            'relations' => fn () => collect({$resourceClass}::relationManagersFor('view', \$record))
                 ->map(fn (string \$manager) => \$manager::make(\$record)->toData())
                 ->values(),
-            'breadcrumbs' => {$resourceClass}::breadcrumbs('show', \$record),
+            'breadcrumbs' => fn () => {$resourceClass}::breadcrumbs('show', \$record),
         ]);
     }
 
@@ -778,13 +778,13 @@ class {$modelName}Controller extends Controller
         \$form = {$resourceClass}::form(Form::make(\$record))->fill(\$record);
 
         return inertia('Kinetix/{$pluralName}/Edit', [
-            'form' => \$form->toArray(),
+            'form' => fn () => \$form->toArray(),
             'updateUrl' => {$resourceClass}::getUrl('update', \$record),
             'cancelUrl' => {$resourceClass}::getUrl('index'),
-            'relations' => collect({$resourceClass}::relationManagersFor('edit', \$record))
+            'relations' => fn () => collect({$resourceClass}::relationManagersFor('edit', \$record))
                 ->map(fn (string \$manager) => \$manager::make(\$record)->toData())
                 ->values(),
-            'breadcrumbs' => {$resourceClass}::breadcrumbs('edit', \$record),
+            'breadcrumbs' => fn () => {$resourceClass}::breadcrumbs('edit', \$record),
         ]);
     }
 

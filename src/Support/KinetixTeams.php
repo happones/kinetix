@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Support;
 
 use Happones\Kinetix\Teams\TeamSwitcherManager;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
@@ -19,6 +20,9 @@ use Illuminate\Support\Facades\Route;
  */
 class KinetixTeams
 {
+    /** The {@see Memo} store team resolutions live in. */
+    private const MEMO = 'kinetix.teams.current';
+
     /**
      * Whether the given module scopes its data per team.
      */
@@ -167,51 +171,166 @@ class KinetixTeams
      *    aborts 404;
      *  - no relation on the user → the raw segment (legacy id-keyed fallback);
      *  - no segment → the user's `currentTeam` key.
+     *
+     * The segment resolution is memoized per request, per user identity and
+     * per segment ({@see currentTeam()}), so asking again costs no query.
      */
     public static function currentTeamKey(?Request $request = null): int|string|null
     {
-        $request ??= request();
+        return self::resolveCurrent($request ?? request())[1];
+    }
 
+    /**
+     * The active team MODEL for the request: the same resolution and
+     * membership check as {@see currentTeamKey()}, memoized per request.
+     *
+     * Null when no team resolves, and in the legacy no-relation mode, where
+     * only the raw segment is known.
+     *
+     * The memo is keyed by the request, the user's identity, the segment and
+     * the teams relation, so another user or another team on the same
+     * request resolves again — and a non-member answer is never stored (it
+     * aborts 404 before anything is kept). Code that changes the user's
+     * membership and asks again within the same request calls
+     * {@see forgetCurrentTeam()} first.
+     */
+    public static function currentTeam(?Request $request = null): ?Model
+    {
+        return self::resolveCurrent($request ?? request())[0];
+    }
+
+    /**
+     * Drop every memoized team resolution (all requests). Call after changing
+     * a user's team membership mid-request.
+     */
+    public static function forgetCurrentTeam(): void
+    {
+        Memo::flush(self::MEMO);
+    }
+
+    /**
+     * What has ALREADY been resolved for this request, with no query and no
+     * abort: null until {@see currentTeam()} / {@see currentTeamKey()} ran
+     * for the same user and segment. For `Gate::before` paths that must never
+     * turn an authorization check into a 404.
+     *
+     * @internal
+     */
+    public static function resolvedCurrentTeam(?Request $request = null): ?Model
+    {
+        $request ??= request();
+        $param = self::segment($request);
+
+        if ($param === null) {
+            return null;
+        }
+
+        $resolved = Memo::peek(self::MEMO, $request, self::memoKey($param, self::requestUser($request)));
+
+        return is_array($resolved) && $resolved[0] instanceof Model ? $resolved[0] : null;
+    }
+
+    /**
+     * The team model and key for the request. Only the SEGMENT paths are
+     * memoized: the no-segment fallback reads `$user->currentTeam`, which
+     * Eloquent's relation cache already makes one query.
+     *
+     * @return array{0: Model|null, 1: int|string|null}
+     */
+    private static function resolveCurrent(Request $request): array
+    {
         // `{current_team}` is the canonical segment; `{team}` is accepted too
         // because the Billing routes (and hosts that predate the rename) use
         // that name — without this a Kinetix component rendered inside such a
         // page would silently fall back to the user's `currentTeam`.
-        $param = $request->route('current_team') ?? $request->route('team');
+        $param = self::segment($request);
+        $user  = self::requestUser($request);
 
-        // Outside a routed HTTP request (queued jobs, console, unit tests) the
-        // request has no user resolver — fall back to the auth guard.
-        $user = $request->user() ?? auth()->user();
+        if ($param === null) {
+            $team = $user?->currentTeam;
 
+            return [$team instanceof Model ? $team : null, $team instanceof Model ? $team->getKey() : null];
+        }
+
+        /** @var array{0: Model|null, 1: int|string|null} */
+        return Memo::remember(
+            self::MEMO,
+            $request,
+            self::memoKey($param, $user),
+            static fn (): array => self::resolveSegment($param, $user),
+        );
+    }
+
+    /**
+     * Resolve a route segment (a bound model or a route key) to the team, with
+     * the membership check. Aborts 404 for a team that isn't the user's.
+     *
+     * @return array{0: Model|null, 1: int|string|null}
+     */
+    private static function resolveSegment(mixed $param, mixed $user): array
+    {
         if ($param instanceof Model) {
-            return static::boundTeamKey($user, $param);
+            return [$param, static::boundTeamKey($user, $param)];
         }
 
-        if ($param !== null) {
-            $relationName = (string) config('kinetix.team_switcher.teams_relation', 'teams');
+        $relationName = (string) config('kinetix.team_switcher.teams_relation', 'teams');
 
-            if ($user instanceof Model && method_exists($user, $relationName)) {
-                $relation = $user->{$relationName}();
+        if ($user instanceof Model && method_exists($user, $relationName)) {
+            $relation = $user->{$relationName}();
 
-                if ($relation instanceof Relation) {
-                    $related = $relation->getRelated();
-                    $team    = $relation
-                        ->where($related->qualifyColumn($related->getRouteKeyName()), $param)
-                        ->first();
+            if ($relation instanceof Relation) {
+                $related = $relation->getRelated();
+                $team    = $relation
+                    ->where($related->qualifyColumn($related->getRouteKeyName()), $param)
+                    ->first();
 
-                    // Not one of the user's teams (or not a team at all).
-                    abort_if($team === null, 404);
+                // Not one of the user's teams (or not a team at all).
+                abort_if(! $team instanceof Model, 404);
 
-                    return $team->getKey();
-                }
+                return [$team, $team->getKey()];
             }
-
-            // No teams relation to resolve/verify against — legacy behaviour:
-            // trust the segment as the key (id-routed teams). Membership is
-            // the host's responsibility in this mode.
-            return $param;
         }
 
-        return $user?->currentTeam?->getKey();
+        // No teams relation to resolve/verify against — legacy behaviour:
+        // trust the segment as the key (id-routed teams). Membership is the
+        // host's responsibility in this mode.
+        return [null, is_int($param) ? $param : (string) $param];
+    }
+
+    /**
+     * The route's team segment: `{current_team}`, else `{team}`. A bound
+     * model or a scalar route key; null when the route has neither.
+     */
+    private static function segment(Request $request): mixed
+    {
+        return $request->route('current_team') ?? $request->route('team');
+    }
+
+    /**
+     * The request's user. Outside a routed HTTP request (queued jobs,
+     * console, unit tests) the request has no user resolver — fall back to
+     * the auth guard.
+     */
+    private static function requestUser(Request $request): mixed
+    {
+        return $request->user() ?? auth()->user();
+    }
+
+    /**
+     * The memo key of a segment resolution: the segment, the user's identity
+     * and the teams relation the membership is checked through.
+     */
+    private static function memoKey(mixed $param, mixed $user): string
+    {
+        $segment = $param instanceof Model
+            ? 'm:'.$param::class.'#'.$param->getKey()
+            : 's:'.(is_scalar($param) ? (string) $param : get_debug_type($param));
+
+        $identity = $user instanceof Authenticatable
+            ? $user::class.'#'.$user->getAuthIdentifier()
+            : 'guest';
+
+        return implode('|', [$segment, $identity, (string) config('kinetix.team_switcher.teams_relation', 'teams')]);
     }
 
     /**

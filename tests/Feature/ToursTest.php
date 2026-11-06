@@ -15,6 +15,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
+use Inertia\OnceProp;
 
 class TourUser extends Authenticatable
 {
@@ -70,9 +71,10 @@ class ToursTest extends TestCase
     private function sharedTours(): array
     {
         /** @var callable $shared */
-        $shared = Inertia::getShared('kinetix_tours');
+        $shared = value(Inertia::getShared('kinetix_tours'));
 
-        return value($shared);
+        // Kept between visits on inertia-laravel 3 (`shared_props.once`).
+        return $shared instanceof OnceProp ? $shared() : $shared;
     }
 
     public function test_declared_tours_are_shared_with_their_steps(): void

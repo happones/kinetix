@@ -348,6 +348,7 @@ class MembershipController
 
         if ($attach !== null) {
             $attach($user, $provision);
+            KinetixTeams::forgetCurrentTeam();
         }
 
         KinetixMembership::syncRole($user, $provision, from: null, to: $provision->role);
@@ -692,6 +693,7 @@ class MembershipController
 
         if ($attach !== null) {
             $attach($user, $provision);
+            KinetixTeams::forgetCurrentTeam();
         }
 
         KinetixMembership::syncRole($user, $provision, from: null, to: $provision->role);

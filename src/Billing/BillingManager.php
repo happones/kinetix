@@ -167,11 +167,60 @@ class BillingManager
             return null;
         }
 
+        if (static::readsTheSameTeamAsKinetixTeams($user)) {
+            return KinetixTeams::currentTeam($request);
+        }
+
         if ($team instanceof Model) {
             return static::memberTeam($user, $team->getKeyName(), $team->getKey());
         }
 
         return static::memberTeam($user, null, $team);
+    }
+
+    /**
+     * Whether {@see KinetixTeams::currentTeam()} answers exactly what
+     * {@see memberTeam()} would, so its per-request memo can be reused: the
+     * user is the request's own, it has the teams relation, and the route
+     * carries one team segment (or both with the same value) — Billing reads
+     * `{team}` first, KinetixTeams `{current_team}`.
+     */
+    protected static function readsTheSameTeamAsKinetixTeams(mixed $user): bool
+    {
+        $request      = request();
+        $relationName = (string) config('kinetix.team_switcher.teams_relation', 'teams');
+
+        if (! $user instanceof Model || ! method_exists($user, $relationName)) {
+            return false;
+        }
+
+        if (! $user->{$relationName}() instanceof Relation) {
+            return false;
+        }
+
+        $requestUser = $request->user() ?? auth()->user();
+
+        if (! $requestUser instanceof Model || $requestUser::class !== $user::class || (string) $requestUser->getKey() !== (string) $user->getKey()) {
+            return false;
+        }
+
+        $team        = $request->route('team');
+        $currentTeam = $request->route('current_team');
+
+        if ($team === null || $currentTeam === null) {
+            return true;
+        }
+
+        return self::segmentValue($team) === self::segmentValue($currentTeam);
+    }
+
+    private static function segmentValue(mixed $segment): string
+    {
+        if ($segment instanceof Model) {
+            return 'm:'.$segment::class.'#'.$segment->getKey();
+        }
+
+        return 's:'.(is_scalar($segment) ? (string) $segment : get_debug_type($segment));
     }
 
     /**

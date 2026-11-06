@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Feature;
 
+use Happones\Kinetix\KinetixServiceProvider;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Log;
+use ReflectionProperty;
 use Spatie\Permission\PermissionServiceProvider;
 
 class PermissionTeamsWarningTest extends TestCase
@@ -39,6 +41,19 @@ class PermissionTeamsWarningTest extends TestCase
 
     public function test_a_warning_is_logged_when_spatie_team_scoping_is_off(): void
     {
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $message): bool => str_contains($message, 'permission.teams'))
+            ->once();
+    }
+
+    public function test_a_production_web_request_does_not_log_it(): void
+    {
+        (new ReflectionProperty(Application::class, 'isRunningInConsole'))->setValue($this->app, false);
+        $this->app['env'] = 'production';
+
+        (new KinetixServiceProvider($this->app))->boot();
+
+        // Still only the one from the (console) test boot.
         Log::shouldHaveReceived('warning')
             ->withArgs(fn (string $message): bool => str_contains($message, 'permission.teams'))
             ->once();

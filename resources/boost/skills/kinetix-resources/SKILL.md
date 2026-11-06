@@ -158,7 +158,8 @@ class ArticleController extends Controller
     public function index()
     {
         return inertia('Articles/Index', [
-            'articlesTable' => $this->getTable()->toArray(),
+            // Page props as closures (REQUIRED): a partial reload builds only what it asks for.
+            'articlesTable' => fn () => $this->getTable()->toArray(),
         ]);
     }
 
@@ -167,7 +168,7 @@ class ArticleController extends Controller
         $form = $this->getForm(new Article())->fill();
 
         return inertia('Articles/Create', [
-            'articleForm' => $form->toArray(),
+            'articleForm' => fn () => $form->toArray(),
         ]);
     }
 
@@ -186,7 +187,7 @@ class ArticleController extends Controller
         $form = $this->getForm($article)->fill($article);
 
         return inertia('Articles/Edit', [
-            'articleForm' => $form->toArray(),
+            'articleForm' => fn () => $form->toArray(),
         ]);
     }
 

@@ -52,6 +52,17 @@ class HelpManager
     protected array $indexes = [];
 
     /**
+     * Drop the per-request article index (the persistent cache stays).
+     * Called by the state reset between Octane requests and queued jobs.
+     *
+     * @internal
+     */
+    public function flushMemo(): void
+    {
+        $this->indexes = [];
+    }
+
+    /**
      * A `<!-- kinetix:can ability -->…<!-- /kinetix:can -->` region (an
      * unclosed one runs to the end of the document).
      */

@@ -267,6 +267,38 @@ they are not members of on purpose (support staff, say), they now get a 404
 there; add them to the relation, or handle those routes outside Kinetix.
 :::
 
+## Resolving the team in PHP
+
+Scope data with `KinetixTeams::keyFor($module)`; when you need the team model
+itself, use `KinetixTeams::currentTeam()`. Both go through the same
+resolution and membership check, never `auth()->user()->currentTeam` by hand
+(that ignores the URL's team):
+
+```php
+use Happones\Kinetix\Support\KinetixTeams;
+
+$teamId = KinetixTeams::keyFor('settings');   // null when the module isn't team-scoped
+$team   = KinetixTeams::currentTeam();        // the URL's team (or the user's current one)
+```
+
+The answer is memoized per request: the first call looks the team up, every
+later one (every scoped query, settings read and shared prop of the request)
+reuses it. The memo is kept per user and per segment, so another user or
+another team on the same request resolves again, and a 404 is never stored.
+It is dropped between queued jobs and Octane requests.
+
+If your code changes the user's team membership and checks it again within
+the same request, forget the memo first:
+
+```php
+$team->users()->detach($user);
+KinetixTeams::forgetCurrentTeam();
+```
+
+Kinetix does this itself after the membership module's `attach_member` and
+`detach_member` callbacks. Switching teams needs nothing: the memo follows the
+URL's segment.
+
 ## Teams on subdomains
 
 By default the team rides in the path (`/acme/projects`). To serve each team on
@@ -316,3 +348,22 @@ there is no wildcard DNS.
 `url` is `null` when the configured switch route doesn't exist, so the switcher
 degrades gracefully. The payload is empty (`enabled: false`) for guests or when
 the feature is off.
+
+### Keeping the list between visits
+
+The team list goes out on every visit by default. With inertia-laravel 3 you
+can let the browser keep it, which saves the teams query and about 190 bytes
+per team on every navigation:
+
+```php
+// config/kinetix.php
+'shared_props' => [
+    'once' => [/* the default set, */ 'kinetix_teams'],
+],
+```
+
+The kept list is sent again when the user switches team (the team's route key
+is part of the prop's key), on a full page load, after `once_ttl` seconds and
+when you call `KinetixSharedProps::refresh()`. A team created, renamed or
+joined in another tab or by someone else shows up after one of those. After
+your own team writes, call `\Happones\Kinetix\Support\KinetixSharedProps::refresh()`.

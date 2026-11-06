@@ -171,6 +171,14 @@ KinetixPermissions::discoverResources(
 
 Manual and discovered registrations merge without duplicates.
 
+In production, cache the discovery so requests stop scanning the directory:
+`php artisan optimize` runs `kinetix:optimize` on Laravel versions with
+provider optimize hooks (add `php artisan kinetix:optimize` to your deploy
+script otherwise). A Resource added after that is discovered on the next
+`optimize`, the same as `config:cache`; `optimize:clear` (or
+`kinetix:optimize-clear`) goes back to scanning. Without the cache, discovery
+scans on every request as before, so development never goes stale.
+
 #### Customizing Resource Abilities
 If a resource requires custom abilities on top of CRUD, override the `registerPermissions` method:
 
@@ -996,6 +1004,34 @@ the package's own prop logs
 Nothing runs in production.
 :::
 
+### Keeping the permissions between visits (opt-in)
+
+`kinetix_permissions` is sent on every visit by default. With
+inertia-laravel 3 you can let the browser keep it between visits, which saves
+the role and permission queries of every navigation:
+
+```php
+// config/kinetix.php
+'shared_props' => [
+    'once' => [/* the default set, */ 'kinetix_permissions'],
+],
+```
+
+The kept copy is sent again when the user, the team or the locale changes, on
+a full page load, after any successful write to the permissions, membership,
+features, onboarding, accessibility, impersonation or tours
+endpoints of **this** user's session, after `shared_props.once_ttl`
+seconds (default 3600), and when you call
+`\Happones\Kinetix\Support\KinetixSharedProps::refresh()` after changing roles in
+your own code.
+
+::: warning Changes made by someone else
+A role another admin changes for this user reaches their screen after
+`once_ttl` or a full reload, not on their next click. It is the UI only: the
+server checks every request against the current roles. Keep the default if
+your users must see such changes at once.
+:::
+
 ### 5.1 `useKinetixCan` composable
 
 ```vue
@@ -1317,7 +1353,13 @@ What to get right for that to hold at scale:
 - **Octane / long-running workers.** The super-admin and owner checks memoize
   per user object via a `WeakMap`, so they never leak across requests; if a
   worker mutates a user's role or ownership mid-process, call
-  `SuperAdmin::flush()` / `TeamOwner::flush()`.
+  `SuperAdmin::flush()` / `TeamOwner::flush()`. Kinetix clears its request
+  memos and spatie's team id at the start of every queued job and Octane
+  request; a job on a `sync`-driver connection (whatever its name) keeps the
+  team of the request that dispatched it.
+- **The super-admin check reuses the roles it loads.** Its second, teamless
+  look (for a global super-admin) restores the roles it loaded for the
+  current team, so the `kinetix_permissions` prop doesn't load them again.
 
 ---
 

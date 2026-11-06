@@ -6,11 +6,13 @@ namespace Happones\Kinetix\Teams;
 
 use BackedEnum;
 use Happones\Kinetix\Support\ConfigCallback;
+use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\KinetixTrans;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use UnitEnum;
 
 /**
@@ -316,8 +318,32 @@ class TeamSwitcherManager
         return collect($teams)->filter(fn ($team): bool => $team instanceof Model)->values();
     }
 
+    /**
+     * The team to mark as current: with teams on and a team in the URL, that
+     * team — through KinetixTeams' memoized resolution and membership check —
+     * else (no team in the URL, or the legacy mode without a teams relation)
+     * the user's stored current team (`team_switcher.current_relation`).
+     * A URL team the user doesn't belong to marks none: the switcher never
+     * 404s and never points at a team the URL doesn't name.
+     */
     protected function currentTeam(Model $user): ?Model
     {
+        $request = request();
+
+        if (config('kinetix.teams', false) && ($request->route('current_team') ?? $request->route('team')) !== null) {
+            try {
+                $team = KinetixTeams::currentTeam($request);
+            } catch (HttpExceptionInterface) {
+                return null;
+            }
+
+            // Null in the legacy mode without a teams relation (only the raw
+            // segment is known): the stored team, as before.
+            if ($team !== null) {
+                return $team;
+            }
+        }
+
         $relation = config('kinetix.team_switcher.current_relation', 'currentTeam');
         $team     = $user->getAttribute($relation);
 

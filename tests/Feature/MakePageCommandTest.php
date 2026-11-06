@@ -62,7 +62,7 @@ class MakePageCommandTest extends TestCase
         $this->assertStringContainsString('__(', $page);
 
         $controller = File::get($paths['controller']);
-        $this->assertStringContainsString('InventoryAdjustPage::make()->toArray()', $controller);
+        $this->assertStringContainsString("'page' => fn () => InventoryAdjustPage::make()->toArray(),", $controller);
         $this->assertStringContainsString("inertia('Kinetix/InventoryAdjust'", $controller);
 
         $view = File::get($paths['view']);

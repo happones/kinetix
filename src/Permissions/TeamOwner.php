@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Permissions;
 
 use Happones\Kinetix\Support\ConfigCallback;
+use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\Memo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -283,6 +284,22 @@ class TeamOwner
     }
 
     /**
+     * The team {@see KinetixTeams} already resolved for this request, when
+     * `$user` is the request's own user. No query, no abort.
+     */
+    protected static function alreadyResolvedTeam(Model $user): ?Model
+    {
+        $request     = request();
+        $requestUser = $request->user() ?? auth()->user();
+
+        if (! $requestUser instanceof Model || $requestUser::class !== $user::class || (string) $requestUser->getKey() !== (string) $user->getKey()) {
+            return null;
+        }
+
+        return KinetixTeams::resolvedCurrentTeam($request);
+    }
+
+    /**
      * The team the request is scoped to: the permission layer's team id (set
      * from the `{current_team}` segment) resolved to a model, else the user's
      * `currentTeam`.
@@ -293,8 +310,18 @@ class TeamOwner
             return null;
         }
 
+        $teamId = static::teamKey();
+
+        // The request already resolved (and membership-checked) its team for
+        // this same user: reuse it, never triggering the resolution — that
+        // aborts 404, and a Gate check must not.
+        $resolved = static::alreadyResolvedTeam($user);
+
+        if ($resolved !== null && $teamId !== 'none' && (string) $resolved->getKey() === $teamId) {
+            return $resolved;
+        }
+
         $current = $user->currentTeam ?? null;
-        $teamId  = static::teamKey();
 
         if ($teamId === 'none') {
             return $current instanceof Model ? $current : null;

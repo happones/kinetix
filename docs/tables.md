@@ -73,7 +73,8 @@ public function index()
         ]);
 
     return inertia('Posts/Index', [
-        'postsTable' => $table->toArray(),
+        // A closure: a partial reload that asks for other props skips the table.
+        'postsTable' => fn () => $table->toArray(),
     ]);
 }
 ```

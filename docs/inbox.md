@@ -23,6 +23,15 @@ php artisan vendor:publish --tag=kinetix-inbox-migrations
 php artisan migrate
 ```
 
+::: tip Upgrading: the listing index
+The tag also ships an index on `kinetix_conversations` `(team_id, archived_at, last_message_at)`, which the conversation list reads newest-first on every
+page. If you published the tag before 0.277, publish it again and migrate:
+`kinetix:upgrade` lists the new file and `kinetix:doctor` warns while the
+index is missing. The migration is idempotent, skips an equivalent index you
+already have (same leading columns, in order), and is a plain `CREATE INDEX`:
+on a very large table, run it in a maintenance window.
+:::
+
 ```php
 'inbox' => [
     'enabled' => env('KINETIX_INBOX_ENABLED', false),

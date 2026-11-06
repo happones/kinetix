@@ -172,6 +172,66 @@ pay for what a page shows. Docs: `docs/performance.md`.
    `kinetix_config.realtime`) so the shell can skip the download, and add it to
    `KinetixConfig` in `types/kinetix.ts`.
 
+### Server Performance Rules (REQUIRED — v0.277.0)
+
+A host enables a few modules; a request must not pay for the others, and the
+common path must stay lean. `tests/Feature/SharedPropsQueryCountTest.php` pins
+the queries of a full Inertia visit (default 0, teams + database notifications
+2, every module on 15, and 14 on a repeat visit) — a new query on that path is a decision you make in
+that test, never an accident.
+
+1. **Resolve the team with `KinetixTeams::keyFor($module)` /
+   `KinetixTeams::currentTeam()`, never by hand.** Both share one per-request
+   memo (keyed by the Request object, the user's identity, the segment and the
+   teams relation), so every scoped query, settings read and shared prop of a
+   request costs one membership lookup. `$user->currentTeam` ignores the URL's
+   team; a hand-written teams JOIN repeats the query and skips the 404. Code
+   that changes membership and re-checks in the same request calls
+   `KinetixTeams::forgetCurrentTeam()` (the membership `attach_member` /
+   `detach_member` paths already do). A `Gate::before` path reuses an answer
+   with `KinetixTeams::resolvedCurrentTeam()` (no query, never a 404), and only
+   for the request's own user.
+2. **A new `kinetix_*` shared prop decides whether it can be kept between
+   visits.** If its value only depends on the user, the team route key, the
+   locale and its config section, wrap the body:
+   `Inertia::share('kinetix_x', fn () => KinetixSharedProps::once('kinetix_x', ['x'], function () { … }))`
+   and list it (opt-in, commented) in `kinetix.shared_props.once`. Per-user
+   state that Kinetix writes adds its module to
+   `KinetixSharedProps::SOURCE_MODULES`, so its successful writes bump the
+   session version (`kinetix.shared-props` middleware, added by
+   `moduleMiddleware()`). Props that change on their own, change outside the
+   user's session (billing and entitlements: provider webhooks) or carry security state go into
+   `KinetixSharedProps::NEVER_ONCE`. Shared-prop closures use
+   `app()`, never `$this->app` (the base app under Octane).
+3. **Route blocks in the provider go through `$this->routes(fn () => …)`.**
+   With `route:cache` the guard skips them. Gates, `Gate::before`, permission
+   features, `Event::listen`, `Broadcast::channel`, middleware aliases,
+   validator extensions, publishes and commands stay OUTSIDE it — the route
+   cache doesn't hold them. `RouteCacheBootTest` diffs a cached and an
+   uncached boot.
+4. **A request memo on a singleton (or a static) ships a reset.** Add a
+   `flushMemo()` (memo only, never the persistent cache) and list the class in
+   `Support\KinetixStateReset`, which runs at boot, on every `JobProcessing`
+   and on Octane's `RequestReceived`. Spatie's team id is reset there too,
+   except for a job on a `sync`-DRIVER connection (it runs inside the request;
+   judged by `SyncJob` / the connection's driver, never its name). `scoped()` is not the
+   answer for a manager injected into other singletons.
+5. **A new listing query over an unbounded table ships its composite index.**
+   A separate, idempotent migration (skip a missing table/column and any index
+   that STARTS with the same columns in order; `down()` drops only its own
+   name; name ≤ 64 chars), added to the module's existing publish tag (never a
+   shared file across modules), plus an entry in `DoctorCommand::checkIndexes()`.
+   `kinetix:upgrade` lists the new file for apps that adopted the tag.
+6. **Nothing translates, scans or logs at boot on every request.** Validator
+   messages translate at failure time (`Validator::replacer`, see
+   `kinetix_weekly_schedule`); boot misconfiguration goes through
+   `Support\BootWarnings::warn()` (console + local only) and gets a
+   `kinetix:doctor` check; directory discovery goes through
+   `DiscoversClasses::scanForSubclasses()` (served from the
+   `kinetix:optimize` manifest) and the registry exposes `discoveryRoots()`.
+7. **Generated controllers pass page props as closures** (`'table' => fn () => …`),
+   so a partial reload builds only what it asks for. Authorization stays eager.
+
 ### Localization & Documentation Rules
 
 - **Shipped locales (v0.89.0)**: en, es, fr, pt, zh, ja, ru — EVERY new key must be added to all seven (`TranslationParityTest` enforces). Publishing is selective: `kinetix.translations.locales` (null = all; string 'en,ja' from env or array) drives `KinetixServiceProvider::translationPublishMap()` → per-locale dirs on the `kinetix-translations` tag (and therefore `kinetix:upgrade`). Tests `TranslationPublishTest`/`TranslationPublishAllTest` (reflection-clear `ServiceProvider::$publishes` statics before boot — they leak across tests).
@@ -232,7 +292,7 @@ Notification::make()
 
 ### Broadcasting system notifications
 - System notifications (export/import done) broadcast in real time when **`Notification::shouldBroadcast()`** is true = `kinetix.notifications.broadcast` (env `KINETIX_NOTIFICATIONS_BROADCAST`) **OR** the `kinetix.broadcasting.echo` block is set. When true the recipient is notified via channels `['database','broadcast']` (persisted AND pushed); otherwise database-only. Use the dedicated `notifications.broadcast` flag if you wired Echo/Reverb yourself (don't tie it to the kinetix echo frontend block). Real-time delivery also needs: server `BROADCAST_CONNECTION` set (reverb/pusher), the queue worker running (the Laravel notification is `ShouldQueue`), and `<KinetixNotifications />` mounted (it subscribes via `@laravel/echo-vue` to `private-App.Models.User.{id}`).
-- **Client-side realtime switch (v0.276.0)**: `kinetix_config.realtime` (provider `realtimeEnabled()`) = `Notification::shouldBroadcast()` OR `broadcasting.default` is a string other than `''`/`null`/`log`. The bell's effective value is `props.realtime ?? kinetix_config.realtime ?? (kinetix_config.broadcasting != null)`; only then does it `import('@laravel/echo-vue')` after mount (via `kinetixEcho.ts`, guarded by `echoIsConfigured()`). Setup never throws and DB polling (`useKinetixPolling` around `router.reload({ only: ['kinetix_notifications'], preserveErrors: true })`, paused while hidden) always starts. Tests: `RealtimeShareTest`, `KinetixNotifications.spec.ts` (real echo-vue, `pusher-js` mocked; never `vi.mock('@laravel/echo-vue')`).
+- **Client-side realtime switch (v0.276.0)**: `kinetix_config.realtime` (provider `realtimeEnabled()`) = `Notification::shouldBroadcast()` OR `broadcasting.default` is a string other than `''`/`null`/`log`. The bell's effective value is `props.realtime ?? kinetix_config.realtime ?? (kinetix_config.broadcasting != null)`; only then does it `import('@laravel/echo-vue')` after mount (via `kinetixEcho.ts`, guarded by `echoIsConfigured()`). Setup never throws and DB polling (`useKinetixPolling` around the store's `refresh()`, which reads `GET {prefix}/notifications` (`KinetixNotificationsFeed`) since v0.277.0 instead of a partial reload, paused while hidden) always starts. Tests: `RealtimeShareTest`, `KinetixNotifications.spec.ts` (real echo-vue, `pusher-js` mocked; never `vi.mock('@laravel/echo-vue')`).
 
 ---
 

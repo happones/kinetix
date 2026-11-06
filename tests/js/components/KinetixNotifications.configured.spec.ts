@@ -11,17 +11,45 @@ vi.mock('pusher-js', () => ({ default: class {} }));
 
 const state = vi.hoisted(() => ({
     props: {} as Record<string, unknown>,
+    reload: null as unknown as ReturnType<typeof import('vitest').vi.fn>,
+    fetch: null as unknown as ReturnType<typeof import('vitest').vi.fn>,
 }));
 
-vi.mock('@inertiajs/vue3', () => ({
-    usePage: () => ({ props: state.props }),
-    router: {
-        reload: (options: { onFinish?: () => void }) => options.onFinish?.(),
+vi.mock('@inertiajs/vue3', async () => {
+    const { vi: hoistedVi } = await import('vitest');
+    state.reload = hoistedVi.fn();
+
+    return {
+        usePage: () => ({ props: state.props }),
+        router: { reload: (...args: unknown[]) => state.reload(...args) },
+    };
+});
+
+vi.mock('@/composables/useKinetixHttp', async (importOriginal) => {
+    const { vi: hoistedVi } = await import('vitest');
+    state.fetch = hoistedVi.fn();
+
+    return {
+        ...(await importOriginal<
+            typeof import('@/composables/useKinetixHttp')
+        >()),
+        kinetixFetch: (...args: unknown[]) => state.fetch(...args),
+    };
+});
+
+vi.mock('vue-sonner', () => ({
+    toast: {
+        success: vi.fn(),
+        warning: vi.fn(),
+        error: vi.fn(),
+        info: vi.fn(),
     },
 }));
 
 import { configureEcho, echo } from '@laravel/echo-vue';
+import { toast } from 'vue-sonner';
 import KinetixNotifications from '@/components/KinetixNotifications.vue';
+import { useNotificationsStore } from '@/stores/kinetixNotifications';
 import { i18n } from './i18n';
 
 describe('KinetixNotifications with Echo configured', () => {
@@ -46,6 +74,10 @@ describe('KinetixNotifications with Echo configured', () => {
             kinetix_notifications: [],
             auth: { user: { id: 1 } },
         };
+        state.reload.mockReset();
+        state.fetch.mockReset();
+        state.fetch.mockResolvedValue({ notifications: [] });
+        vi.mocked(toast.info).mockClear();
 
         configureEcho({ broadcaster: 'null' });
         const instance = echo() as any;
@@ -165,6 +197,38 @@ describe('KinetixNotifications with Echo configured', () => {
         expect(() =>
             handler({ id: 'n1', title: 'Hello', status: 'info' }),
         ).not.toThrow();
+        wrapper.unmount();
+    });
+
+    it('refreshes from the JSON feed on a broadcast without toasting twice', async () => {
+        const wrapper = mount(KinetixNotifications, {
+            global: { plugins: [i18n] },
+        });
+        await flushPromises();
+        // Past the silent initial sync.
+        await new Promise((resolve) => setTimeout(resolve, 550));
+
+        const arrived = {
+            id: 'n1',
+            title: 'Hello',
+            status: 'info',
+            read: false,
+            created_at: '2026-11-05T00:00:00Z',
+        };
+        state.fetch.mockResolvedValue({ notifications: [arrived] });
+
+        const handler = channel.notification.mock.calls[0][0];
+        handler(arrived);
+        await flushPromises();
+
+        expect(state.fetch).toHaveBeenCalledWith('/_kinetix/notifications');
+        expect(state.reload).not.toHaveBeenCalled();
+        // The broadcast toasted it; the feed sync that follows does not.
+        expect(toast.info).toHaveBeenCalledTimes(1);
+        expect(useNotificationsStore().notifications.map((n) => n.id)).toEqual([
+            'n1',
+        ]);
+
         wrapper.unmount();
     });
 });

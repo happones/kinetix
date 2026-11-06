@@ -108,6 +108,11 @@ export interface KinetixNotification {
     team?: string | number | null;
 }
 
+/** Response of `GET {prefix}/notifications` (`kinetix.notifications.index`): the bell's JSON feed. */
+export interface KinetixNotificationsFeed {
+    notifications: KinetixNotification[];
+}
+
 /** Public-safe Kinetix runtime config shared with Inertia page props. */
 export interface KinetixConfig {
     database: boolean;

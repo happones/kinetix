@@ -102,6 +102,11 @@ KinetixSettings::forTeam($team)->get('general.site_name');    // jobs, console, 
   `GET {prefix}/settings/{page}`, `PUT {prefix}/settings/{page}` (validate + save,
   JSON). The `settings` feature auto-registers with the permission matrix when the
   Permissions module is on.
+- Reads are memoized per request (each scope loads once; the request's team
+  resolves once: ten reads in a team = three queries uncached). Under Octane and
+  in queue workers `KinetixStateReset` drops that memo (never the cache) at the
+  start of every request/job, so another process's save is seen. A new memo on
+  a singleton ships a `flushMemo()` listed there (REQUIRED).
 - Generator: `php artisan kinetix:make-settings-page GeneralSettingsPage`.
 
 ---

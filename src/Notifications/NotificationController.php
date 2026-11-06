@@ -20,6 +20,22 @@ use Illuminate\Http\Request;
 class NotificationController
 {
     /**
+     * The bell's feed as JSON, for its poll and its realtime refresh: the
+     * same items as the `kinetix_notifications` shared prop, without running
+     * the host page's controller the way a partial reload does.
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        abort_if($user === null, 401);
+
+        return response()
+            ->json(['notifications' => NotificationFeed::for($user)])
+            ->header('Cache-Control', 'no-store, private');
+    }
+
+    /**
      * Mark one notification as read.
      */
     public function read(Request $request): JsonResponse

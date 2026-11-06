@@ -6,8 +6,12 @@ the code for what a page actually shows: optional bodies load the first time
 they're needed, background polling stops when nobody is looking, and Tailwind
 doesn't compile CSS for the agent skills sitting in your repository.
 
-Nothing on this page needs configuring. It describes what loads when, so you
-can tell an expected request from a regression, and the few host-side
+On the server, a request pays only for the modules that are on: the current
+team is looked up once per request, cached routes aren't rebuilt, and stable
+shared props stay on the client between visits.
+
+Most of this needs no configuration. The page describes what loads when, so
+you can tell an expected request from a regression, and the few host-side
 settings that help.
 
 ---
@@ -86,6 +90,30 @@ still import Echo directly, which only affects their own pages.
   `@tanstack/vue-virtual` downloads at that moment, not before; until it has
   loaded every row renders, and shorter lists never load it.
 
+### Translations (opt-in)
+
+By default every published locale ships in the initial bundle. With
+`kinetix:install --lazy-locales`, the browser downloads only the visitor's
+locale (and the fallback), and the first paint still never shows raw keys.
+It pays off from about three locales, or when most visitors use the fallback
+locale. Every client entry (`app.ts`, `public.ts`, `ssr.ts`) needs the same
+wiring, and `preloadFallback: 'idle'` keeps the fallback off the first paint.
+See [Locale → Loading locales on demand](/locale#loading-locales-on-demand)
+and [When it pays off](/locale#when-it-pays-off).
+
+Measured on a starter-kit app with two locales (`es`, fallback `en`), every
+entry wired, gzip:
+
+| | Eager | Lazy | Lazy, `preloadFallback: 'idle'` |
+|---|---|---|---|
+| Authenticated entry, first paint (`es` visitor) | 340 KB | 347 KB | 315 KB |
+| Authenticated entry, first paint (`en` visitor) | 340 KB | 309 KB | 309 KB |
+| Public entry, first paint (`es` visitor) | 189 KB | 196 KB | 165 KB |
+
+Each Kinetix locale is about 20–30 KB gzip, so the saving grows with every
+locale you publish. vue-i18n's runtime stays in the entry; only the messages
+move.
+
 ### Language switcher
 
 The `select` variant of `<KinetixLanguageSwitcher>` downloads its field where
@@ -142,6 +170,9 @@ all share one loop with these rules:
   loop. The default `0` waits for the run. The bell doesn't reload at mount: the page
   already carries the current list.
 - **Stopped on unmount.**
+
+The bell reads its own JSON endpoint (`GET {prefix}/notifications`), so a poll
+no longer re-runs your page's controller the way a partial reload did.
 
 The Reports Center runs list also slows down when it has nothing to watch. The
 runs endpoint returns `hasActive` (whether any listed run is pending or
@@ -316,3 +347,103 @@ Caveats:
   public bundle in the measurement above grew from 188 to 286 KB gzip.
 - **Measure your own build** before and after (see
   [Checking your bundle](#checking-your-bundle)); keep it only if it helps.
+
+---
+
+## Server
+
+Measured with every module on (a 140-permission catalog, five teams, the
+database bell): an authenticated visit went from 29 Kinetix queries to 15, and
+to 14 on the visits after it. With the default config Kinetix runs no queries
+at all, and with teams plus the database bell it runs 2.
+
+### Team lookup
+
+The current team (from `{current_team}`, the route, or the user's stored team)
+is resolved once per request and shared by settings, `ScopedToTeam` models,
+activity, billing, the owner bypass, feature flags and the team switcher. Use
+`KinetixTeams::currentTeam()` in your own code instead of re-querying. After
+changing a membership yourself in the middle of a request, call
+`KinetixTeams::forgetCurrentTeam()`.
+
+### Cached routes
+
+When routes are cached (`php artisan route:cache`, or `optimize`), Kinetix
+skips registering its routes at boot; gates, broadcast channels, middleware
+aliases and listeners are still registered. Rebuild the cache after changing
+which modules are on, like any other route change.
+
+### Discovery cache
+
+Permission, spotlight and report classes are found by scanning your app's
+directories. `php artisan kinetix:optimize` writes that list to
+`bootstrap/cache/kinetix-discovery.php`, and `kinetix:optimize-clear` removes
+it. On Laravel versions with provider optimize hooks, `optimize` and
+`optimize:clear` run them for you; otherwise add `kinetix:optimize` to your
+deploy script. Without the file, discovery scans as before, so development
+never sees a stale list. See [Permissions](/permissions).
+
+### Shared props kept on the client
+
+On inertia-laravel 3, the shared props listed in `kinetix.shared_props.once`
+are sent once and kept by the client on later visits:
+
+```php
+'shared_props' => [
+    'once' => [
+        'kinetix_tours',
+        'kinetix_locale',
+        'kinetix_cookie_consent',
+        'kinetix_queue',
+        'kinetix_health',
+        'kinetix_reports_center',
+    ],
+    'once_ttl' => 3600, // seconds; null keeps them until something changes
+],
+```
+
+A kept prop is sent again:
+
+- when the user, the team, the locale or the prop's config changes;
+- after a successful write through Kinetix's own endpoints in a module that
+  feeds it;
+- after `once_ttl`;
+- on a full page load;
+- after `KinetixSharedProps::refresh()`. Call it when your own code changes
+  what one of these props shows.
+
+`kinetix_teams`, `kinetix_permissions`, `kinetix_features`,
+`kinetix_onboarding` and `kinetix_accessibility` can be added to the list.
+Props that change on their own or carry security state, such as the bell,
+alerts, impersonation, billing and entitlements, are never kept, even when
+listed; `kinetix:doctor` warns about them. Set `'once' => []` to send every
+prop on every visit. On inertia-laravel 2 nothing changes.
+
+### Index controllers
+
+Generated resource and page controllers wrap their props in closures
+(`'table' => fn () => …`), so a partial reload resolves only the props it
+asks for. Do the same in hand-written pages that share a heavy prop.
+
+### Indexes
+
+Additive migrations add composite indexes for the feeds Kinetix pages through:
+
+| Migration | Index |
+|---|---|
+| `000045` | `kinetix_activity (team_id, created_at)` |
+| `000046` | `kinetix_api_logs (team_id, created_at)` |
+| `000047` | `kinetix_webhook_logs (webhook_endpoint_id, created_at)` |
+| `000048` | `kinetix_report_runs (team_id, created_at)` |
+| `000049` | `kinetix_conversations (team_id, archived_at, last_message_at)` |
+| `000050` | your `notifications` table (`notifiable_type, notifiable_id, created_at`), in the optional `kinetix-notifications-migrations` tag |
+
+Each one ships with the module's own migrations tag and skips an index that
+already exists on the same columns. `kinetix:upgrade` lists the files you
+haven't published yet and `kinetix:doctor` reports missing indexes.
+
+### Long-running workers
+
+Under Octane and in queue workers, Kinetix clears its per-request state
+(settings, announcements, help, the team lookup and the permission team) before
+each request and each job, so a worker never serves another request's values.

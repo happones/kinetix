@@ -72,6 +72,15 @@ You provide `teams.switch` (e.g. a controller calling `$user->switchTeam($team)`
   no user or no relation → the key is trusted, like the scalar path. Never
   return a bound model's key without it, and never use the `current_team_id`
   fallback of `userBelongsTo()` for a URL segment.
+- **Resolve the team with `KinetixTeams::keyFor($module)` /
+  `KinetixTeams::currentTeam()` (REQUIRED), never by hand.** The resolution is
+  memoized per request, user and segment, so asking again is free; a 404 is
+  never stored. After changing a user's membership and re-checking in the same
+  request, call `KinetixTeams::forgetCurrentTeam()`.
+- `kinetix_teams` can be kept by the browser between visits (inertia-laravel 3):
+  add it to `kinetix.shared_props.once`. It refreshes on a team switch, a full
+  load, `once_ttl` and `KinetixSharedProps::refresh()` — call that after your
+  own team writes.
 
 ## Frontend
 

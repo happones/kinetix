@@ -58,6 +58,20 @@ Notification::make()
     ->send();
 ```
 
+#### The bell's feed
+
+- `GET {prefix}/notifications` (`kinetix.notifications.index`) returns
+  `{ notifications: KinetixNotification[] }` — the same list as the
+  `kinetix_notifications` prop (limit, team filter, newest first). The bell
+  polls it, refreshes through it after a broadcast or a read/delete/clear, and
+  never re-runs the open page's controller. `kinetix.module_middleware.notifications`
+  applies to it; guests get 401.
+- From host code, refresh the bell with `useNotificationsStore().refresh()`
+  (`@/stores/kinetixNotifications`), never `router.reload({ only: ['kinetix_notifications'] })`.
+- Database mode on a busy app: publish `--tag=kinetix-notifications-migrations`
+  for the `(notifiable_type, notifiable_id, created_at)` index; `kinetix:doctor`
+  warns while it's missing.
+
 ---
 
 ## Multilingual (i18n) Usage

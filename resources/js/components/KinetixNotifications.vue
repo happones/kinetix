@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { usePage, router } from '@inertiajs/vue3';
+import { usePage } from '@inertiajs/vue3';
 import { storeToRefs } from 'pinia';
 import { computed, watch, onMounted, onUnmounted } from 'vue';
 import { listenForKinetixNotifications } from '@/composables/kinetixEcho';
@@ -43,8 +43,13 @@ const {
     userId,
 } = storeToRefs(store);
 
-const { closeDrawer, playNotificationSound, triggerToast, syncFromProps } =
-    store;
+const {
+    closeDrawer,
+    playNotificationSound,
+    triggerToast,
+    syncFromProps,
+    refresh,
+} = store;
 
 // Build the private channel name: `{channelModel}.{userId}`
 // e.g. "App.Models.User.1" → Echo subscribes to "private-App.Models.User.1"
@@ -83,18 +88,11 @@ const onBroadcastNotification = (notification: Record<string, unknown>) => {
     }
 
     if (isDatabaseMode.value) {
-        // Pre-register the id so the props sync below (and any poll that races
+        // Pre-register the id so the feed sync below (and any poll that races
         // it) doesn't toast the same notification a second time.
         seenNotificationIds.value.add(notif.id);
 
-        router.reload({
-            only: ['kinetix_notifications'],
-            onSuccess: () => {
-                if (page.props.kinetix_notifications) {
-                    syncFromProps(page.props.kinetix_notifications);
-                }
-            },
-        });
+        void refresh();
 
         return;
     }
@@ -153,40 +151,20 @@ watch([echoChannel, realtime], ([channel]) => {
 
 // --- Database-mode fallback polling -----------------------------------------
 // Without Echo, this is what makes new database notifications appear (badge +
-// toast via the store's props sync) instead of waiting for the next visit.
-// Interval comes from `kinetix.notifications.poll` (ms, 0 = off). The loop
-// pauses while the tab is hidden, refreshes when it comes back, never
-// overlaps a slow reload, and stops on unmount.
+// toast via the store's sync) instead of waiting for the next visit. Each tick
+// reads the JSON feed, so the host page's controller never re-runs. Interval
+// comes from `kinetix.notifications.poll` (ms, 0 = off). The loop pauses
+// while the tab is hidden, refreshes when it comes back, never overlaps a slow
+// request, and stops on unmount. A failed request (expired session, network)
+// settles quietly and the next tick tries again.
 const pollInterval = page.props.kinetix_config?.poll ?? 0;
-const reloadNotifications = (): Promise<void> =>
-    new Promise<void>((resolve) => {
-        let started = false;
 
-        router.reload({
-            only: ['kinetix_notifications'],
-            preserveErrors: true,
-            onStart: () => {
-                started = true;
-            },
-            onFinish: () => resolve(),
-        });
-
-        // A `before` listener (the host's, or a global one) can cancel the
-        // visit outright, and then no callback ever fires: a sent request has
-        // started by now, so one that hasn't never will.
-        queueMicrotask(() => {
-            if (!started) {
-                resolve();
-            }
-        });
-    });
-
-const poll = useKinetixPolling(reloadNotifications, {
+const poll = useKinetixPolling(() => refresh(), {
     interval: pollInterval,
-    // The page props already carry the current list: the first reload waits
+    // The page props already carry the current list: the first refresh waits
     // a full interval.
     immediate: false,
-    // A reload that never reports back must not stop the loop.
+    // A request that never reports back must not stop the loop.
     timeout: Math.max(30_000, pollInterval),
 });
 

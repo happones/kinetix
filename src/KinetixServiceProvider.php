@@ -16,7 +16,6 @@ use Happones\Kinetix\Billing\BillingManager;
 use Happones\Kinetix\Billing\BillingRoutes;
 use Happones\Kinetix\Billing\Middleware\EnsurePlanCapability;
 use Happones\Kinetix\Billing\Middleware\PlanFeatureMiddleware;
-use Happones\Kinetix\Billing\PlanCatalog;
 use Happones\Kinetix\Calendar\CalendarMoveController;
 use Happones\Kinetix\Channels\Channel;
 use Happones\Kinetix\Channels\ChannelController;
@@ -57,6 +56,8 @@ use Happones\Kinetix\Commands\MakeResourceCommand;
 use Happones\Kinetix\Commands\MakeRolesPageCommand;
 use Happones\Kinetix\Commands\MakeSettingsPageCommand;
 use Happones\Kinetix\Commands\MakeTableCommand;
+use Happones\Kinetix\Commands\OptimizeClearCommand;
+use Happones\Kinetix\Commands\OptimizeCommand;
 use Happones\Kinetix\Commands\PermissionsSyncCommand;
 use Happones\Kinetix\Commands\ReportRunsPruneCommand;
 use Happones\Kinetix\Commands\RoutesCommand;
@@ -77,7 +78,6 @@ use Happones\Kinetix\ConnectedAccounts\ConnectedAccountProviderRegistry;
 use Happones\Kinetix\Credentials\IdentityResolver;
 use Happones\Kinetix\Credentials\Middleware\EnsurePasswordIsCurrent;
 use Happones\Kinetix\Credentials\PasswordController;
-use Happones\Kinetix\Credentials\PasswordHistory;
 use Happones\Kinetix\Credentials\PasswordObserver;
 use Happones\Kinetix\Credentials\PasswordPolicy;
 use Happones\Kinetix\Data\AccessibilityData;
@@ -108,6 +108,7 @@ use Happones\Kinetix\Health\HealthMetrics;
 use Happones\Kinetix\Help\HelpController;
 use Happones\Kinetix\Help\HelpManager;
 use Happones\Kinetix\Help\HelpSpotlightSource;
+use Happones\Kinetix\Http\Middleware\RefreshKinetixSharedProps;
 use Happones\Kinetix\Http\Middleware\ShareKinetixProps;
 use Happones\Kinetix\Impersonation\ImpersonationController;
 use Happones\Kinetix\Impersonation\ImpersonationManager;
@@ -132,13 +133,12 @@ use Happones\Kinetix\Markdown\Highlighting\PhikiHighlighter;
 use Happones\Kinetix\Markdown\MarkdownRenderer;
 use Happones\Kinetix\Media\MediaManager;
 use Happones\Kinetix\Membership\MembershipController;
-use Happones\Kinetix\NotificationPreferences\NotificationPreference;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceController;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceManager;
 use Happones\Kinetix\NotificationPreferences\NotificationTypeRegistry;
 use Happones\Kinetix\Notifications\Notification;
 use Happones\Kinetix\Notifications\NotificationController;
-use Happones\Kinetix\Notifications\NotificationScope;
+use Happones\Kinetix\Notifications\NotificationFeed;
 use Happones\Kinetix\Onboarding\OnboardingController;
 use Happones\Kinetix\Onboarding\OnboardingManager;
 use Happones\Kinetix\Onboarding\OnboardingStepRegistry;
@@ -171,9 +171,11 @@ use Happones\Kinetix\Settings\SettingsPage;
 use Happones\Kinetix\Settings\SettingsRegistry;
 use Happones\Kinetix\Spotlight\SpotlightController;
 use Happones\Kinetix\Spotlight\SpotlightRegistry;
+use Happones\Kinetix\Support\BootWarnings;
 use Happones\Kinetix\Support\ConfigCallback;
+use Happones\Kinetix\Support\KinetixSharedProps;
+use Happones\Kinetix\Support\KinetixStateReset;
 use Happones\Kinetix\Support\KinetixTeams;
-use Happones\Kinetix\Support\Memo;
 use Happones\Kinetix\Support\WeeklySchedule;
 use Happones\Kinetix\Tables\AggregatesController;
 use Happones\Kinetix\Tables\BulkActionController;
@@ -196,6 +198,7 @@ use Happones\Kinetix\Webhooks\WebhookEventRegistry;
 use Happones\Kinetix\Wizards\Middleware\EnsureWizardCompleted;
 use Happones\Kinetix\Wizards\WizardController;
 use Happones\Kinetix\Wizards\WizardManager;
+use Illuminate\Contracts\Foundation\CachesRoutes;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
@@ -203,6 +206,7 @@ use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Foundation\Http\Kernel as FoundationHttpKernel;
 use Illuminate\Http\Request;
 use Illuminate\Queue\Events\JobProcessing;
+use Illuminate\Queue\Jobs\SyncJob;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Event;
@@ -221,6 +225,15 @@ use Spatie\WebhookServer\Events\WebhookCallSucceededEvent;
 
 class KinetixServiceProvider extends ServiceProvider
 {
+    /**
+     * The fallback message of `kinetix_weekly_schedule`: a sentinel the
+     * validator replacer translates at failure time.
+     */
+    private const WEEKLY_SCHEDULE_FALLBACK = 'kinetix.validation_weekly_schedule';
+
+    /** Whether the app serves cached routes; read once per boot. */
+    private ?bool $routesCached = null;
+
     /**
      * Register any application services.
      */
@@ -447,14 +460,41 @@ class KinetixServiceProvider extends ServiceProvider
             });
         }
 
+        // Re-sends the kept shared props after a successful Kinetix write
+        // (added to the source modules' routes by moduleMiddleware()).
+        $this->app['router']->aliasMiddleware('kinetix.shared-props', RefreshKinetixSharedProps::class);
+
         // Weekly business-hours structure (the BusinessHours field seeds it;
         // usable on any host validator too). String-registered so it survives
         // the string-rule pipeline fields serialize through.
+        //
+        // The message is translated when a value FAILS, in the locale of that
+        // request: translating it here loaded the whole `kinetix` lang file on
+        // every request and froze the message in the boot locale. The fallback
+        // is a sentinel the replacer swaps; a host's own
+        // `validation.kinetix_weekly_schedule` line or an inline custom
+        // message replaces it before the replacer runs, and stays as it is.
         Validator::extend(
             'kinetix_weekly_schedule',
-            fn ($attribute, $value): bool => WeeklySchedule::validate($value),
-            (string) __('kinetix.validation_weekly_schedule'),
+            static fn ($attribute, $value): bool => WeeklySchedule::validate($value),
+            self::WEEKLY_SCHEDULE_FALLBACK,
         );
+
+        Validator::replacer('kinetix_weekly_schedule', static function (string $message, string $attribute, string $rule, array $parameters, $validator): string {
+            if ($message !== self::WEEKLY_SCHEDULE_FALLBACK) {
+                return $message;
+            }
+
+            $replace = ['attribute' => $validator->getDisplayableAttribute($attribute)];
+            $line    = __(self::WEEKLY_SCHEDULE_FALLBACK, $replace);
+
+            // The app's published copy first, else the package's own.
+            if ($line === self::WEEKLY_SCHEDULE_FALLBACK) {
+                $line = __('kinetix::'.self::WEEKLY_SCHEDULE_FALLBACK, $replace);
+            }
+
+            return is_string($line) ? $line : self::WEEKLY_SCHEDULE_FALLBACK;
+        });
 
         if ($this->app->runningInConsole()) {
             $this->commands([
@@ -494,7 +534,17 @@ class KinetixServiceProvider extends ServiceProvider
                 RoutesCommand::class,
                 DoctorCommand::class,
                 FixKeyColumnsCommand::class,
+                OptimizeCommand::class,
+                OptimizeClearCommand::class,
             ]);
+
+            // `php artisan optimize` / `optimize:clear` run them (Laravel
+            // versions with provider optimize hooks; older 11.x apps add
+            // `kinetix:optimize` to their deploy script).
+            // @phpstan-ignore function.alreadyNarrowedType (absent before Laravel 11.x added it)
+            if (method_exists($this, 'optimizes')) {
+                $this->optimizes(optimize: 'kinetix:optimize', clear: 'kinetix:optimize-clear', key: 'kinetix');
+            }
 
             // Publish config
             $this->publishes([
@@ -576,13 +626,15 @@ class KinetixServiceProvider extends ServiceProvider
 
             // Publish the optional Activity module's migration.
             $this->publishes([
-                __DIR__.'/../database/migrations/2026_01_01_000003_create_kinetix_activity_table.php' => database_path('migrations/2026_01_01_000003_create_kinetix_activity_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000003_create_kinetix_activity_table.php'                    => database_path('migrations/2026_01_01_000003_create_kinetix_activity_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000045_add_team_created_index_to_kinetix_activity_table.php' => database_path('migrations/2026_01_01_000045_add_team_created_index_to_kinetix_activity_table.php'),
             ], 'kinetix-activity-migrations');
 
             // Publish the optional Webhooks module's migrations.
             $this->publishes([
-                __DIR__.'/../database/migrations/2026_01_01_000004_create_kinetix_webhook_endpoints_table.php' => database_path('migrations/2026_01_01_000004_create_kinetix_webhook_endpoints_table.php'),
-                __DIR__.'/../database/migrations/2026_01_01_000005_create_kinetix_webhook_logs_table.php'      => database_path('migrations/2026_01_01_000005_create_kinetix_webhook_logs_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000004_create_kinetix_webhook_endpoints_table.php'                   => database_path('migrations/2026_01_01_000004_create_kinetix_webhook_endpoints_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000005_create_kinetix_webhook_logs_table.php'                        => database_path('migrations/2026_01_01_000005_create_kinetix_webhook_logs_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000047_add_endpoint_created_index_to_kinetix_webhook_logs_table.php' => database_path('migrations/2026_01_01_000047_add_endpoint_created_index_to_kinetix_webhook_logs_table.php'),
             ], 'kinetix-webhooks-migrations');
 
             // Publish the optional Channels module's migration (linked lines).
@@ -592,8 +644,9 @@ class KinetixServiceProvider extends ServiceProvider
 
             // Publish the optional Inbox module's migration (conversations).
             $this->publishes([
-                __DIR__.'/../database/migrations/2026_01_01_000042_create_kinetix_inbox_tables.php'        => database_path('migrations/2026_01_01_000042_create_kinetix_inbox_tables.php'),
-                __DIR__.'/../database/migrations/2026_01_01_000044_create_kinetix_quick_replies_table.php' => database_path('migrations/2026_01_01_000044_create_kinetix_quick_replies_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000042_create_kinetix_inbox_tables.php'                   => database_path('migrations/2026_01_01_000042_create_kinetix_inbox_tables.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000044_create_kinetix_quick_replies_table.php'            => database_path('migrations/2026_01_01_000044_create_kinetix_quick_replies_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000049_add_list_index_to_kinetix_conversations_table.php' => database_path('migrations/2026_01_01_000049_add_list_index_to_kinetix_conversations_table.php'),
             ], 'kinetix-inbox-migrations');
 
             // Publish the optional Flows module's migration (bots).
@@ -682,8 +735,9 @@ class KinetixServiceProvider extends ServiceProvider
 
             // Publish the optional API request logs migration.
             $this->publishes([
-                __DIR__.'/../database/migrations/2026_01_01_000018_create_kinetix_api_logs_table.php'         => database_path('migrations/2026_01_01_000018_create_kinetix_api_logs_table.php'),
-                __DIR__.'/../database/migrations/2026_01_01_000026_add_team_id_to_kinetix_api_logs_table.php' => database_path('migrations/2026_01_01_000026_add_team_id_to_kinetix_api_logs_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000018_create_kinetix_api_logs_table.php'                    => database_path('migrations/2026_01_01_000018_create_kinetix_api_logs_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000026_add_team_id_to_kinetix_api_logs_table.php'            => database_path('migrations/2026_01_01_000026_add_team_id_to_kinetix_api_logs_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000046_add_team_created_index_to_kinetix_api_logs_table.php' => database_path('migrations/2026_01_01_000046_add_team_created_index_to_kinetix_api_logs_table.php'),
             ], 'kinetix-api-logs-migrations');
 
             // Publish the optional PDF Templates settings migration.
@@ -693,9 +747,16 @@ class KinetixServiceProvider extends ServiceProvider
 
             // Publish the optional Reports Center module's migrations.
             $this->publishes([
-                __DIR__.'/../database/migrations/2026_01_01_000020_create_kinetix_report_schedules_table.php' => database_path('migrations/2026_01_01_000020_create_kinetix_report_schedules_table.php'),
-                __DIR__.'/../database/migrations/2026_01_01_000021_create_kinetix_report_runs_table.php'      => database_path('migrations/2026_01_01_000021_create_kinetix_report_runs_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000020_create_kinetix_report_schedules_table.php'               => database_path('migrations/2026_01_01_000020_create_kinetix_report_schedules_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000021_create_kinetix_report_runs_table.php'                    => database_path('migrations/2026_01_01_000021_create_kinetix_report_runs_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000048_add_team_created_index_to_kinetix_report_runs_table.php' => database_path('migrations/2026_01_01_000048_add_team_created_index_to_kinetix_report_runs_table.php'),
             ], 'kinetix-reports-center-migrations');
+
+            // Optional: an index for the bell's query on the app's own
+            // `notifications` table (`kinetix:doctor` says when it's missing).
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000050_add_kinetix_feed_index_to_notifications_table.php' => database_path('migrations/2026_01_01_000050_add_kinetix_feed_index_to_notifications_table.php'),
+            ], 'kinetix-notifications-migrations');
 
             // Publish the optional Confidential (local key manager) migration.
             $this->publishes([
@@ -718,25 +779,25 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         // Register endpoints for database notifications actions
-        $this->registerNotificationRoutes();
+        $this->routes($this->registerNotificationRoutes(...));
 
         // Closing a session alert (KinetixFlash::alert()->untilDismissed())
-        $this->registerFlashRoutes();
+        $this->routes($this->registerFlashRoutes(...));
 
         // Alerts closed for good, on every device (optional module)
         $this->registerDismissals();
 
         // Register endpoints for table inline edits
-        $this->registerTableRoutes();
+        $this->routes($this->registerTableRoutes(...));
 
         // Register endpoints for the import preview & dispatch flow
-        $this->registerImportRoutes();
+        $this->routes($this->registerImportRoutes(...));
 
         // Register the export download endpoint
-        $this->registerExportRoutes();
+        $this->routes($this->registerExportRoutes(...));
 
         // Register the file-upload endpoints used by the FileUpload field
-        $this->registerUploadRoutes();
+        $this->routes($this->registerUploadRoutes(...));
 
         // Drop request-scoped memos at the start of every request / queued job
         $this->registerStateReset();
@@ -890,7 +951,7 @@ class KinetixServiceProvider extends ServiceProvider
         if (KinetixTeams::enabledFor('permissions')
             && class_exists(PermissionRegistrar::class)
             && ! config('permission.teams', false)) {
-            Log::warning(
+            BootWarnings::warn('permissions.teams',
                 'Kinetix: `kinetix.permissions.teams` is true but spatie\'s `permission.teams` is false — '
                 .'roles/permissions will NOT be team-scoped. Set `\'teams\' => true` in config/permission.php '
                 .'and make the tables teams-ready (vendor:publish --tag=kinetix-permission-team-migrations).'
@@ -929,7 +990,7 @@ class KinetixServiceProvider extends ServiceProvider
             });
         }
 
-        $this->registerPermissionRoutes();
+        $this->routes($this->registerPermissionRoutes(...));
     }
 
     /**
@@ -998,7 +1059,7 @@ class KinetixServiceProvider extends ServiceProvider
             }
         }
 
-        $this->registerCredentialsRoutes();
+        $this->routes($this->registerCredentialsRoutes(...));
     }
 
     /**
@@ -1100,7 +1161,7 @@ class KinetixServiceProvider extends ServiceProvider
         // an activated member belongs to no team and lands nowhere.
         if (KinetixTeams::enabledFor('membership')
             && ConfigCallback::resolve(config('kinetix.membership.attach_member')) === null) {
-            Log::warning(
+            BootWarnings::warn('membership.attach_member',
                 'Kinetix: membership team scoping is on but `kinetix.membership.attach_member` is null — '
                 .'activated members will NOT be linked to any team. Point it at a callback that writes your '
                 .'team pivot: fn ($user, $provision) => Team::find($provision->team_id)?->users()->attach($user->id).'
@@ -1111,7 +1172,7 @@ class KinetixServiceProvider extends ServiceProvider
         // change that makes them safe lives in the Credentials module.
         if (config('kinetix.membership.provisioning') === 'direct'
             && ! config('kinetix.credentials.enabled', false)) {
-            Log::warning(
+            BootWarnings::warn('membership.direct_without_credentials',
                 'Kinetix: `membership.provisioning` is "direct" but `credentials.enabled` is false — '
                 .'temporary passwords are issued without a forced first-login change, so they never expire '
                 .'and the member can keep using the one an admin chose.'
@@ -1130,7 +1191,7 @@ class KinetixServiceProvider extends ServiceProvider
                 'credentials' => 'kinetix.permission_ability_member_credentials',
             ]);
 
-        $this->registerMembershipRoutes();
+        $this->routes($this->registerMembershipRoutes(...));
     }
 
     /**
@@ -1198,7 +1259,7 @@ class KinetixServiceProvider extends ServiceProvider
             KinetixSettings::pages($pages);
         }
 
-        $this->registerSettingsRoutes();
+        $this->routes($this->registerSettingsRoutes(...));
     }
 
     /**
@@ -1241,19 +1302,21 @@ class KinetixServiceProvider extends ServiceProvider
             ->label('kinetix.permission_feature_activity')
             ->ability('view', 'kinetix.permission_ability_view_activity');
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('activity');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('activity');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/activity")
-            ->group(function () {
-                Route::get('/', [ActivityController::class, 'index'])
-                    ->name('kinetix.activity.index');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/activity")
+                ->group(function () {
+                    Route::get('/', [ActivityController::class, 'index'])
+                        ->name('kinetix.activity.index');
+                });
+        });
     }
 
     /**
@@ -1276,22 +1339,24 @@ class KinetixServiceProvider extends ServiceProvider
             ->ability('impersonate', 'kinetix.permission_ability_impersonate')
             ->platform('impersonate');
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('impersonation');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('impersonation');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/impersonate")
-            ->group(function () {
-                // `leave` first so it isn't captured by the `{user}` parameter.
-                Route::delete('/', [ImpersonationController::class, 'leave'])
-                    ->name('kinetix.impersonation.leave');
-                Route::post('{user}', [ImpersonationController::class, 'start'])
-                    ->name('kinetix.impersonation.start');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/impersonate")
+                ->group(function () {
+                    // `leave` first so it isn't captured by the `{user}` parameter.
+                    Route::delete('/', [ImpersonationController::class, 'leave'])
+                        ->name('kinetix.impersonation.leave');
+                    Route::post('{user}', [ImpersonationController::class, 'start'])
+                        ->name('kinetix.impersonation.start');
+                });
+        });
     }
 
     /**
@@ -1330,24 +1395,26 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('tours');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('tours');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/tours")
-            ->group(function () {
-                Route::post('{tour}/seen', [TourController::class, 'seen'])
-                    ->where('tour', '[\w\-.]+')
-                    ->name('kinetix.tours.seen');
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/tours")
+                ->group(function () {
+                    Route::post('{tour}/seen', [TourController::class, 'seen'])
+                        ->where('tour', '[\w\-.]+')
+                        ->name('kinetix.tours.seen');
 
-                Route::delete('{tour}/seen', [TourController::class, 'reset'])
-                    ->where('tour', '[\w\-.]+')
-                    ->name('kinetix.tours.reset');
-            });
+                    Route::delete('{tour}/seen', [TourController::class, 'reset'])
+                        ->where('tour', '[\w\-.]+')
+                        ->name('kinetix.tours.reset');
+                });
+        });
     }
 
     /**
@@ -1365,30 +1432,32 @@ class KinetixServiceProvider extends ServiceProvider
         // and shared by the JSON endpoints and the Spotlight source.
         $this->app->singleton(HelpManager::class);
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('help');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('help');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/help")
-            ->group(function () {
-                Route::get('/', [HelpController::class, 'index'])
-                    ->name('kinetix.help.index');
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/help")
+                ->group(function () {
+                    Route::get('/', [HelpController::class, 'index'])
+                        ->name('kinetix.help.index');
 
-                Route::get('search', [HelpController::class, 'search'])
-                    ->name('kinetix.help.search');
+                    Route::get('search', [HelpController::class, 'search'])
+                        ->name('kinetix.help.search');
 
-                Route::get('article/{slug}', [HelpController::class, 'show'])
-                    ->where('slug', '[\w\-.]+')
-                    ->name('kinetix.help.show');
+                    Route::get('article/{slug}', [HelpController::class, 'show'])
+                        ->where('slug', '[\w\-.]+')
+                        ->name('kinetix.help.show');
 
-                Route::get('screenshots/{file}', [HelpController::class, 'screenshot'])
-                    ->where('file', '[\w\-.]+')
-                    ->name('kinetix.help.screenshot');
-            });
+                    Route::get('screenshots/{file}', [HelpController::class, 'screenshot'])
+                        ->where('file', '[\w\-.]+')
+                        ->name('kinetix.help.screenshot');
+                });
+        });
 
         // Help articles in the global command palette (permission-filtered).
         if (config('kinetix.spotlight.enabled', false)) {
@@ -1414,25 +1483,27 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        $routes = Route::middleware((array) config('kinetix.docs.routes.middleware', ['web']))
-            ->prefix(trim((string) config('kinetix.docs.routes.prefix', 'docs'), '/'))
-            ->name((string) config('kinetix.docs.routes.name', 'docs.'));
+        $this->routes(function (): void {
+            $routes = Route::middleware((array) config('kinetix.docs.routes.middleware', ['web']))
+                ->prefix(trim((string) config('kinetix.docs.routes.prefix', 'docs'), '/'))
+                ->name((string) config('kinetix.docs.routes.name', 'docs.'));
 
-        $domain = config('kinetix.docs.routes.domain');
+            $domain = config('kinetix.docs.routes.domain');
 
-        if (is_string($domain) && $domain !== '') {
-            $routes->domain($domain);
-        }
+            if (is_string($domain) && $domain !== '') {
+                $routes->domain($domain);
+            }
 
-        $routes->group(function (): void {
-            Route::get('/', [DocsController::class, 'index'])->name('index');
-            Route::get('search.json', [DocsController::class, 'search'])->name('search');
-            Route::get('{section}', [DocsController::class, 'section'])
-                ->where('section', '[\w\-]+')
-                ->name('section');
-            Route::get('{section}/{page}', [DocsController::class, 'show'])
-                ->where(['section' => '[\w\-]+', 'page' => '[\w\-.]+'])
-                ->name('show');
+            $routes->group(function (): void {
+                Route::get('/', [DocsController::class, 'index'])->name('index');
+                Route::get('search.json', [DocsController::class, 'search'])->name('search');
+                Route::get('{section}', [DocsController::class, 'section'])
+                    ->where('section', '[\w\-]+')
+                    ->name('section');
+                Route::get('{section}/{page}', [DocsController::class, 'show'])
+                    ->where(['section' => '[\w\-]+', 'page' => '[\w\-.]+'])
+                    ->name('show');
+            });
         });
     }
 
@@ -1445,28 +1516,30 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('spotlight');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('spotlight');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        // One request fans out to every authorized source, so a held-down key
-        // is an unbounded multiplier on database load — and the endpoint is
-        // reachable by any authenticated user.
-        $throttle = self::throttleMiddleware(config('kinetix.spotlight.throttle', '60,1'), 'kinetix-spotlight');
+            // One request fans out to every authorized source, so a held-down key
+            // is an unbounded multiplier on database load — and the endpoint is
+            // reachable by any authenticated user.
+            $throttle = self::throttleMiddleware(config('kinetix.spotlight.throttle', '60,1'), 'kinetix-spotlight');
 
-        if ($throttle !== null) {
-            $middleware[] = $throttle;
-        }
+            if ($throttle !== null) {
+                $middleware[] = $throttle;
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/spotlight")
-            ->group(function () {
-                Route::get('/', [SpotlightController::class, 'search'])
-                    ->name('kinetix.spotlight.search');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/spotlight")
+                ->group(function () {
+                    Route::get('/', [SpotlightController::class, 'search'])
+                        ->name('kinetix.spotlight.search');
+                });
+        });
     }
 
     /**
@@ -1492,29 +1565,31 @@ class KinetixServiceProvider extends ServiceProvider
             ], LogSpatieWebhookCall::class);
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('webhooks');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('webhooks');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        // Sending a test or a redelivery fires a request on demand: throttled.
-        $throttle = array_filter([self::throttleMiddleware(config('kinetix.webhooks.test_throttle', '6,1'), 'kinetix-webhook-test')]);
+            // Sending a test or a redelivery fires a request on demand: throttled.
+            $throttle = array_filter([self::throttleMiddleware(config('kinetix.webhooks.test_throttle', '6,1'), 'kinetix-webhook-test')]);
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/webhooks")
-            ->group(function () use ($throttle) {
-                Route::get('/', [WebhookController::class, 'index'])->name('kinetix.webhooks.index');
-                Route::post('/', [WebhookController::class, 'store'])->name('kinetix.webhooks.store');
-                Route::put('{endpoint}', [WebhookController::class, 'update'])->name('kinetix.webhooks.update');
-                Route::delete('{endpoint}', [WebhookController::class, 'destroy'])->name('kinetix.webhooks.destroy');
-                Route::post('{endpoint}/rotate', [WebhookController::class, 'rotate'])->name('kinetix.webhooks.rotate');
-                Route::post('{endpoint}/test', [WebhookController::class, 'test'])->middleware($throttle)->name('kinetix.webhooks.test');
-                Route::get('logs', [WebhookController::class, 'allLogs'])->name('kinetix.webhooks.all-logs');
-                Route::get('{endpoint}/logs', [WebhookController::class, 'logs'])->name('kinetix.webhooks.logs');
-                Route::post('logs/{log}/redeliver', [WebhookController::class, 'redeliver'])->middleware($throttle)->name('kinetix.webhooks.redeliver');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/webhooks")
+                ->group(function () use ($throttle) {
+                    Route::get('/', [WebhookController::class, 'index'])->name('kinetix.webhooks.index');
+                    Route::post('/', [WebhookController::class, 'store'])->name('kinetix.webhooks.store');
+                    Route::put('{endpoint}', [WebhookController::class, 'update'])->name('kinetix.webhooks.update');
+                    Route::delete('{endpoint}', [WebhookController::class, 'destroy'])->name('kinetix.webhooks.destroy');
+                    Route::post('{endpoint}/rotate', [WebhookController::class, 'rotate'])->name('kinetix.webhooks.rotate');
+                    Route::post('{endpoint}/test', [WebhookController::class, 'test'])->middleware($throttle)->name('kinetix.webhooks.test');
+                    Route::get('logs', [WebhookController::class, 'allLogs'])->name('kinetix.webhooks.all-logs');
+                    Route::get('{endpoint}/logs', [WebhookController::class, 'logs'])->name('kinetix.webhooks.logs');
+                    Route::post('logs/{log}/redeliver', [WebhookController::class, 'redeliver'])->middleware($throttle)->name('kinetix.webhooks.redeliver');
+                });
+        });
     }
 
     /**
@@ -1533,31 +1608,33 @@ class KinetixServiceProvider extends ServiceProvider
             ->label('kinetix.permission_feature_channels')
             ->ability('manage', 'kinetix.permission_ability_manage_channels');
 
-        $base       = config('kinetix.route_prefix', '_kinetix');
-        $prefix     = $base;
-        $middleware = $this->moduleMiddleware('channels');
+        $this->routes(function (): void {
+            $base       = config('kinetix.route_prefix', '_kinetix');
+            $prefix     = $base;
+            $middleware = $this->moduleMiddleware('channels');
 
-        Route::middleware((array) config('kinetix.channels.webhook_middleware', []))
-            ->post("{$base}/channels/webhook/{channel}", ChannelWebhookController::class)
-            ->name('kinetix.channels.webhook');
+            Route::middleware((array) config('kinetix.channels.webhook_middleware', []))
+                ->post("{$base}/channels/webhook/{channel}", ChannelWebhookController::class)
+                ->name('kinetix.channels.webhook');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/channels")
-            ->group(function () {
-                Route::get('/', [ChannelController::class, 'index'])->name('kinetix.channels.index');
-                Route::post('/', [ChannelController::class, 'store'])->name('kinetix.channels.store');
-                Route::put('{channel}', [ChannelController::class, 'update'])->name('kinetix.channels.update');
-                Route::delete('{channel}', [ChannelController::class, 'destroy'])->name('kinetix.channels.destroy');
-                Route::get('{channel}/link', [ChannelController::class, 'link'])->name('kinetix.channels.link');
-                Route::get('{channel}/status', [ChannelController::class, 'status'])->name('kinetix.channels.status');
-                Route::post('{channel}/disconnect', [ChannelController::class, 'disconnect'])->name('kinetix.channels.disconnect');
-                Route::post('{channel}/restart', [ChannelController::class, 'restart'])->name('kinetix.channels.restart');
-                Route::post('{channel}/test', [ChannelController::class, 'test'])->name('kinetix.channels.test');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/channels")
+                ->group(function () {
+                    Route::get('/', [ChannelController::class, 'index'])->name('kinetix.channels.index');
+                    Route::post('/', [ChannelController::class, 'store'])->name('kinetix.channels.store');
+                    Route::put('{channel}', [ChannelController::class, 'update'])->name('kinetix.channels.update');
+                    Route::delete('{channel}', [ChannelController::class, 'destroy'])->name('kinetix.channels.destroy');
+                    Route::get('{channel}/link', [ChannelController::class, 'link'])->name('kinetix.channels.link');
+                    Route::get('{channel}/status', [ChannelController::class, 'status'])->name('kinetix.channels.status');
+                    Route::post('{channel}/disconnect', [ChannelController::class, 'disconnect'])->name('kinetix.channels.disconnect');
+                    Route::post('{channel}/restart', [ChannelController::class, 'restart'])->name('kinetix.channels.restart');
+                    Route::post('{channel}/test', [ChannelController::class, 'test'])->name('kinetix.channels.test');
+                });
+        });
 
         if (config('kinetix.channels.broadcast', false) && class_exists(Broadcast::class)) {
             $authorize = static fn (Model $user, int|string|null $team = null): bool => Gate::forUser($user)->allows('channels.manage')
@@ -1592,41 +1669,43 @@ class KinetixServiceProvider extends ServiceProvider
         $this->app['events']->listen(ChannelMessageDeleted::class, [RecordInboxActivity::class, 'deleted']);
         $this->app['events']->listen(ChannelMessageStatusUpdated::class, [RecordInboxActivity::class, 'statusUpdated']);
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('inbox');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('inbox');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/inbox")
-            ->group(function () {
-                Route::get('/', [InboxController::class, 'index'])->name('kinetix.inbox.index');
-                // Before {conversation}: "replies" is not a conversation.
-                Route::get('replies', [QuickReplyController::class, 'index'])->name('kinetix.inbox.replies');
-                Route::post('replies', [QuickReplyController::class, 'store'])->name('kinetix.inbox.replies.store');
-                Route::put('replies/{reply}', [QuickReplyController::class, 'update'])->name('kinetix.inbox.replies.update');
-                Route::delete('replies/{reply}', [QuickReplyController::class, 'destroy'])->name('kinetix.inbox.replies.destroy');
-                Route::get('messages/{message}', [InboxController::class, 'message'])->name('kinetix.inbox.message');
-                Route::get('messages/{message}/media', [InboxController::class, 'media'])->name('kinetix.inbox.media');
-                Route::post('messages/{message}/retry', [InboxController::class, 'retry'])->name('kinetix.inbox.retry');
-                Route::get('{conversation}', [InboxController::class, 'show'])->name('kinetix.inbox.show');
-                Route::get('{conversation}/messages', [InboxController::class, 'messages'])->name('kinetix.inbox.messages');
-                Route::post('{conversation}/messages', [InboxController::class, 'send'])->name('kinetix.inbox.send');
-                Route::post('{conversation}/read', [InboxController::class, 'read'])->name('kinetix.inbox.read');
-                Route::get('{conversation}/assignees', [InboxController::class, 'assignees'])->name('kinetix.inbox.assignees');
-                Route::post('{conversation}/assign', [InboxController::class, 'assign'])->name('kinetix.inbox.assign');
-                Route::post('{conversation}/archive', [InboxController::class, 'archive'])->name('kinetix.inbox.archive');
-                Route::post('{conversation}/unarchive', [InboxController::class, 'unarchive'])->name('kinetix.inbox.unarchive');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/inbox")
+                ->group(function () {
+                    Route::get('/', [InboxController::class, 'index'])->name('kinetix.inbox.index');
+                    // Before {conversation}: "replies" is not a conversation.
+                    Route::get('replies', [QuickReplyController::class, 'index'])->name('kinetix.inbox.replies');
+                    Route::post('replies', [QuickReplyController::class, 'store'])->name('kinetix.inbox.replies.store');
+                    Route::put('replies/{reply}', [QuickReplyController::class, 'update'])->name('kinetix.inbox.replies.update');
+                    Route::delete('replies/{reply}', [QuickReplyController::class, 'destroy'])->name('kinetix.inbox.replies.destroy');
+                    Route::get('messages/{message}', [InboxController::class, 'message'])->name('kinetix.inbox.message');
+                    Route::get('messages/{message}/media', [InboxController::class, 'media'])->name('kinetix.inbox.media');
+                    Route::post('messages/{message}/retry', [InboxController::class, 'retry'])->name('kinetix.inbox.retry');
+                    Route::get('{conversation}', [InboxController::class, 'show'])->name('kinetix.inbox.show');
+                    Route::get('{conversation}/messages', [InboxController::class, 'messages'])->name('kinetix.inbox.messages');
+                    Route::post('{conversation}/messages', [InboxController::class, 'send'])->name('kinetix.inbox.send');
+                    Route::post('{conversation}/read', [InboxController::class, 'read'])->name('kinetix.inbox.read');
+                    Route::get('{conversation}/assignees', [InboxController::class, 'assignees'])->name('kinetix.inbox.assignees');
+                    Route::post('{conversation}/assign', [InboxController::class, 'assign'])->name('kinetix.inbox.assign');
+                    Route::post('{conversation}/archive', [InboxController::class, 'archive'])->name('kinetix.inbox.archive');
+                    Route::post('{conversation}/unarchive', [InboxController::class, 'unarchive'])->name('kinetix.inbox.unarchive');
+                });
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/channels")
-            ->group(function () {
-                Route::get('{channel}/agents', [ChannelAgentController::class, 'show'])->name('kinetix.channels.agents');
-                Route::put('{channel}/agents', [ChannelAgentController::class, 'update'])->name('kinetix.channels.agents.update');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/channels")
+                ->group(function () {
+                    Route::get('{channel}/agents', [ChannelAgentController::class, 'show'])->name('kinetix.channels.agents');
+                    Route::put('{channel}/agents', [ChannelAgentController::class, 'update'])->name('kinetix.channels.agents.update');
+                });
+        });
 
         if (config('kinetix.channels.broadcast', false) && class_exists(Broadcast::class)) {
             Broadcast::channel('kinetix.inbox.{channel}', static function (Model $user, int|string $channel): bool {
@@ -1666,39 +1745,41 @@ class KinetixServiceProvider extends ServiceProvider
             }
         });
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('flows');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('flows');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        // The simulator runs HTTP nodes for real (simulate_http): throttled.
-        $throttle = array_filter([self::throttleMiddleware(config('kinetix.flows.simulate_throttle', '10,1'), 'kinetix-flow-simulate')]);
+            // The simulator runs HTTP nodes for real (simulate_http): throttled.
+            $throttle = array_filter([self::throttleMiddleware(config('kinetix.flows.simulate_throttle', '10,1'), 'kinetix-flow-simulate')]);
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/flows")
-            ->group(function () use ($throttle) {
-                Route::get('/', [FlowController::class, 'index'])->name('kinetix.flows.index');
-                Route::post('/', [FlowController::class, 'store'])->name('kinetix.flows.store');
-                Route::get('{flow}', [FlowController::class, 'show'])->name('kinetix.flows.show');
-                Route::put('{flow}', [FlowController::class, 'update'])->name('kinetix.flows.update');
-                Route::delete('{flow}', [FlowController::class, 'destroy'])->name('kinetix.flows.destroy');
-                Route::post('{flow}/publish', [FlowController::class, 'publish'])->name('kinetix.flows.publish');
-                Route::post('{flow}/activate', [FlowController::class, 'activate'])->name('kinetix.flows.activate');
-                Route::post('{flow}/deactivate', [FlowController::class, 'deactivate'])->name('kinetix.flows.deactivate');
-                Route::post('{flow}/duplicate', [FlowController::class, 'duplicate'])->name('kinetix.flows.duplicate');
-                Route::post('{flow}/simulate', [FlowController::class, 'simulate'])->middleware($throttle)->name('kinetix.flows.simulate');
-                Route::get('{flow}/stats', [FlowController::class, 'stats'])->name('kinetix.flows.stats');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/flows")
+                ->group(function () use ($throttle) {
+                    Route::get('/', [FlowController::class, 'index'])->name('kinetix.flows.index');
+                    Route::post('/', [FlowController::class, 'store'])->name('kinetix.flows.store');
+                    Route::get('{flow}', [FlowController::class, 'show'])->name('kinetix.flows.show');
+                    Route::put('{flow}', [FlowController::class, 'update'])->name('kinetix.flows.update');
+                    Route::delete('{flow}', [FlowController::class, 'destroy'])->name('kinetix.flows.destroy');
+                    Route::post('{flow}/publish', [FlowController::class, 'publish'])->name('kinetix.flows.publish');
+                    Route::post('{flow}/activate', [FlowController::class, 'activate'])->name('kinetix.flows.activate');
+                    Route::post('{flow}/deactivate', [FlowController::class, 'deactivate'])->name('kinetix.flows.deactivate');
+                    Route::post('{flow}/duplicate', [FlowController::class, 'duplicate'])->name('kinetix.flows.duplicate');
+                    Route::post('{flow}/simulate', [FlowController::class, 'simulate'])->middleware($throttle)->name('kinetix.flows.simulate');
+                    Route::get('{flow}/stats', [FlowController::class, 'stats'])->name('kinetix.flows.stats');
+                });
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/inbox")
-            ->group(function () {
-                Route::get('{conversation}/flows', [FlowInboxController::class, 'index'])->name('kinetix.inbox.flows');
-                Route::post('{conversation}/flows/stop', [FlowInboxController::class, 'stop'])->name('kinetix.inbox.flows.stop');
-                Route::post('{conversation}/flows/{flow}', [FlowInboxController::class, 'start'])->name('kinetix.inbox.flows.start');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/inbox")
+                ->group(function () {
+                    Route::get('{conversation}/flows', [FlowInboxController::class, 'index'])->name('kinetix.inbox.flows');
+                    Route::post('{conversation}/flows/stop', [FlowInboxController::class, 'stop'])->name('kinetix.inbox.flows.stop');
+                    Route::post('{conversation}/flows/{flow}', [FlowInboxController::class, 'start'])->name('kinetix.inbox.flows.start');
+                });
+        });
     }
 
     /**
@@ -1766,22 +1847,24 @@ class KinetixServiceProvider extends ServiceProvider
             Gate::define('viewKinetixPdf', fn ($user = null): bool => $this->app->environment('local'));
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('pdf');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('pdf');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/pdf-templates")
-            ->group(function (): void {
-                Route::get('/', [PdfTemplateController::class, 'index'])->name('kinetix.pdf-templates.index');
-                Route::get('{template}', [PdfTemplateController::class, 'show'])->name('kinetix.pdf-templates.show');
-                Route::patch('{template}', [PdfTemplateController::class, 'update'])->name('kinetix.pdf-templates.update');
-                Route::get('{template}/preview', [PdfTemplateController::class, 'preview'])->name('kinetix.pdf-templates.preview');
-                Route::get('{template}/download', [PdfTemplateController::class, 'download'])->name('kinetix.pdf-templates.download');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/pdf-templates")
+                ->group(function (): void {
+                    Route::get('/', [PdfTemplateController::class, 'index'])->name('kinetix.pdf-templates.index');
+                    Route::get('{template}', [PdfTemplateController::class, 'show'])->name('kinetix.pdf-templates.show');
+                    Route::patch('{template}', [PdfTemplateController::class, 'update'])->name('kinetix.pdf-templates.update');
+                    Route::get('{template}/preview', [PdfTemplateController::class, 'preview'])->name('kinetix.pdf-templates.preview');
+                    Route::get('{template}/download', [PdfTemplateController::class, 'download'])->name('kinetix.pdf-templates.download');
+                });
+        });
     }
 
     /**
@@ -1803,18 +1886,20 @@ class KinetixServiceProvider extends ServiceProvider
             Gate::define('viewKinetixApiLogs', fn ($user = null): bool => $this->app->environment('local'));
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('api_logs');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('api_logs');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix($prefix)
-            ->group(function (): void {
-                Route::get('api-logs', [ApiLogController::class, 'index'])->name('kinetix.api-logs.index');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix($prefix)
+                ->group(function (): void {
+                    Route::get('api-logs', [ApiLogController::class, 'index'])->name('kinetix.api-logs.index');
+                });
+        });
     }
 
     /**
@@ -1828,22 +1913,24 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('tokens');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('tokens');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        // An admin impersonating someone may look, but never mint or revoke
-        // their API tokens.
-        KinetixTeams::routes([...$middleware, 'kinetix.impersonation.protect:writes'])
-            ->prefix("{$prefix}/tokens")
-            ->group(function () {
-                Route::get('/', [TokenController::class, 'index'])->name('kinetix.tokens.index');
-                Route::post('/', [TokenController::class, 'store'])->name('kinetix.tokens.store');
-                Route::delete('{token}', [TokenController::class, 'destroy'])->name('kinetix.tokens.destroy');
-            });
+            // An admin impersonating someone may look, but never mint or revoke
+            // their API tokens.
+            KinetixTeams::routes([...$middleware, 'kinetix.impersonation.protect:writes'])
+                ->prefix("{$prefix}/tokens")
+                ->group(function () {
+                    Route::get('/', [TokenController::class, 'index'])->name('kinetix.tokens.index');
+                    Route::post('/', [TokenController::class, 'store'])->name('kinetix.tokens.store');
+                    Route::delete('{token}', [TokenController::class, 'destroy'])->name('kinetix.tokens.destroy');
+                });
+        });
     }
 
     /**
@@ -1856,20 +1943,22 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('onboarding');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('onboarding');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/onboarding")
-            ->group(function () {
-                Route::get('/', [OnboardingController::class, 'index'])->name('kinetix.onboarding.index');
-                Route::post('complete', [OnboardingController::class, 'complete'])->name('kinetix.onboarding.complete');
-                Route::post('dismiss', [OnboardingController::class, 'dismiss'])->name('kinetix.onboarding.dismiss');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/onboarding")
+                ->group(function () {
+                    Route::get('/', [OnboardingController::class, 'index'])->name('kinetix.onboarding.index');
+                    Route::post('complete', [OnboardingController::class, 'complete'])->name('kinetix.onboarding.complete');
+                    Route::post('dismiss', [OnboardingController::class, 'dismiss'])->name('kinetix.onboarding.dismiss');
+                });
+        });
     }
 
     /**
@@ -1887,19 +1976,21 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('wizards');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('wizards');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/wizards")
-            ->group(function () {
-                Route::get('{slug}', [WizardController::class, 'status'])->name('kinetix.wizards.status');
-                Route::post('{slug}/complete', [WizardController::class, 'complete'])->name('kinetix.wizards.complete');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/wizards")
+                ->group(function () {
+                    Route::get('{slug}', [WizardController::class, 'status'])->name('kinetix.wizards.status');
+                    Route::post('{slug}/complete', [WizardController::class, 'complete'])->name('kinetix.wizards.complete');
+                });
+        });
     }
 
     /**
@@ -1913,20 +2004,22 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('gdpr');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('gdpr');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        // Exporting or deleting someone's account is theirs alone to do.
-        KinetixTeams::routes([...$middleware, 'kinetix.impersonation.protect'])
-            ->prefix("{$prefix}/gdpr")
-            ->group(function () {
-                Route::post('export', [GdprController::class, 'export'])->name('kinetix.gdpr.export');
-                Route::post('delete', [GdprController::class, 'destroy'])->name('kinetix.gdpr.delete');
-            });
+            // Exporting or deleting someone's account is theirs alone to do.
+            KinetixTeams::routes([...$middleware, 'kinetix.impersonation.protect'])
+                ->prefix("{$prefix}/gdpr")
+                ->group(function () {
+                    Route::post('export', [GdprController::class, 'export'])->name('kinetix.gdpr.export');
+                    Route::post('delete', [GdprController::class, 'destroy'])->name('kinetix.gdpr.delete');
+                });
+        });
     }
 
     /**
@@ -1939,19 +2032,21 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('accessibility');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('accessibility');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/accessibility")
-            ->group(function () {
-                Route::get('/', [AccessibilityController::class, 'index'])->name('kinetix.accessibility.index');
-                Route::post('/', [AccessibilityController::class, 'update'])->name('kinetix.accessibility.update');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/accessibility")
+                ->group(function () {
+                    Route::get('/', [AccessibilityController::class, 'index'])->name('kinetix.accessibility.index');
+                    Route::post('/', [AccessibilityController::class, 'update'])->name('kinetix.accessibility.update');
+                });
+        });
     }
 
     /**
@@ -1969,7 +2064,7 @@ class KinetixServiceProvider extends ServiceProvider
         // without it turns a missing optional dependency into a fatal at request
         // time; warn at boot and stay out of the way instead.
         if (! class_exists(Socialite::class)) {
-            Log::warning(
+            BootWarnings::warn('connected_accounts.socialite',
                 'Kinetix: `kinetix.connected_accounts.enabled` is true but laravel/socialite is not installed — '
                 .'the connected-accounts routes were not registered. Install it with: composer require laravel/socialite'
             );
@@ -1977,38 +2072,40 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        $base       = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('connected_accounts');
-        $prefix     = $base;
+        $this->routes(function (): void {
+            $base       = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('connected_accounts');
+            $prefix     = $base;
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($base);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($base);
+            }
 
-        // Guest login/registration via a provider (opt-in, no team prefix —
-        // there is no team context before authentication).
-        if (config('kinetix.connected_accounts.login_enabled', false)) {
-            Route::middleware(['web'])
-                ->prefix("{$base}/connected-accounts/login")
+            // Guest login/registration via a provider (opt-in, no team prefix —
+            // there is no team context before authentication).
+            if (config('kinetix.connected_accounts.login_enabled', false)) {
+                Route::middleware(['web'])
+                    ->prefix("{$base}/connected-accounts/login")
+                    ->group(function () {
+                        Route::get('redirect/{provider}', [ConnectedAccountController::class, 'loginRedirect'])->name('kinetix.connected-accounts.login.redirect');
+                        Route::get('callback/{provider}', [ConnectedAccountController::class, 'loginCallback'])->name('kinetix.connected-accounts.login.callback');
+                    });
+            }
+
+            // Authenticated link/unlink + set-password management.
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/connected-accounts")
                 ->group(function () {
-                    Route::get('redirect/{provider}', [ConnectedAccountController::class, 'loginRedirect'])->name('kinetix.connected-accounts.login.redirect');
-                    Route::get('callback/{provider}', [ConnectedAccountController::class, 'loginCallback'])->name('kinetix.connected-accounts.login.callback');
+                    Route::get('/', [ConnectedAccountController::class, 'index'])->name('kinetix.connected-accounts.index');
+                    // Linking a provider (the redirect and callback are GETs that
+                    // change the account), setting a password or unlinking would
+                    // hand an impersonating admin a way back in: blocked.
+                    Route::get('redirect/{provider}', [ConnectedAccountController::class, 'redirect'])->middleware('kinetix.impersonation.protect')->name('kinetix.connected-accounts.redirect');
+                    Route::get('callback/{provider}', [ConnectedAccountController::class, 'callback'])->middleware('kinetix.impersonation.protect')->name('kinetix.connected-accounts.callback');
+                    Route::post('password', [ConnectedAccountController::class, 'password'])->middleware('kinetix.impersonation.protect')->name('kinetix.connected-accounts.password');
+                    Route::delete('{account}', [ConnectedAccountController::class, 'destroy'])->middleware('kinetix.impersonation.protect')->name('kinetix.connected-accounts.destroy');
                 });
-        }
-
-        // Authenticated link/unlink + set-password management.
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/connected-accounts")
-            ->group(function () {
-                Route::get('/', [ConnectedAccountController::class, 'index'])->name('kinetix.connected-accounts.index');
-                // Linking a provider (the redirect and callback are GETs that
-                // change the account), setting a password or unlinking would
-                // hand an impersonating admin a way back in: blocked.
-                Route::get('redirect/{provider}', [ConnectedAccountController::class, 'redirect'])->middleware('kinetix.impersonation.protect')->name('kinetix.connected-accounts.redirect');
-                Route::get('callback/{provider}', [ConnectedAccountController::class, 'callback'])->middleware('kinetix.impersonation.protect')->name('kinetix.connected-accounts.callback');
-                Route::post('password', [ConnectedAccountController::class, 'password'])->middleware('kinetix.impersonation.protect')->name('kinetix.connected-accounts.password');
-                Route::delete('{account}', [ConnectedAccountController::class, 'destroy'])->middleware('kinetix.impersonation.protect')->name('kinetix.connected-accounts.destroy');
-            });
+        });
     }
 
     /**
@@ -2021,20 +2118,22 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('sessions');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('sessions');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        // Logging the user's other devices out is theirs alone to do.
-        KinetixTeams::routes([...$middleware, 'kinetix.impersonation.protect:writes'])
-            ->prefix("{$prefix}/sessions")
-            ->group(function () {
-                Route::get('/', [SessionController::class, 'index'])->name('kinetix.sessions.index');
-                Route::delete('others', [SessionController::class, 'destroyOthers'])->name('kinetix.sessions.destroy-others');
-            });
+            // Logging the user's other devices out is theirs alone to do.
+            KinetixTeams::routes([...$middleware, 'kinetix.impersonation.protect:writes'])
+                ->prefix("{$prefix}/sessions")
+                ->group(function () {
+                    Route::get('/', [SessionController::class, 'index'])->name('kinetix.sessions.index');
+                    Route::delete('others', [SessionController::class, 'destroyOthers'])->name('kinetix.sessions.destroy-others');
+                });
+        });
     }
 
     /**
@@ -2047,21 +2146,23 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('comments');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('comments');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/comments")
-            ->group(function () {
-                Route::get('/', [CommentController::class, 'index'])->name('kinetix.comments.index');
-                Route::post('/', [CommentController::class, 'store'])->name('kinetix.comments.store');
-                Route::put('{comment}', [CommentController::class, 'update'])->name('kinetix.comments.update');
-                Route::delete('{comment}', [CommentController::class, 'destroy'])->name('kinetix.comments.destroy');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/comments")
+                ->group(function () {
+                    Route::get('/', [CommentController::class, 'index'])->name('kinetix.comments.index');
+                    Route::post('/', [CommentController::class, 'store'])->name('kinetix.comments.store');
+                    Route::put('{comment}', [CommentController::class, 'update'])->name('kinetix.comments.update');
+                    Route::delete('{comment}', [CommentController::class, 'destroy'])->name('kinetix.comments.destroy');
+                });
+        });
     }
 
     /**
@@ -2074,20 +2175,22 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('tags');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('tags');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/tags")
-            ->group(function () {
-                Route::get('/', [TagController::class, 'index'])->name('kinetix.tags.index');
-                Route::get('suggest', [TagController::class, 'suggest'])->name('kinetix.tags.suggest');
-                Route::post('sync', [TagController::class, 'sync'])->name('kinetix.tags.sync');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/tags")
+                ->group(function () {
+                    Route::get('/', [TagController::class, 'index'])->name('kinetix.tags.index');
+                    Route::get('suggest', [TagController::class, 'suggest'])->name('kinetix.tags.suggest');
+                    Route::post('sync', [TagController::class, 'sync'])->name('kinetix.tags.sync');
+                });
+        });
     }
 
     /**
@@ -2100,19 +2203,21 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('notification_preferences');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('notification_preferences');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/notification-preferences")
-            ->group(function () {
-                Route::get('/', [NotificationPreferenceController::class, 'index'])->name('kinetix.notification-preferences.index');
-                Route::post('/', [NotificationPreferenceController::class, 'update'])->name('kinetix.notification-preferences.update');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/notification-preferences")
+                ->group(function () {
+                    Route::get('/', [NotificationPreferenceController::class, 'index'])->name('kinetix.notification-preferences.index');
+                    Route::post('/', [NotificationPreferenceController::class, 'update'])->name('kinetix.notification-preferences.update');
+                });
+        });
     }
 
     /**
@@ -2125,22 +2230,24 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('saved_views');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('saved_views');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/saved-views")
-            ->group(function () {
-                Route::get('/', [SavedViewController::class, 'index'])->name('kinetix.saved-views.index');
-                Route::post('/', [SavedViewController::class, 'store'])->name('kinetix.saved-views.store');
-                Route::put('{view}', [SavedViewController::class, 'update'])->name('kinetix.saved-views.update');
-                Route::delete('{view}', [SavedViewController::class, 'destroy'])->name('kinetix.saved-views.destroy');
-                Route::post('{view}/default', [SavedViewController::class, 'makeDefault'])->name('kinetix.saved-views.default');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/saved-views")
+                ->group(function () {
+                    Route::get('/', [SavedViewController::class, 'index'])->name('kinetix.saved-views.index');
+                    Route::post('/', [SavedViewController::class, 'store'])->name('kinetix.saved-views.store');
+                    Route::put('{view}', [SavedViewController::class, 'update'])->name('kinetix.saved-views.update');
+                    Route::delete('{view}', [SavedViewController::class, 'destroy'])->name('kinetix.saved-views.destroy');
+                    Route::post('{view}/default', [SavedViewController::class, 'makeDefault'])->name('kinetix.saved-views.default');
+                });
+        });
     }
 
     /**
@@ -2159,27 +2266,29 @@ class KinetixServiceProvider extends ServiceProvider
             Gate::define('manageKinetixAnnouncements', fn ($user = null): bool => $this->app->environment('local'));
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('announcements');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('announcements');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/announcements")
-            ->group(function () {
-                Route::get('/', [AnnouncementController::class, 'index'])->name('kinetix.announcements.index');
-                Route::get('banner', [AnnouncementController::class, 'banner'])->name('kinetix.announcements.banner');
-                Route::post('seen', [AnnouncementController::class, 'seen'])->name('kinetix.announcements.seen');
-                Route::post('{announcement}/dismiss', [AnnouncementController::class, 'dismiss'])->name('kinetix.announcements.dismiss');
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/announcements")
+                ->group(function () {
+                    Route::get('/', [AnnouncementController::class, 'index'])->name('kinetix.announcements.index');
+                    Route::get('banner', [AnnouncementController::class, 'banner'])->name('kinetix.announcements.banner');
+                    Route::post('seen', [AnnouncementController::class, 'seen'])->name('kinetix.announcements.seen');
+                    Route::post('{announcement}/dismiss', [AnnouncementController::class, 'dismiss'])->name('kinetix.announcements.dismiss');
 
-                // Authoring (gated by `manageKinetixAnnouncements`).
-                Route::get('manage', [AnnouncementController::class, 'manage'])->name('kinetix.announcements.manage');
-                Route::post('/', [AnnouncementController::class, 'store'])->name('kinetix.announcements.store');
-                Route::put('{announcement}', [AnnouncementController::class, 'update'])->name('kinetix.announcements.update');
-                Route::delete('{announcement}', [AnnouncementController::class, 'destroy'])->name('kinetix.announcements.destroy');
-            });
+                    // Authoring (gated by `manageKinetixAnnouncements`).
+                    Route::get('manage', [AnnouncementController::class, 'manage'])->name('kinetix.announcements.manage');
+                    Route::post('/', [AnnouncementController::class, 'store'])->name('kinetix.announcements.store');
+                    Route::put('{announcement}', [AnnouncementController::class, 'update'])->name('kinetix.announcements.update');
+                    Route::delete('{announcement}', [AnnouncementController::class, 'destroy'])->name('kinetix.announcements.destroy');
+                });
+        });
     }
 
     /**
@@ -2196,32 +2305,34 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = ['web'];
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = ['web'];
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
 
-            if (class_exists(PermissionRegistrar::class)) {
-                $middleware[] = 'kinetix.permissions.team';
+                if (class_exists(PermissionRegistrar::class)) {
+                    $middleware[] = 'kinetix.permissions.team';
+                }
             }
-        }
 
-        KinetixTeams::routes($middleware)
-            ->prefix($prefix)
-            ->group(function () {
-                Route::post('locale', [LocaleController::class, 'update'])->name('kinetix.locale.update');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix($prefix)
+                ->group(function () {
+                    Route::post('locale', [LocaleController::class, 'update'])->name('kinetix.locale.update');
+                });
 
-        // A language is the reader's, not a team's: a guest (the login
-        // screen, public docs) or a signed-in user outside the team pages
-        // switches it too, at the unprefixed URL those pages call.
-        if (config('kinetix.teams', false)) {
-            Route::middleware(['web'])
-                ->prefix((string) config('kinetix.route_prefix', '_kinetix'))
-                ->post('locale', [LocaleController::class, 'update'])
-                ->name('kinetix.locale.switch');
-        }
+            // A language is the reader's, not a team's: a guest (the login
+            // screen, public docs) or a signed-in user outside the team pages
+            // switches it too, at the unprefixed URL those pages call.
+            if (config('kinetix.teams', false)) {
+                Route::middleware(['web'])
+                    ->prefix((string) config('kinetix.route_prefix', '_kinetix'))
+                    ->post('locale', [LocaleController::class, 'update'])
+                    ->name('kinetix.locale.switch');
+            }
+        });
     }
 
     /**
@@ -2258,20 +2369,22 @@ class KinetixServiceProvider extends ServiceProvider
             Gate::define('viewKinetixQueue', fn ($user = null): bool => $this->app->environment('local'));
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('queue');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('queue');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/queue")
-            ->group(function () {
-                Route::get('/', [QueueController::class, 'index'])->name('kinetix.queue.index');
-                Route::post('retry', [QueueController::class, 'retry'])->name('kinetix.queue.retry');
-                Route::delete('failed', [QueueController::class, 'forget'])->name('kinetix.queue.forget');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/queue")
+                ->group(function () {
+                    Route::get('/', [QueueController::class, 'index'])->name('kinetix.queue.index');
+                    Route::post('retry', [QueueController::class, 'retry'])->name('kinetix.queue.retry');
+                    Route::delete('failed', [QueueController::class, 'forget'])->name('kinetix.queue.forget');
+                });
+        });
     }
 
     /**
@@ -2289,23 +2402,25 @@ class KinetixServiceProvider extends ServiceProvider
             Gate::define('viewKinetixMail', fn ($user = null): bool => $this->app->environment('local'));
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('mail_templates');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('mail_templates');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/mail-templates")
-            ->group(function () {
-                Route::get('/', [MailTemplateController::class, 'index'])->name('kinetix.mail-templates.index');
-                Route::post('/', [MailTemplateController::class, 'store'])->name('kinetix.mail-templates.store');
-                Route::post('preview', [MailTemplateController::class, 'preview'])->name('kinetix.mail-templates.preview');
-                Route::put('{template}', [MailTemplateController::class, 'update'])->name('kinetix.mail-templates.update');
-                Route::delete('{template}', [MailTemplateController::class, 'destroy'])->name('kinetix.mail-templates.destroy');
-                Route::post('{template}/test', [MailTemplateController::class, 'test'])->name('kinetix.mail-templates.test');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/mail-templates")
+                ->group(function () {
+                    Route::get('/', [MailTemplateController::class, 'index'])->name('kinetix.mail-templates.index');
+                    Route::post('/', [MailTemplateController::class, 'store'])->name('kinetix.mail-templates.store');
+                    Route::post('preview', [MailTemplateController::class, 'preview'])->name('kinetix.mail-templates.preview');
+                    Route::put('{template}', [MailTemplateController::class, 'update'])->name('kinetix.mail-templates.update');
+                    Route::delete('{template}', [MailTemplateController::class, 'destroy'])->name('kinetix.mail-templates.destroy');
+                    Route::post('{template}/test', [MailTemplateController::class, 'test'])->name('kinetix.mail-templates.test');
+                });
+        });
     }
 
     /**
@@ -2323,18 +2438,20 @@ class KinetixServiceProvider extends ServiceProvider
             Gate::define('viewKinetixHealth', fn ($user = null): bool => $this->app->environment('local'));
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('health');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('health');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/health")
-            ->group(function () {
-                Route::get('/', [HealthController::class, 'index'])->name('kinetix.health.index');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/health")
+                ->group(function () {
+                    Route::get('/', [HealthController::class, 'index'])->name('kinetix.health.index');
+                });
+        });
     }
 
     /**
@@ -2354,37 +2471,39 @@ class KinetixServiceProvider extends ServiceProvider
             Gate::define('viewKinetixReportsCenter', fn ($user = null): bool => $this->app->environment('local'));
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('reports_center');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('reports_center');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)->prefix("{$prefix}")->group(function () {
-            Route::get('report-types', [ReportTypeController::class, 'index'])->name('kinetix.report-types.index');
+            KinetixTeams::routes($middleware)->prefix("{$prefix}")->group(function () {
+                Route::get('report-types', [ReportTypeController::class, 'index'])->name('kinetix.report-types.index');
 
-            Route::get('report-runs', [ReportRunController::class, 'index'])->name('kinetix.report-runs.index');
-            Route::post('report-runs/launch', [ReportRunController::class, 'launch'])->name('kinetix.report-runs.launch');
-            Route::post('report-runs/{run}/cancel', [ReportRunController::class, 'cancel'])->name('kinetix.report-runs.cancel');
-            Route::post('report-runs/{run}/retry', [ReportRunController::class, 'retry'])->name('kinetix.report-runs.retry');
+                Route::get('report-runs', [ReportRunController::class, 'index'])->name('kinetix.report-runs.index');
+                Route::post('report-runs/launch', [ReportRunController::class, 'launch'])->name('kinetix.report-runs.launch');
+                Route::post('report-runs/{run}/cancel', [ReportRunController::class, 'cancel'])->name('kinetix.report-runs.cancel');
+                Route::post('report-runs/{run}/retry', [ReportRunController::class, 'retry'])->name('kinetix.report-runs.retry');
 
-            Route::get('report-schedules', [ReportScheduleController::class, 'index'])->name('kinetix.report-schedules.index');
-            Route::post('report-schedules', [ReportScheduleController::class, 'store'])->name('kinetix.report-schedules.store');
-            Route::put('report-schedules/{schedule}', [ReportScheduleController::class, 'update'])->name('kinetix.report-schedules.update');
-            Route::delete('report-schedules/{schedule}', [ReportScheduleController::class, 'destroy'])->name('kinetix.report-schedules.destroy');
-            Route::post('report-schedules/{schedule}/run-now', [ReportScheduleController::class, 'runNow'])->name('kinetix.report-schedules.run-now');
-        });
-
-        // Registered WITHOUT the team prefix, same reasoning as the existing
-        // export/GDPR download routes: also reached from a queued job's
-        // notification link, which has no team route context at build time.
-        Route::middleware($middleware)
-            ->prefix((string) config('kinetix.route_prefix', '_kinetix'))
-            ->group(function () {
-                Route::get('report-runs/{run}/download', [ReportRunController::class, 'download'])
-                    ->name('kinetix.report-runs.download');
+                Route::get('report-schedules', [ReportScheduleController::class, 'index'])->name('kinetix.report-schedules.index');
+                Route::post('report-schedules', [ReportScheduleController::class, 'store'])->name('kinetix.report-schedules.store');
+                Route::put('report-schedules/{schedule}', [ReportScheduleController::class, 'update'])->name('kinetix.report-schedules.update');
+                Route::delete('report-schedules/{schedule}', [ReportScheduleController::class, 'destroy'])->name('kinetix.report-schedules.destroy');
+                Route::post('report-schedules/{schedule}/run-now', [ReportScheduleController::class, 'runNow'])->name('kinetix.report-schedules.run-now');
             });
+
+            // Registered WITHOUT the team prefix, same reasoning as the existing
+            // export/GDPR download routes: also reached from a queued job's
+            // notification link, which has no team route context at build time.
+            Route::middleware($middleware)
+                ->prefix((string) config('kinetix.route_prefix', '_kinetix'))
+                ->group(function () {
+                    Route::get('report-runs/{run}/download', [ReportRunController::class, 'download'])
+                        ->name('kinetix.report-runs.download');
+                });
+        });
     }
 
     /**
@@ -2401,16 +2520,18 @@ class KinetixServiceProvider extends ServiceProvider
             Gate::define('revealKinetixConfidential', fn ($user = null): bool => $this->app->environment('local'));
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('confidential');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('confidential');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)->prefix("{$prefix}")->group(function () {
-            Route::post('confidential/unlock', [ConfidentialController::class, 'unlock'])->name('kinetix.confidential.unlock');
-            Route::post('confidential/lock', [ConfidentialController::class, 'lock'])->name('kinetix.confidential.lock');
+            KinetixTeams::routes($middleware)->prefix("{$prefix}")->group(function () {
+                Route::post('confidential/unlock', [ConfidentialController::class, 'unlock'])->name('kinetix.confidential.unlock');
+                Route::post('confidential/lock', [ConfidentialController::class, 'lock'])->name('kinetix.confidential.lock');
+            });
         });
     }
 
@@ -2559,35 +2680,13 @@ class KinetixServiceProvider extends ServiceProvider
             return KinetixDismissals::keysFor($user);
         });
 
-        Inertia::share('kinetix_notifications', function () {
-            $isDatabase = (bool) config('kinetix.notifications.database', false);
-            $limit      = (int) config('kinetix.notifications.limit', 15);
-
-            if ($isDatabase && auth()->check()) {
-                // Team-scoped bell: only notifications stamped with the active
-                // team plus global unstamped ones (the same filter "mark all as
-                // read" and "clear all" apply).
-                $query = auth()->user()->notifications()->latest();
-                NotificationScope::apply($query);
-
-                return $query
-                    ->take($limit)
-                    ->get()
-                    ->map(fn ($n) => array_merge($n->data, [
-                        'id'         => $n->id,
-                        'read'       => ! is_null($n->read_at),
-                        'created_at' => $n->created_at->toIso8601String(),
-                    ]))
-                    ->toArray();
-            }
-
-            return session()->get('kinetix_notifications', []);
-        });
+        // The bell's feed; its poll reads the same through the JSON endpoint.
+        Inertia::share('kinetix_notifications', static fn (): array => NotificationFeed::for(auth()->user()));
 
         // The authenticated user's resolved permission keys + role names, so the
         // SPA can gate UI (useKinetixCan / <Can>) without the host app having to
         // wire its own HandleInertiaRequests. Empty unless the feature is on.
-        Inertia::share('kinetix_permissions', function () {
+        Inertia::share('kinetix_permissions', fn () => KinetixSharedProps::once('kinetix_permissions', ['permissions'], function () {
             $user = auth()->user();
 
             if (! config('kinetix.permissions.enabled', false) || $user === null) {
@@ -2620,11 +2719,11 @@ class KinetixServiceProvider extends ServiceProvider
                 // hide UI from a super-admin (who holds the role, not the perms).
                 'isSuperAdmin' => $isSuperAdmin,
             ];
-        });
+        }));
 
         // The authorized product tours + the user's seen ids (database driver),
         // for the global <KinetixTours /> host and the tours pinia store.
-        Inertia::share('kinetix_tours', function () {
+        Inertia::share('kinetix_tours', fn () => KinetixSharedProps::once('kinetix_tours', ['tours'], function () {
             if (! config('kinetix.tours.enabled', false) || ! auth()->check()) {
                 return ['enabled' => false, 'driver' => 'local', 'tours' => [], 'seen' => [], 'skipWhenAutomated' => true];
             }
@@ -2652,11 +2751,13 @@ class KinetixServiceProvider extends ServiceProvider
                 'seen'              => $seen,
                 'skipWhenAutomated' => (bool) config('kinetix.tours.skip_when_automated', true),
             ];
-        });
+        }));
 
         // The billable's current plan (slug/name + the features JSON), so the
         // SPA can gate menus/buttons by plan capability or usage limit via
         // useKinetixPlan() / <KinetixPlanFeature> without any controller code.
+        // Sent on every visit, never kept: the plan changes from provider
+        // webhooks, outside the user's session (KinetixSharedProps::NEVER_ONCE).
         Inertia::share('kinetix_billing', function () {
             if (! config('kinetix.billing.enabled', false) || ! auth()->check()) {
                 return ['enabled' => false, 'plan' => null];
@@ -2712,7 +2813,7 @@ class KinetixServiceProvider extends ServiceProvider
         // visitor has already responded is resolved client-side (a plain
         // browser cookie, no server round-trip) — this only ships the
         // configurable bits.
-        Inertia::share('kinetix_cookie_consent', function () {
+        Inertia::share('kinetix_cookie_consent', fn () => KinetixSharedProps::once('kinetix_cookie_consent', ['cookie_consent'], function () {
             if (! config('kinetix.cookie_consent.enabled', false)) {
                 return ['enabled' => false];
             }
@@ -2724,23 +2825,25 @@ class KinetixServiceProvider extends ServiceProvider
                 'position'   => config('kinetix.cookie_consent.position', 'bottom'),
                 'policyUrl'  => config('kinetix.cookie_consent.policy_url'),
             ];
-        });
+        }));
 
         // Resolved feature flags for the current scope, for useKinetixFeature / <KinetixFeature>.
-        Inertia::share('kinetix_features', function () {
+        Inertia::share('kinetix_features', fn () => KinetixSharedProps::once('kinetix_features', ['features'], function () {
             if (! config('kinetix.features.enabled', false)) {
                 return [];
             }
 
             return app(FeatureManager::class)->all();
-        });
+        }));
 
         // Every declared entitlement resolved to {allowed, reason, remaining},
         // so the SPA gates on exactly the composition the server enforces —
         // and knows WHY something is denied, which is the difference between
         // hiding a button and showing an upgrade padlock. Verdicts are
         // memoized per request, so this share re-uses whatever the controller
-        // already asked rather than evaluating a second time.
+        // already asked rather than evaluating a second time. Never kept between
+        // visits: verdicts compose the plan, which changes from provider
+        // webhooks outside the user's session (KinetixSharedProps::NEVER_ONCE).
         Inertia::share('kinetix_entitlements', function () {
             if (! config('kinetix.entitlements.enabled', false)) {
                 return ['enabled' => false, 'entitlements' => []];
@@ -2758,7 +2861,7 @@ class KinetixServiceProvider extends ServiceProvider
 
         // The current user's accessibility preferences (applied by the
         // KinetixAccessibility Vue plugin), or the configured defaults.
-        Inertia::share('kinetix_accessibility', function () {
+        Inertia::share('kinetix_accessibility', fn () => KinetixSharedProps::once('kinetix_accessibility', ['accessibility'], function () {
             if (! config('kinetix.accessibility.enabled', false)) {
                 return null;
             }
@@ -2768,10 +2871,10 @@ class KinetixServiceProvider extends ServiceProvider
             return $user instanceof Model
                 ? app(AccessibilityManager::class)->for($user)
                 : AccessibilityData::fromArray((array) config('kinetix.accessibility.defaults', []));
-        });
+        }));
 
         // Supported locales + the active one, for <KinetixLanguageSwitcher>.
-        Inertia::share('kinetix_locale', function () {
+        Inertia::share('kinetix_locale', fn () => KinetixSharedProps::once('kinetix_locale', ['locale'], function () {
             if (! config('kinetix.locale.enabled', false)) {
                 return ['enabled' => false, 'current' => null, 'locales' => []];
             }
@@ -2783,7 +2886,7 @@ class KinetixServiceProvider extends ServiceProvider
                 'current' => $manager->current(),
                 'locales' => $manager->options(),
             ];
-        });
+        }));
 
         // The unread badge + the banner feed, so the header trigger and the
         // banner render from the page payload instead of each firing their own
@@ -2805,7 +2908,7 @@ class KinetixServiceProvider extends ServiceProvider
         // page payload instead of fetching on mount. The sidebar variant lives
         // in the layout — on every page — so that fetch was a round-trip per
         // navigation for a list that changes a handful of times per account.
-        Inertia::share('kinetix_onboarding', function () {
+        Inertia::share('kinetix_onboarding', fn () => KinetixSharedProps::once('kinetix_onboarding', ['onboarding'], function () {
             $user = auth()->user();
 
             if (! config('kinetix.onboarding.enabled', false)
@@ -2815,37 +2918,37 @@ class KinetixServiceProvider extends ServiceProvider
             }
 
             return app(OnboardingManager::class)->for($user);
-        });
+        }));
 
         // The user's teams + switch URLs, for <KinetixTeamSwitcher>.
-        Inertia::share('kinetix_teams', fn () => app(TeamSwitcherManager::class)->payload());
+        Inertia::share('kinetix_teams', fn () => KinetixSharedProps::once('kinetix_teams', ['team_switcher'], static fn () => app(TeamSwitcherManager::class)->payload()));
 
         // The (team-resolved) presence channel, for <KinetixOnlineUsers>.
         Inertia::share('kinetix_presence', fn () => app(PresenceManager::class)->state());
 
         // Queue widget config (enabled + poll interval), for <KinetixQueueStats>.
-        Inertia::share('kinetix_queue', fn () => [
+        Inertia::share('kinetix_queue', fn () => KinetixSharedProps::once('kinetix_queue', ['queue'], static fn (): array => [
             'enabled' => (bool) config('kinetix.queue.enabled', false),
             'poll'    => (int) config('kinetix.queue.poll', 5000),
-        ]);
+        ]));
 
         // Health widget config (enabled + poll interval), for <KinetixHealthStatus>.
-        Inertia::share('kinetix_health', fn () => [
+        Inertia::share('kinetix_health', fn () => KinetixSharedProps::once('kinetix_health', ['health'], static fn (): array => [
             'enabled' => (bool) config('kinetix.health.enabled', false),
             'poll'    => (int) config('kinetix.health.poll', 30000),
-        ]);
+        ]));
 
         // Reports Center config (enabled + poll interval), for the launcher /
         // runs table / schedules list components.
-        Inertia::share('kinetix_reports_center', fn () => [
+        Inertia::share('kinetix_reports_center', fn () => KinetixSharedProps::once('kinetix_reports_center', ['reports_center'], static fn (): array => [
             'enabled' => (bool) config('kinetix.reports_center.enabled', false),
             'poll'    => (int) config('kinetix.reports_center.poll', 5000),
-        ]);
+        ]));
 
         // Confidential fields: reveal-gate state for the header unlock widget.
         Inertia::share('kinetix_confidential', function () {
             $unlockedUntil = config('kinetix.confidential.enabled', false)
-                ? $this->app->make(ConfidentialManager::class)->unlockedUntil()
+                ? app(ConfidentialManager::class)->unlockedUntil()
                 : null;
 
             return [
@@ -3050,21 +3153,23 @@ class KinetixServiceProvider extends ServiceProvider
             return;
         }
 
-        $prefix     = config('kinetix.route_prefix', '_kinetix');
-        $middleware = $this->moduleMiddleware('dismissals');
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('dismissals');
 
-        if (config('kinetix.teams', false)) {
-            $prefix = KinetixTeams::routePrefix($prefix);
-        }
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
 
-        KinetixTeams::routes($middleware)
-            ->prefix("{$prefix}/dismissals")
-            ->group(function () {
-                Route::post('/', [DismissalController::class, 'store'])->name('kinetix.dismissals.store');
-                Route::delete('{key}', [DismissalController::class, 'destroy'])
-                    ->where('key', '[A-Za-z0-9._:-]{1,191}')
-                    ->name('kinetix.dismissals.destroy');
-            });
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/dismissals")
+                ->group(function () {
+                    Route::post('/', [DismissalController::class, 'store'])->name('kinetix.dismissals.store');
+                    Route::delete('{key}', [DismissalController::class, 'destroy'])
+                        ->where('key', '[A-Za-z0-9._:-]{1,191}')
+                        ->name('kinetix.dismissals.destroy');
+                });
+        });
     }
 
     protected function registerNotificationRoutes(): void
@@ -3079,6 +3184,12 @@ class KinetixServiceProvider extends ServiceProvider
         KinetixTeams::routes($middleware)
             ->prefix("{$prefix}/notifications")
             ->group(function () {
+                // The bell's JSON feed: its poll reads this instead of
+                // partially reloading the page, which re-ran the host's
+                // controller every 30 seconds per open tab.
+                Route::get('/', [NotificationController::class, 'index'])
+                    ->name('kinetix.notifications.index');
+
                 Route::post('{id}/read', [NotificationController::class, 'read'])
                     ->name('kinetix.notifications.read');
 
@@ -3300,7 +3411,29 @@ class KinetixServiceProvider extends ServiceProvider
             $middleware[] = 'kinetix.permissions.team';
         }
 
+        // Successful writes here change what a kept shared prop shows.
+        if (in_array($module, KinetixSharedProps::SOURCE_MODULES, true)) {
+            $middleware[] = 'kinetix.shared-props';
+        }
+
         return [...$middleware, ...array_values((array) config("kinetix.module_middleware.{$module}", []))];
+    }
+
+    /**
+     * Run a block that only REGISTERS ROUTES; skipped when the app serves
+     * cached routes (`php artisan route:cache`), which already hold them.
+     * Gates, abilities, listeners, broadcast channels and middleware aliases
+     * never go in here: the cache doesn't hold those.
+     */
+    private function routes(callable $register): void
+    {
+        $this->routesCached ??= $this->app instanceof CachesRoutes && $this->app->routesAreCached();
+
+        if ($this->routesCached) {
+            return;
+        }
+
+        $register();
     }
 
     /**
@@ -3323,46 +3456,42 @@ class KinetixServiceProvider extends ServiceProvider
     }
 
     /**
-     * Clear the memos that must not outlive a single request.
+     * Clear what must not outlive a single request or queued job
+     * ({@see KinetixStateReset}): now, at the start of every queued job and of
+     * every Octane request.
      *
-     * Authorization verdicts memoized per user ({@see Memo}) are keyed by the
-     * user OBJECT and released with it, so they need nothing here. The plan
-     * catalog is a plain static — under Octane or in a queue worker it would
-     * otherwise survive into the next request and serve a catalog another
-     * process has since edited.
-     *
-     * Under PHP-FPM this is a no-op (statics start empty), which also makes
-     * each test case start clean.
+     * A job on a `sync`-driver connection (whatever the connection is
+     * called) runs inside the HTTP request that dispatched it, so its reset
+     * keeps spatie's team id: clearing it would break the rest of that
+     * request.
      */
     protected function registerStateReset(): void
     {
-        $reset = static function (): void {
-            // Everything memoized per user (plans, entitlement verdicts,
-            // super-admin and owner verdicts) is keyed by the user OBJECT and
-            // released with it, so this is belt-and-braces — but it also means
-            // one call covers every store, present and future.
-            Memo::flush();
+        KinetixStateReset::run(false);
 
-            // The plan catalog is a plain static and genuinely would survive
-            // into the next request, serving a catalog another process edited.
-            // Only the request memo is dropped: the opt-in persistent cache is
-            // invalidated by plan WRITES, not by the clock.
-            PlanCatalog::flushMemo();
-
-            // The password observer memoizes whether the users table carries
-            // the policy columns; a migration between requests must be seen.
-            PasswordObserver::flush();
-            PasswordHistory::flush();
-            NotificationPreference::flushOwnerTypeColumn();
-        };
-
-        $reset();
-
-        Event::listen(JobProcessing::class, $reset);
+        Event::listen(JobProcessing::class, static function (JobProcessing $event): void {
+            KinetixStateReset::run(! self::runsInline($event));
+        });
 
         if (class_exists(OctaneRequestReceived::class)) {
-            Event::listen(OctaneRequestReceived::class, $reset);
+            Event::listen(OctaneRequestReceived::class, static function (): void {
+                KinetixStateReset::run(true);
+            });
         }
+    }
+
+    /**
+     * Whether a job runs inside the current process's request: a `sync`
+     * driver job, recognised by the job itself or the connection's DRIVER —
+     * never by the connection's name, which the app chooses.
+     */
+    private static function runsInline(JobProcessing $event): bool
+    {
+        if ($event->job instanceof SyncJob) {
+            return true;
+        }
+
+        return config("queue.connections.{$event->connectionName}.driver") === 'sync';
     }
 
     /**
@@ -3386,7 +3515,7 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         if (config('kinetix.billing.enabled', false) && config('kinetix.billing.auto_routes', false)) {
-            BillingRoutes::register();
+            $this->routes(BillingRoutes::register(...));
         }
     }
 

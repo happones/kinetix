@@ -14,6 +14,15 @@ php artisan vendor:publish --tag=kinetix-webhooks-migrations
 php artisan migrate
 ```
 
+::: tip Upgrading: the listing index
+The tag also ships an index on `kinetix_webhook_logs` `(webhook_endpoint_id, created_at)`, which an endpoint's delivery log reads newest-first on every
+page. If you published the tag before 0.277, publish it again and migrate:
+`kinetix:upgrade` lists the new file and `kinetix:doctor` warns while the
+index is missing. The migration is idempotent, skips an equivalent index you
+already have (same leading columns, in order), and is a plain `CREATE INDEX`:
+on a very large table, run it in a maintenance window.
+:::
+
 ```php
 'webhooks' => [
     'enabled'        => env('KINETIX_WEBHOOKS_ENABLED', false),

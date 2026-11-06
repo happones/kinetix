@@ -476,10 +476,17 @@ The controller is then just a thin index page:
 public function index()
 {
     return inertia('Kinetix/Clients/Index', [
-        'table' => ClientResource::table(Table::make(ClientResource::getEloquentQuery()))->toArray(),
+        'table' => fn () => ClientResource::table(Table::make(ClientResource::getEloquentQuery()))->toArray(),
     ]);
 }
 ```
+
+::: tip Page props in closures
+Generated controllers pass every page prop as a closure (`fn () => …`).
+Inertia only calls the closures a response actually sends, so a partial
+reload that asks for something else (`router.reload({ only: ['stats'] })`)
+never builds the table. Write your own pages the same way.
+:::
 
 **How CRUD runs (Kinetix-owned).** Create/edit/view/delete never leave the page:
 `KinetixTable` opens a `KinetixForm` (create/edit) or `KinetixInfolist` (view)
@@ -656,7 +663,7 @@ class ArticleController extends Controller
     public function index()
     {
         return inertia('Kinetix/Articles/Index', [
-            'table' => ArticleResource::table(Table::make(ArticleResource::getEloquentQuery()))->toArray(),
+            'table' => fn () => ArticleResource::table(Table::make(ArticleResource::getEloquentQuery()))->toArray(),
         ]);
     }
 
@@ -667,7 +674,7 @@ class ArticleController extends Controller
         // URLs are resolved server-side (getUrl() fills `{current_team}` and
         // route keys), so the page never rebuilds routes itself.
         return inertia('Kinetix/Articles/Create', [
-            'form' => $form->toArray(),
+            'form' => fn () => $form->toArray(),
             'storeUrl' => ArticleResource::getUrl('store'),
             'cancelUrl' => ArticleResource::getUrl('index'),
         ]);
@@ -687,8 +694,8 @@ class ArticleController extends Controller
     public function show(Article $record)
     {
         return inertia('Kinetix/Articles/Show', [
-            'infolist' => ArticleResource::infolist(Infolist::make($record))->toArray(),
-            'actions' => Action::toArrayMany([
+            'infolist' => fn () => ArticleResource::infolist(Infolist::make($record))->toArray(),
+            'actions' => fn () => Action::toArrayMany([
                 EditAction::make()->route('articles.edit'),
                 DeleteAction::make()->route('articles.destroy', method: 'delete'),
             ], $record),
@@ -700,7 +707,7 @@ class ArticleController extends Controller
         $form = ArticleResource::form(Form::make($record))->fill($record);
 
         return inertia('Kinetix/Articles/Edit', [
-            'form' => $form->toArray(),
+            'form' => fn () => $form->toArray(),
             'updateUrl' => ArticleResource::getUrl('update', $record),
             'cancelUrl' => ArticleResource::getUrl('index'),
         ]);

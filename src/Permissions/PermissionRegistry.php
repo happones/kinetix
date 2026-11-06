@@ -42,6 +42,17 @@ class PermissionRegistry
     protected array $discoverPaths = [];
 
     /**
+     * The directories (+ base namespace) scanned for `Resource` subclasses, for
+     * `kinetix:optimize`.
+     *
+     * @return list<array{0: string, 1: string}>
+     */
+    public function discoveryRoots(): array
+    {
+        return array_values($this->discoverPaths);
+    }
+
+    /**
      * Resource classes already resolved, so repeat `features()` calls don't
      * re-run their `registerPermissions()` hook.
      *

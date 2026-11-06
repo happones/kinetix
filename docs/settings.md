@@ -109,6 +109,13 @@ KinetixSettings::forget('general.site_name');
 KinetixSettings::all();                               // key => value for the scope
 ```
 
+Reads cost almost nothing after the first: each scope's values are loaded
+once per request (from the cache, else the table) and kept in a request memo,
+and the request's team is resolved once. Ten reads in a team are three queries
+without the cache: the team and the two scopes. Under Octane and in queue
+workers the memo is dropped at the start of every request and job (never the
+cache), so a value another process saved is read again.
+
 ### Global values and team values
 
 With teams on, every team **inherits** the global values (those stored with no

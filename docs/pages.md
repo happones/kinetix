@@ -8,10 +8,14 @@ Not every screen is a resource. A dashboard, a wizard of your own, a POS termina
 use App\Kinetix\Pages\InventoryAdjustPage;
 
 return inertia('Kinetix/InventoryAdjust', [
-    'page' => InventoryAdjustPage::make()->record($item)->toArray(),
+    'page' => fn () => InventoryAdjustPage::make()->record($item)->toArray(),
     // …and whatever the body needs
 ]);
 ```
+
+Pass page props as closures, as the generated controller does: Inertia calls
+only the ones a response sends, so a partial reload that asks for something
+else never builds the page's chrome.
 
 ```vue
 <KinetixPageShell :page="page">

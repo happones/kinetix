@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Commands;
 
 use Happones\Kinetix\Commands\Concerns\WritesGeneratedFiles;
 use Happones\Kinetix\Support\ComposerHook;
+use Happones\Kinetix\Support\InertiaEntryFile;
 use Happones\Kinetix\Support\PublishedFiles;
 use Happones\Kinetix\Support\StylesheetLines;
 use Happones\Kinetix\Support\TailwindSourceExclusions;
@@ -30,7 +31,8 @@ class InstallCommand extends Command
         {--tours : Also install the product-tour renderer (driver.js)}
         {--provider : Deprecated no-op — the provider is now scaffolded by default}
         {--skip-provider : Do not scaffold App\Providers\KinetixServiceProvider}
-        {--skip-skills : Do not publish the bundled agent skills}';
+        {--skip-skills : Do not publish the bundled agent skills}
+        {--lazy-locales : Load each locale\'s messages on demand (needs vue-i18n:generate --multi-locales)}';
 
     /**
      * The console command description.
@@ -186,79 +188,63 @@ JS;
             $this->info("Created resources/js/stores/index.{$ext}");
         }
 
-        // Update app.ts / app.js
-        $content    = File::get($appFile);
-        $updatedApp = false;
+        // Update app.ts / app.js — all or nothing: an entry this can't wire
+        // safely is left exactly as it was, and the snippet is printed.
+        $content = File::get($appFile);
+        $lazy    = (bool) $this->option('lazy-locales');
+        $file    = "resources/js/app.{$ext}";
 
-        // Check/Add imports
-        $importsToAdd = [];
-        if (! str_contains($content, 'vue-i18n')) {
-            $importsToAdd[] = "import { createI18n } from 'vue-i18n';";
-        }
-        if (! str_contains($content, '@/stores') && ! str_contains($content, './stores')) {
-            $importsToAdd[] = "import pinia from '@/stores';";
-        }
-        if (! str_contains($content, 'vue-i18n-locales')) {
-            $importsToAdd[] = "import Locale from './vue-i18n-locales';";
-        }
-
-        if (! empty($importsToAdd)) {
-            $lines    = explode("\n", $content);
-            $inserted = false;
-            for ($i = 0; $i < count($lines); $i++) {
-                if (str_starts_with(trim($lines[$i]), 'import ')) {
-                    array_splice($lines, $i, 0, $importsToAdd);
-                    $inserted = true;
-                    break;
-                }
-            }
-            if (! $inserted) {
-                array_unshift($lines, ...$importsToAdd);
-            }
-            $content    = implode("\n", $lines);
-            $updatedApp = true;
-        }
-
-        // Insert withApp inside createInertiaApp
-        if (! str_contains($content, 'withApp(') && ! str_contains($content, 'withApp (')) {
-            $setupPos = strpos($content, 'setup(');
-            if ($setupPos === false) {
-                $setupPos = strpos($content, 'setup (');
-            }
-
-            if ($setupPos !== false) {
-                // Only emit the TypeScript cast when the entry file is .ts —
-                // injecting `as string | undefined` into a .js file is a syntax error.
-                $localeLine = $ext === 'ts'
-                    ? 'locale: page.props.locale as string | undefined,'
-                    : 'locale: page.props.locale,';
-
-                $withAppCode = <<<JS
-    withApp(app, { page }) {
-        const i18n = createI18n({
-            legacy: false,
-            {$localeLine}
-            messages: Locale,
-        });
-
-        app.use(i18n);
-        app.use(pinia);
-    },
-JS;
-                $content    = substr_replace($content, $withAppCode."\n", $setupPos, 0);
-                $updatedApp = true;
+        if (str_contains($content, 'vue-i18n')) {
+            if ($lazy) {
+                $this->warn("{$file} already registers vue-i18n, so it was left as it is. To load locales on demand, switch it by hand:");
+                $this->printLazyLocalesSnippet();
             } else {
-                $this->warn('Could not locate the setup() method in your app file to inject withApp configuration. Please register vue-i18n and pinia manually.');
+                $this->info("{$file} is already configured.");
             }
+
+            return $this->finishInstall(lazyLocales: $lazy);
         }
 
-        if ($updatedApp) {
-            File::put($appFile, $content);
-            $this->info("Updated resources/js/app.{$ext} with i18n and Pinia registration.");
-        } else {
-            $this->info("resources/js/app.{$ext} is already configured.");
+        $wired = $lazy ? $this->wireEntry($content, $ext, lazy: true) : null;
+
+        if ($wired !== null) {
+            File::put($appFile, $wired);
+            $this->info("Updated {$file} with on-demand locales and Pinia registration.");
+
+            return $this->finishInstall(lazyLocales: true);
         }
 
+        $wired = $this->wireEntry($content, $ext, lazy: false);
+
+        if ($lazy) {
+            $this->warn($wired === null
+                ? "Could not wire {$file} safely (createInertiaApp() needs one `resolve:` and a readable setup() or withApp()), so it was left as it is. Wire it by hand:"
+                : "Could not find a single `resolve:` (or a readable setup() / withApp()) in createInertiaApp() in {$file}, so the eager locale wiring was written instead. To load locales on demand, switch it by hand:");
+            $this->printLazyLocalesSnippet();
+        }
+
+        if ($wired === null) {
+            if (! $lazy) {
+                $this->warn("Could not wire {$file} safely, so it was left as it is. Register vue-i18n and Pinia by hand:");
+            }
+
+            $this->printEagerSnippet($ext);
+
+            return $this->finishInstall(lazyLocales: $lazy);
+        }
+
+        File::put($appFile, $wired);
+        $this->info("Updated {$file} with i18n and Pinia registration.");
+
+        return $this->finishInstall(lazyLocales: $lazy);
+    }
+
+    /**
+     * The steps after the entry file: hooks, stylesheets, the provider and the
+     * published-files baseline.
+     */
+    protected function finishInstall(bool $lazyLocales): int
+    {
         $this->registerUpgradeHook();
         $this->ensureSonnerStylesheet();
         $this->ensureStatusTokens();
@@ -276,7 +262,335 @@ JS;
 
         $this->info('Kinetix installation and configuration completed successfully!');
 
+        if ($lazyLocales) {
+            $this->printLazyLocalesNextSteps();
+        }
+
         return self::SUCCESS;
+    }
+
+    /**
+     * The entry file with vue-i18n and Pinia wired in — eager, or on demand
+     * (`$lazy`: `resolve` wrapped, messages from the plugin's cache) — or
+     * null when it can't be done safely. Inertia calls `setup()` INSTEAD of
+     * `withApp()` when both are given, so the wiring follows the entry's
+     * shape and never adds `withApp` next to a `setup`:
+     *
+     *  - neither: a `withApp(app, { page })` property is added;
+     *  - `withApp`: the i18n is built at the start of its body;
+     *  - `setup`: the i18n is built at the start of its body from
+     *    `props.initialPage`, and `.use(i18n).use(pinia)` is chained onto its
+     *    one `createApp(…)` call.
+     *
+     * Everything is located by `InertiaEntryFile`'s scanner on the first
+     * `createInertiaApp({ … })` object, so comments and strings never match.
+     * An object it can't fully read (a spread, `async setup()`, a getter) is
+     * left alone: it might hold a `setup` the scanner can't see.
+     */
+    protected function wireEntry(string $content, string $ext, bool $lazy): ?string
+    {
+        $shape = InertiaEntryFile::describe($content);
+
+        if ($shape === null || ($shape['setup'] && $shape['withApp'])) {
+            return null;
+        }
+
+        $source = $lazy ? InertiaEntryFile::wrapResolve($content, 'withKinetixLocales') : $content;
+
+        if ($source === null) {
+            return null;
+        }
+
+        $usesPinia = InertiaEntryFile::callsUse($content, 'pinia');
+
+        // Lazy: `attachKinetixI18n(i18n);` closes the block, the uses follow it.
+        $gap = $lazy ? "\n" : "\n\n";
+
+        if ($shape['setup']) {
+            $props = InertiaEntryFile::setupPropsExpression($source);
+
+            if ($props === null) {
+                return null;
+            }
+
+            $source = InertiaEntryFile::chainOntoCreateApp($source, '.use(i18n)'.($usesPinia ? '' : '.use(pinia)'));
+            $source = $source === null ? null : InertiaEntryFile::prependToBody($source, 'setup', $this->i18nInstance("{$props}.initialPage", $ext, $lazy)."\n");
+        } elseif ($shape['withApp']) {
+            $parameters = InertiaEntryFile::withAppParameters($source);
+
+            if ($parameters === null) {
+                return null;
+            }
+
+            $uses   = "{$parameters['app']}.use(i18n);".($usesPinia ? '' : "\n{$parameters['app']}.use(pinia);");
+            $source = InertiaEntryFile::prependToBody($source, 'withApp', $this->i18nInstance($parameters['page'], $ext, $lazy).$gap.$uses."\n");
+        } else {
+            $body   = $this->i18nInstance('page', $ext, $lazy).$gap."app.use(i18n);\napp.use(pinia);";
+            $source = InertiaEntryFile::addProperty($source, "withApp(app, { page }) {\n".$this->indentLines($body, '    ')."\n}");
+        }
+
+        if ($source === null) {
+            return null;
+        }
+
+        $imports = $lazy
+            ? [
+                "import { createI18n } from 'vue-i18n';",
+                "import { attachKinetixI18n, kinetixLoadedMessages, kinetixLocaleLoaderFromGlob, kinetixPageLocale, registerKinetixLocales, withKinetixLocales } from '@/plugins/kinetixLocales';",
+            ]
+            : ["import { createI18n } from 'vue-i18n';"];
+
+        if (! str_contains($source, '@/stores') && ! str_contains($source, './stores')) {
+            $imports[] = "import pinia from '@/stores';";
+        }
+
+        if (! $lazy && ! str_contains($source, 'vue-i18n-locales')) {
+            $imports[] = "import Locale from './vue-i18n-locales';";
+        }
+
+        $lines = explode("\n", $source);
+        $first = null;
+
+        foreach ($lines as $index => $line) {
+            if (str_starts_with(trim($line), 'import ')) {
+                $first = $index;
+
+                break;
+            }
+        }
+
+        array_splice($lines, $first ?? 0, 0, $imports);
+
+        if ($lazy) {
+            array_splice($lines, $this->lineAfterLastImport($lines), 0, ['', ...explode("\n", $this->registerLocalesCall())]);
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * `const i18n = createI18n({ … })` for the page expression `$page`, with
+     * no base indentation.
+     */
+    protected function i18nInstance(string $page, string $ext, bool $lazy): string
+    {
+        if ($lazy) {
+            $fallback = $this->fallbackLocale();
+
+            return <<<JS
+const i18n = createI18n({
+    legacy: false,
+    locale: kinetixPageLocale({$page}),
+    fallbackLocale: '{$fallback}',
+    messages: kinetixLoadedMessages(),
+});
+
+attachKinetixI18n(i18n);
+JS;
+        }
+
+        // The TypeScript cast only in a .ts entry: in .js it's a syntax error.
+        $locale = $ext === 'ts' ? "{$page}.props.locale as string | undefined" : "{$page}.props.locale";
+
+        return <<<JS
+const i18n = createI18n({
+    legacy: false,
+    locale: {$locale},
+    messages: Locale,
+});
+JS;
+    }
+
+    protected function indentLines(string $code, string $indent): string
+    {
+        return implode("\n", array_map(static fn (string $line): string => $line === '' ? '' : $indent.$line, explode("\n", $code)));
+    }
+
+    /**
+     * The eager wiring, for an entry the installer didn't change.
+     */
+    protected function printEagerSnippet(string $ext): void
+    {
+        $cast = $ext === 'ts' ? ' as string | undefined' : '';
+
+        $this->line('');
+        $this->line("import { createI18n } from 'vue-i18n';");
+        $this->line("import pinia from '@/stores';");
+        $this->line("import Locale from './vue-i18n-locales';");
+        $this->line('');
+        $this->line('createInertiaApp({');
+        $this->line('    // …');
+        $this->line('    withApp(app, { page }) {');
+        $this->line('        const i18n = createI18n({');
+        $this->line('            legacy: false,');
+        $this->line("            locale: page.props.locale{$cast},");
+        $this->line('            messages: Locale,');
+        $this->line('        });');
+        $this->line('');
+        $this->line('        app.use(i18n);');
+        $this->line('        app.use(pinia);');
+        $this->line('    },');
+        $this->line('});');
+        $this->line('');
+        $this->line('With a setup() instead (Inertia then skips withApp): build the same i18n inside setup() from');
+        $this->line('props.initialPage and chain .use(i18n).use(pinia) onto its createApp(…).');
+    }
+
+    /**
+     * The index of the line after the last top-level import statement,
+     * multi-line imports included.
+     *
+     * @param list<string> $lines
+     */
+    protected function lineAfterLastImport(array $lines): int
+    {
+        $after    = 0;
+        $inImport = false;
+
+        foreach ($lines as $index => $line) {
+            $trimmed = trim($line);
+
+            if (! $inImport && str_starts_with($trimmed, 'import ')) {
+                $inImport = true;
+            }
+
+            if (! $inImport) {
+                continue;
+            }
+
+            // Done once the module specifier is on this line: `… from '…'`,
+            // or a side-effect import `import '…'`.
+            if (preg_match('/(\bfrom\s*[\'"]|^import\s*[\'"])/', $trimmed) === 1) {
+                $inImport = false;
+                $after    = $index + 1;
+            }
+        }
+
+        return $after;
+    }
+
+    /**
+     * Only the generator's per-locale files: they hold the converted messages
+     * (`:name` → `{name}`, plural tags, `@` escaping). Root `lang/*.json`
+     * catalogs are never globbed raw here; `--multi-locales` doesn't emit them,
+     * and docs/locale.md covers the opt-in second glob and its caveats.
+     */
+    protected function registerLocalesCall(): string
+    {
+        $directory = $this->localesGlobDirectory();
+        $fallback  = $this->fallbackLocale();
+
+        return <<<JS
+registerKinetixLocales({
+    loader: kinetixLocaleLoaderFromGlob(import.meta.glob(['{$directory}*.ts', '!{$directory}index.ts'])),
+    fallbackLocale: '{$fallback}',
+});
+JS;
+    }
+
+    /**
+     * Where `vue-i18n:generate --multi-locales` writes the per-locale files
+     * (`vue-i18n-generator.jsPath`), relative to the entry file's directory;
+     * `./locales/` by default.
+     */
+    protected function localesGlobDirectory(): string
+    {
+        $jsPath = config('vue-i18n-generator.jsPath');
+
+        if (! is_string($jsPath) || trim($jsPath) === '') {
+            return './locales/';
+        }
+
+        $base   = rtrim(str_replace('\\', '/', base_path()), '/');
+        $target = str_replace('\\', '/', $jsPath);
+        $target = str_starts_with($target, $base.'/') ? $target : $base.'/'.ltrim($target, '/');
+
+        // A file path (the single-bundle default) names its directory.
+        if (pathinfo($target, PATHINFO_EXTENSION) !== '') {
+            $target = dirname($target);
+        }
+
+        return $this->relativeToEntry($target);
+    }
+
+    /**
+     * An absolute directory inside the app as a glob prefix relative to
+     * `resources/js` (the entry file's directory), with a trailing slash.
+     */
+    protected function relativeToEntry(string $target): string
+    {
+        $base = rtrim(str_replace('\\', '/', base_path()), '/');
+
+        $from = explode('/', trim(substr($base.'/resources/js', strlen($base)), '/'));
+        $to   = explode('/', trim(substr(rtrim($target, '/'), strlen($base)), '/'));
+
+        while ($from !== [] && $to !== [] && $from[0] === $to[0]) {
+            array_shift($from);
+            array_shift($to);
+        }
+
+        $relative = str_repeat('../', count($from)).implode('/', $to);
+
+        if ($relative === '') {
+            return './';
+        }
+
+        return (str_starts_with($relative, '../') ? '' : './').rtrim($relative, '/').'/';
+    }
+
+    protected function fallbackLocale(): string
+    {
+        $fallback = config('app.fallback_locale', 'en');
+
+        return is_string($fallback) && preg_match('/^[A-Za-z0-9_-]+$/', $fallback) === 1 ? $fallback : 'en';
+    }
+
+    /**
+     * The on-demand wiring, for an entry file the installer didn't change.
+     */
+    protected function printLazyLocalesSnippet(): void
+    {
+        $fallback = $this->fallbackLocale();
+
+        $this->line('');
+        $this->line("import { createI18n } from 'vue-i18n';");
+        $this->line("import { attachKinetixI18n, kinetixLoadedMessages, kinetixLocaleLoaderFromGlob, kinetixPageLocale, registerKinetixLocales, withKinetixLocales } from '@/plugins/kinetixLocales';");
+        $this->line('');
+        $this->line($this->registerLocalesCall());
+        $this->line('');
+        $this->line('createInertiaApp({');
+        $this->line('    // Your existing resolver, wrapped: the first paint waits for the messages.');
+        $this->line('    resolve: withKinetixLocales(/* your resolve */),');
+        $this->line('    withApp(app, { page }) {');
+        $this->line('        const i18n = createI18n({');
+        $this->line('            legacy: false,');
+        $this->line('            locale: kinetixPageLocale(page),');
+        $this->line("            fallbackLocale: '{$fallback}',");
+        $this->line('            messages: kinetixLoadedMessages(),');
+        $this->line('        });');
+        $this->line('');
+        $this->line('        attachKinetixI18n(i18n);');
+        $this->line('        app.use(i18n);');
+        $this->line('        app.use(pinia);');
+        $this->line('    },');
+        $this->line('    // …');
+        $this->line('});');
+        $this->line('');
+        $this->line('Drop the eager `import Locale from \'./vue-i18n-locales\'` and its `messages: Locale`.');
+        $this->line('With a setup() instead (Inertia then skips withApp): build the same i18n inside setup() with');
+        $this->line('kinetixPageLocale(props.initialPage) and chain .use(i18n).use(pinia) onto its createApp(…).');
+        $this->line('Without a resolve: (pages resolved by the @inertiajs/vite plugin), add one to wrap:');
+        $this->line("resolve: withKinetixLocales((name) => resolvePageComponent(`./pages/\${name}.vue`, import.meta.glob('./pages/**/*.vue'))),");
+    }
+
+    protected function printLazyLocalesNextSteps(): void
+    {
+        $this->line('');
+        $this->info('On-demand locales — next steps:');
+        $this->line('  1. composer require happones/laravel-vue-i18n-generator');
+        $this->line('  2. php artisan vue-i18n:generate --multi-locales');
+        $this->line("  3. In config/kinetix.php set 'translations' => ['vue_i18n_options' => ['--multi-locales' => true]], so upgrades regenerate the per-locale files.");
+        $this->line('  4. Every other entry (ssr.ts, a public.ts…) needs the same registerKinetixLocales() call, withKinetixLocales() around resolve and a createI18n() inside withApp (one per request on SSR). The installer never edits them; an entry left eager keeps every locale in its bundle.');
     }
 
     /**

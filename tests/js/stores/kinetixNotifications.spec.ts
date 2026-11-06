@@ -1,3 +1,4 @@
+import { flushPromises } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { setActivePinia, createPinia } from 'pinia';
 
@@ -23,6 +24,31 @@ vi.mock('vue-sonner', () => ({
 }));
 
 import { toast } from 'vue-sonner';
+
+/** A fetch Response stand-in kinetixFetch can read. */
+function jsonResponse(body: unknown, status = 200): Response {
+    const text = body === null ? '' : JSON.stringify(body);
+
+    return {
+        ok: status >= 200 && status < 300,
+        status,
+        text: async () => text,
+        json: async () => JSON.parse(text),
+        clone() {
+            return this;
+        },
+    } as unknown as Response;
+}
+
+function item(id: string, title: string) {
+    return {
+        id,
+        title,
+        status: 'info',
+        read: false,
+        created_at: '2026-11-05T00:00:00Z',
+    };
+}
 import {
     toastDuration,
     useNotificationsStore,
@@ -36,9 +62,7 @@ describe('notifications store — sendRequest (database mode)', () => {
     });
 
     it("sends the delete with JSON Accept + same-origin credentials so auth/CSRF failures aren't silently followed", async () => {
-        const fetchMock = vi
-            .fn()
-            .mockResolvedValue({ ok: true, status: 200 } as Response);
+        const fetchMock = vi.fn().mockResolvedValue(jsonResponse(null));
         vi.stubGlobal('fetch', fetchMock);
 
         const store = useNotificationsStore();
@@ -54,24 +78,78 @@ describe('notifications store — sendRequest (database mode)', () => {
         expect(init.headers.Accept).toBe('application/json');
         expect(init.headers['X-XSRF-TOKEN']).toBe('test-token');
 
+        // The follow-up feed read, before the real fetch comes back.
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+        await flushPromises();
         vi.unstubAllGlobals();
     });
 
-    it('re-syncs from the server when the request fails', async () => {
+    it('re-reads the list from the JSON feed after a successful request', async () => {
         const fetchMock = vi
             .fn()
-            .mockResolvedValue({ ok: false, status: 419 } as Response);
+            .mockResolvedValueOnce(jsonResponse(null))
+            .mockResolvedValueOnce(
+                jsonResponse({ notifications: [item('b', 'Kept')] }),
+            );
         vi.stubGlobal('fetch', fetchMock);
 
         const store = useNotificationsStore();
-        store.removeNotification('abc-123');
+        store.markAllAsRead();
 
-        await vi.waitFor(() => expect(reload).toHaveBeenCalled());
-        expect(reload.mock.calls[0][0]).toMatchObject({
-            only: ['kinetix_notifications'],
-        });
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+        await flushPromises();
+
+        const [url, init] = fetchMock.mock.calls[1];
+        expect(url).toBe('/_kinetix/notifications');
+        expect(init.method).toBe('GET');
+        expect(store.notifications.map((n) => n.id)).toEqual(['b']);
+        expect(reload).not.toHaveBeenCalled();
 
         vi.unstubAllGlobals();
+    });
+
+    it('rolls the optimistic removal back from the feed when the request fails', async () => {
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValueOnce(jsonResponse({ message: 'Expired' }, 419))
+            .mockResolvedValueOnce(
+                jsonResponse({ notifications: [item('abc-123', 'Back')] }),
+            );
+        vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+
+        const store = useNotificationsStore();
+        store.syncFromProps([item('abc-123', 'Back')]);
+        store.removeNotification('abc-123');
+        expect(store.notifications).toHaveLength(0);
+
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+        await flushPromises();
+
+        expect(fetchMock.mock.calls[1][0]).toBe('/_kinetix/notifications');
+        expect(store.notifications.map((n) => n.id)).toEqual(['abc-123']);
+        expect(reload).not.toHaveBeenCalled();
+
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
+    });
+
+    it('refresh() settles and keeps the list when the feed fails', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockRejectedValue(new TypeError('offline')),
+        );
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const store = useNotificationsStore();
+        store.syncFromProps([item('a', 'Still here')]);
+
+        await expect(store.refresh()).resolves.toBeUndefined();
+        expect(store.notifications.map((n) => n.id)).toEqual(['a']);
+        expect(warn).toHaveBeenCalled();
+
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
     });
 });
 

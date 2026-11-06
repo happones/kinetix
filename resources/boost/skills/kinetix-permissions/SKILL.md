@@ -250,6 +250,21 @@ $user->assignRole('super-admin');   // bypasses gates inside every team
 
 A super-admin assigned inside a team keeps the bypass only in that team.
 
+### Keeping `kinetix_permissions` between visits (opt-in)
+
+With inertia-laravel 3, `kinetix.shared_props.once` may list
+`kinetix_permissions` (and `kinetix_features`; never `kinetix_billing` or
+`kinetix_entitlements`, which provider webhooks change): the
+browser keeps them until the user, team or locale changes, this session writes
+to a Kinetix module behind them, `once_ttl` passes, or the page loads in full.
+A role ANOTHER admin changes shows after the TTL or a reload — the server still
+decides every request. After changing roles in host code, call
+`\Happones\Kinetix\Support\KinetixSharedProps::refresh()`. Default: off.
+
+In production `php artisan optimize` (or `kinetix:optimize` on older 11.x)
+caches resource discovery; a Resource added afterwards needs the next
+`optimize`, like `config:cache`.
+
 ### Sync on deploy and in tests
 
 `kinetix:permissions:sync` must run **after migrations on every deploy** and in

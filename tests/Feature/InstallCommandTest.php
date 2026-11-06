@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Tests\Feature;
 use Happones\Kinetix\Commands\InstallCommand;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Support\Facades\File;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Console\Tester\CommandTester;
 
 /**
@@ -122,16 +123,34 @@ JS);
         $this->assertArrayHasKey('@laravel/echo-vue', $deps);
     }
 
-    public function test_it_injects_with_app_with_the_typescript_cast_for_ts_entry(): void
+    public function test_a_setup_entry_is_wired_inside_setup_with_the_typescript_cast(): void
     {
         $this->seedEntryFile('ts');
 
         $this->runInstaller();
 
-        $app = File::get($this->base.'/resources/js/app.ts');
-        $this->assertStringContainsString('withApp(app, { page })', $app);
-        $this->assertStringContainsString('app.use(pinia)', $app);
-        $this->assertStringContainsString('locale: page.props.locale as string | undefined', $app);
+        // Inertia calls setup() INSTEAD of withApp(): a withApp next to it
+        // would never run, leaving every page without i18n or Pinia.
+        $this->assertSame(<<<'JS'
+import { createI18n } from 'vue-i18n';
+import pinia from '@/stores';
+import Locale from './vue-i18n-locales';
+import { createApp, h } from 'vue';
+import { createInertiaApp } from '@inertiajs/vue3';
+
+createInertiaApp({
+  resolve: (name) => name,
+  setup({ el, App, props, plugin }) {
+    const i18n = createI18n({
+        legacy: false,
+        locale: props.initialPage.props.locale as string | undefined,
+        messages: Locale,
+    });
+
+    createApp({ render: () => h(App, props) }).use(i18n).use(pinia).use(plugin).mount(el);
+  },
+});
+JS, File::get($this->base.'/resources/js/app.ts'));
     }
 
     public function test_it_omits_the_typescript_cast_for_js_entry(): void
@@ -141,8 +160,9 @@ JS);
         $this->runInstaller();
 
         $app = File::get($this->base.'/resources/js/app.js');
-        $this->assertStringContainsString('withApp(app, { page })', $app);
-        $this->assertStringContainsString('locale: page.props.locale,', $app);
+        $this->assertStringNotContainsString('withApp', $app);
+        $this->assertStringContainsString('locale: props.initialPage.props.locale,', $app);
+        $this->assertStringContainsString('.use(i18n).use(pinia).use(plugin)', $app);
         $this->assertStringNotContainsString('as string | undefined', $app);
         $this->assertTrue(File::exists($this->base.'/resources/js/stores/index.js'));
     }
@@ -154,9 +174,10 @@ JS);
         $this->runInstaller();
         $this->runInstaller();
 
-        // withApp injected exactly once.
+        // Wired exactly once.
         $app = File::get($this->base.'/resources/js/app.ts');
-        $this->assertSame(1, substr_count($app, 'withApp(app, { page })'));
+        $this->assertSame(1, substr_count($app, 'createI18n({'));
+        $this->assertSame(1, substr_count($app, '.use(i18n)'));
     }
 
     public function test_it_protects_published_paths_from_prettier(): void
@@ -516,5 +537,475 @@ return [
     App\Providers\AppServiceProvider::class,
 ];
 PHP);
+    }
+
+    /**
+     * The starter kit's entry file: a multi-line resolver with a TypeScript
+     * generic, a template literal and a nested glob array.
+     */
+    private function seedStarterKitEntry(): string
+    {
+        $entry = <<<'JS'
+import '../css/app.css';
+import { createInertiaApp } from '@inertiajs/vue3';
+import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
+import type { DefineComponent } from 'vue';
+import { createApp, h } from 'vue';
+import { initializeTheme } from './composables/useAppearance';
+
+const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+
+createInertiaApp({
+    title: (title) => (title ? `${title} - ${appName}` : appName),
+    resolve: (name) =>
+        resolvePageComponent(
+            `./pages/${name}.vue`,
+            import.meta.glob<DefineComponent>('./pages/**/*.vue'),
+        ),
+    setup({ el, App, props, plugin }) {
+        createApp({ render: () => h(App, props) })
+            .use(plugin)
+            .mount(el);
+    },
+    progress: {
+        color: '#4B5563',
+    },
+});
+
+initializeTheme();
+JS;
+
+        File::put($this->base.'/resources/js/app.ts', $entry);
+
+        return $entry;
+    }
+
+    public function test_lazy_locales_wires_a_setup_entry_inside_setup(): void
+    {
+        $this->seedStarterKitEntry();
+
+        $tester = $this->runInstaller(['--lazy-locales' => true]);
+
+        $this->assertSame(<<<'JS'
+import { createI18n } from 'vue-i18n';
+import { attachKinetixI18n, kinetixLoadedMessages, kinetixLocaleLoaderFromGlob, kinetixPageLocale, registerKinetixLocales, withKinetixLocales } from '@/plugins/kinetixLocales';
+import pinia from '@/stores';
+import '../css/app.css';
+import { createInertiaApp } from '@inertiajs/vue3';
+import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
+import type { DefineComponent } from 'vue';
+import { createApp, h } from 'vue';
+import { initializeTheme } from './composables/useAppearance';
+
+registerKinetixLocales({
+    loader: kinetixLocaleLoaderFromGlob(import.meta.glob(['./locales/*.ts', '!./locales/index.ts'])),
+    fallbackLocale: 'en',
+});
+
+const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+
+createInertiaApp({
+    title: (title) => (title ? `${title} - ${appName}` : appName),
+    resolve: withKinetixLocales((name) =>
+        resolvePageComponent(
+            `./pages/${name}.vue`,
+            import.meta.glob<DefineComponent>('./pages/**/*.vue'),
+        )),
+    setup({ el, App, props, plugin }) {
+        const i18n = createI18n({
+            legacy: false,
+            locale: kinetixPageLocale(props.initialPage),
+            fallbackLocale: 'en',
+            messages: kinetixLoadedMessages(),
+        });
+
+        attachKinetixI18n(i18n);
+
+        createApp({ render: () => h(App, props) }).use(i18n).use(pinia)
+            .use(plugin)
+            .mount(el);
+    },
+    progress: {
+        color: '#4B5563',
+    },
+});
+
+initializeTheme();
+JS, File::get($this->base.'/resources/js/app.ts'));
+
+        $output = $tester->getDisplay();
+        $this->assertStringContainsString('composer require happones/laravel-vue-i18n-generator', $output);
+        $this->assertStringContainsString('php artisan vue-i18n:generate --multi-locales', $output);
+        $this->assertStringContainsString("'vue_i18n_options' => ['--multi-locales' => true]", $output);
+        $this->assertStringContainsString('ssr.ts', $output);
+        $this->assertStringContainsString('public.ts', $output);
+    }
+
+    public function test_lazy_locales_follows_the_generator_path_and_the_fallback_locale(): void
+    {
+        $this->seedStarterKitEntry();
+        config([
+            'vue-i18n-generator.jsPath' => '/resources/js/i18n/generated',
+            'app.fallback_locale'       => 'es',
+        ]);
+
+        $this->runInstaller(['--lazy-locales' => true]);
+
+        $app = File::get($this->base.'/resources/js/app.ts');
+        $this->assertStringContainsString("import.meta.glob(['./i18n/generated/*.ts', '!./i18n/generated/index.ts'])", $app);
+        // Raw Laravel JSON catalogs are never globbed: they skip the
+        // generator's `:name` / plural / `@` conversion.
+        $this->assertStringNotContainsString('lang/*.json', $app);
+        $this->assertSame(2, substr_count($app, "fallbackLocale: 'es',"));
+    }
+
+    public function test_an_unparseable_resolve_falls_back_to_the_eager_wiring_and_prints_the_snippet(): void
+    {
+        File::put($this->base.'/resources/js/app.ts', <<<'JS'
+import { createApp, h } from 'vue';
+import { createInertiaApp } from '@inertiajs/vue3';
+
+createInertiaApp({
+  resolve(name) { return name; },
+  setup({ el, App, props, plugin }) {
+    createApp({ render: () => h(App, props) }).use(plugin).mount(el);
+  },
+});
+JS);
+
+        $tester = $this->runInstaller(['--lazy-locales' => true]);
+        $app    = File::get($this->base.'/resources/js/app.ts');
+
+        // The eager wiring, never half of the lazy one.
+        $this->assertStringContainsString("import Locale from './vue-i18n-locales';", $app);
+        $this->assertStringContainsString('messages: Locale,', $app);
+        $this->assertStringNotContainsString('kinetixLocales', $app);
+        $this->assertStringNotContainsString('withKinetixLocales', $app);
+
+        // In setup(), where Inertia runs it — never a withApp next to setup.
+        $this->assertStringNotContainsString('withApp', $app);
+        $this->assertStringContainsString('.use(i18n).use(pinia).use(plugin)', $app);
+
+        $output = $tester->getDisplay();
+        $this->assertStringContainsString('Could not find a single `resolve:`', $output);
+        $this->assertStringContainsString('withKinetixLocales(/* your resolve */)', $output);
+    }
+
+    public function test_an_already_wired_entry_is_left_unchanged_and_gets_the_snippet(): void
+    {
+        $this->seedEntryFile('ts');
+        $this->runInstaller();
+        $wired = File::get($this->base.'/resources/js/app.ts');
+
+        $tester = $this->runInstaller(['--lazy-locales' => true]);
+
+        $this->assertSame($wired, File::get($this->base.'/resources/js/app.ts'));
+        $this->assertStringContainsString('already registers vue-i18n', $tester->getDisplay());
+        $this->assertStringContainsString('registerKinetixLocales({', $tester->getDisplay());
+        $this->assertStringNotContainsString('lang/*.json', $tester->getDisplay());
+    }
+
+    public function test_without_the_flag_the_entry_gets_the_eager_wiring(): void
+    {
+        $this->seedStarterKitEntry();
+
+        $tester = $this->runInstaller();
+        $app    = File::get($this->base.'/resources/js/app.ts');
+
+        $this->assertStringContainsString("import Locale from './vue-i18n-locales';", $app);
+        $this->assertStringContainsString('resolve: (name) =>', $app);
+        $this->assertStringNotContainsString('kinetixLocales', $app);
+        $this->assertStringNotContainsString('On-demand locales', $tester->getDisplay());
+    }
+
+    /**
+     * An entry with neither setup() nor withApp() (the Inertia 3 default).
+     */
+    private function seedPlainEntry(bool $withResolve = true): void
+    {
+        $resolve = $withResolve ? "    resolve: (name) => name,\n" : '';
+
+        File::put($this->base.'/resources/js/app.ts', "import { createInertiaApp } from '@inertiajs/vue3';\n\ncreateInertiaApp({\n{$resolve}    progress: {\n        color: '#4B5563',\n    },\n});\n");
+    }
+
+    private function seedWithAppEntry(): void
+    {
+        File::put($this->base.'/resources/js/app.ts', <<<'JS'
+import { createInertiaApp } from '@inertiajs/vue3';
+import { vFocus } from '@/lib/focus';
+
+createInertiaApp({
+    resolve: (name) => name,
+    withApp(app, { page }) {
+        app.directive('focus', vFocus);
+    },
+});
+
+JS);
+    }
+
+    public function test_an_entry_without_setup_or_with_app_gets_a_with_app_property(): void
+    {
+        $this->seedPlainEntry();
+
+        $this->runInstaller();
+
+        $this->assertSame(<<<'JS'
+import { createI18n } from 'vue-i18n';
+import pinia from '@/stores';
+import Locale from './vue-i18n-locales';
+import { createInertiaApp } from '@inertiajs/vue3';
+
+createInertiaApp({
+    resolve: (name) => name,
+    progress: {
+        color: '#4B5563',
+    },
+    withApp(app, { page }) {
+        const i18n = createI18n({
+            legacy: false,
+            locale: page.props.locale as string | undefined,
+            messages: Locale,
+        });
+
+        app.use(i18n);
+        app.use(pinia);
+    },
+});
+
+JS, File::get($this->base.'/resources/js/app.ts'));
+    }
+
+    public function test_lazy_locales_add_a_with_app_property_to_an_entry_without_setup_or_with_app(): void
+    {
+        $this->seedPlainEntry();
+
+        $this->runInstaller(['--lazy-locales' => true]);
+
+        $this->assertSame(<<<'JS'
+import { createI18n } from 'vue-i18n';
+import { attachKinetixI18n, kinetixLoadedMessages, kinetixLocaleLoaderFromGlob, kinetixPageLocale, registerKinetixLocales, withKinetixLocales } from '@/plugins/kinetixLocales';
+import pinia from '@/stores';
+import { createInertiaApp } from '@inertiajs/vue3';
+
+registerKinetixLocales({
+    loader: kinetixLocaleLoaderFromGlob(import.meta.glob(['./locales/*.ts', '!./locales/index.ts'])),
+    fallbackLocale: 'en',
+});
+
+createInertiaApp({
+    resolve: withKinetixLocales((name) => name),
+    progress: {
+        color: '#4B5563',
+    },
+    withApp(app, { page }) {
+        const i18n = createI18n({
+            legacy: false,
+            locale: kinetixPageLocale(page),
+            fallbackLocale: 'en',
+            messages: kinetixLoadedMessages(),
+        });
+
+        attachKinetixI18n(i18n);
+        app.use(i18n);
+        app.use(pinia);
+    },
+});
+
+JS, File::get($this->base.'/resources/js/app.ts'));
+    }
+
+    public function test_an_existing_with_app_is_wired_inside(): void
+    {
+        $this->seedWithAppEntry();
+
+        $this->runInstaller();
+
+        $this->assertSame(<<<'JS'
+import { createI18n } from 'vue-i18n';
+import pinia from '@/stores';
+import Locale from './vue-i18n-locales';
+import { createInertiaApp } from '@inertiajs/vue3';
+import { vFocus } from '@/lib/focus';
+
+createInertiaApp({
+    resolve: (name) => name,
+    withApp(app, { page }) {
+        const i18n = createI18n({
+            legacy: false,
+            locale: page.props.locale as string | undefined,
+            messages: Locale,
+        });
+
+        app.use(i18n);
+        app.use(pinia);
+
+        app.directive('focus', vFocus);
+    },
+});
+
+JS, File::get($this->base.'/resources/js/app.ts'));
+    }
+
+    public function test_lazy_locales_wire_an_existing_with_app_inside(): void
+    {
+        $this->seedWithAppEntry();
+
+        $this->runInstaller(['--lazy-locales' => true]);
+
+        $this->assertSame(<<<'JS'
+import { createI18n } from 'vue-i18n';
+import { attachKinetixI18n, kinetixLoadedMessages, kinetixLocaleLoaderFromGlob, kinetixPageLocale, registerKinetixLocales, withKinetixLocales } from '@/plugins/kinetixLocales';
+import pinia from '@/stores';
+import { createInertiaApp } from '@inertiajs/vue3';
+import { vFocus } from '@/lib/focus';
+
+registerKinetixLocales({
+    loader: kinetixLocaleLoaderFromGlob(import.meta.glob(['./locales/*.ts', '!./locales/index.ts'])),
+    fallbackLocale: 'en',
+});
+
+createInertiaApp({
+    resolve: withKinetixLocales((name) => name),
+    withApp(app, { page }) {
+        const i18n = createI18n({
+            legacy: false,
+            locale: kinetixPageLocale(page),
+            fallbackLocale: 'en',
+            messages: kinetixLoadedMessages(),
+        });
+
+        attachKinetixI18n(i18n);
+        app.use(i18n);
+        app.use(pinia);
+
+        app.directive('focus', vFocus);
+    },
+});
+
+JS, File::get($this->base.'/resources/js/app.ts'));
+    }
+
+    public function test_a_with_app_whose_parameters_cannot_be_read_is_refused(): void
+    {
+        $entry = "import { createInertiaApp } from '@inertiajs/vue3';\n\ncreateInertiaApp({\n    resolve: (name) => name,\n    withApp(app, { page: current }) {\n        app.mount();\n    },\n});\n";
+
+        foreach ([[], ['--lazy-locales' => true]] as $options) {
+            File::put($this->base.'/resources/js/app.ts', $entry);
+
+            $tester = $this->runInstaller($options);
+
+            $this->assertSame($entry, File::get($this->base.'/resources/js/app.ts'));
+            $this->assertStringContainsString('left as it is', $tester->getDisplay());
+            $this->assertStringContainsString('withApp(app, { page })', $tester->getDisplay());
+        }
+    }
+
+    public function test_an_entry_with_both_setup_and_with_app_is_refused(): void
+    {
+        $entry = "import { createApp, h } from 'vue';\nimport { createInertiaApp } from '@inertiajs/vue3';\n\ncreateInertiaApp({\n    resolve: (name) => name,\n    withApp(app) {},\n    setup({ el, App, props, plugin }) {\n        createApp({ render: () => h(App, props) }).use(plugin).mount(el);\n    },\n});\n";
+
+        foreach ([[], ['--lazy-locales' => true]] as $options) {
+            File::put($this->base.'/resources/js/app.ts', $entry);
+
+            $this->runInstaller($options);
+
+            $this->assertSame($entry, File::get($this->base.'/resources/js/app.ts'));
+        }
+    }
+
+    public function test_a_setup_without_a_single_create_app_is_refused(): void
+    {
+        $entry = "import { createInertiaApp } from '@inertiajs/vue3';\n\ncreateInertiaApp({\n    resolve: (name) => name,\n    setup({ el, App, props, plugin }) {\n        mountTheApp(el, App, props, plugin);\n    },\n});\n";
+
+        foreach ([[], ['--lazy-locales' => true]] as $options) {
+            File::put($this->base.'/resources/js/app.ts', $entry);
+
+            $this->runInstaller($options);
+
+            $this->assertSame($entry, File::get($this->base.'/resources/js/app.ts'));
+        }
+    }
+
+    public function test_a_comment_or_string_mentioning_setup_is_never_spliced_into(): void
+    {
+        File::put($this->base.'/resources/js/app.ts', <<<'JS'
+import { createApp, h } from 'vue';
+import { createInertiaApp } from '@inertiajs/vue3';
+// Error tracking: Sentry.setup() runs before the app.
+const hint = 'withApp( is not here';
+createInertiaApp({
+  resolve: (name) => name,
+  setup({ el, App, props, plugin }) {
+    createApp({ render: () => h(App, props) }).use(plugin).mount(el);
+  },
+});
+JS);
+
+        $this->runInstaller(['--lazy-locales' => true]);
+
+        $app = File::get($this->base.'/resources/js/app.ts');
+
+        $this->assertStringContainsString("// Error tracking: Sentry.setup() runs before the app.\nconst hint = 'withApp( is not here';\ncreateInertiaApp({", $app);
+        $this->assertStringContainsString('locale: kinetixPageLocale(props.initialPage),', $app);
+        $this->assertStringContainsString('createApp({ render: () => h(App, props) }).use(i18n).use(pinia).use(plugin).mount(el);', $app);
+        $this->assertStringNotContainsString('withApp(app', $app);
+    }
+
+    public function test_the_inertia_three_starter_kit_without_resolve_gets_the_eager_wiring_in_lazy_mode(): void
+    {
+        // laravel/vue-starter-kit on Inertia 3: no resolve (the Vite plugin
+        // resolves pages), no setup, no withApp.
+        $this->seedPlainEntry(withResolve: false);
+
+        $tester = $this->runInstaller(['--lazy-locales' => true]);
+        $app    = File::get($this->base.'/resources/js/app.ts');
+
+        $this->assertStringContainsString("    withApp(app, { page }) {\n        const i18n = createI18n({", $app);
+        $this->assertStringContainsString('messages: Locale,', $app);
+        $this->assertStringNotContainsString('kinetixLocales', $app);
+        $this->assertStringContainsString('Could not find a single `resolve:`', $tester->getDisplay());
+        $this->assertStringContainsString('Without a resolve:', $tester->getDisplay());
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function unreadableAppObjects(): array
+    {
+        return [
+            'async setup method' => ["import { createApp, h } from 'vue';\nimport { createInertiaApp } from '@inertiajs/vue3';\n\ncreateInertiaApp({\n    resolve: (name) => name,\n    async setup({ el, App, props, plugin }) {\n        createApp({ render: () => h(App, props) }).use(plugin).mount(el);\n    },\n});\n"],
+            'spread options'     => ["import { createInertiaApp } from '@inertiajs/vue3';\nimport base from './inertia-base';\n\ncreateInertiaApp({\n    ...base,\n    resolve: (name) => name,\n});\n"],
+            'async arrow setup'  => ["import { createApp, h } from 'vue';\nimport { createInertiaApp } from '@inertiajs/vue3';\n\ncreateInertiaApp({\n    resolve: (name) => name,\n    setup: async ({ el, App, props, plugin }) => {\n        createApp({ render: () => h(App, props) }).use(plugin).mount(el);\n    },\n});\n"],
+            'setup shorthand'    => ["import { createInertiaApp } from '@inertiajs/vue3';\nimport { setup } from './boot';\n\ncreateInertiaApp({\n    resolve: (name) => name,\n    setup,\n});\n"],
+        ];
+    }
+
+    /**
+     * A property the scanner can't fully read may be (or hold) a `setup`,
+     * and Inertia runs `setup` INSTEAD of `withApp`: adding one would leave
+     * every page without i18n or Pinia. The file is left as written.
+     */
+    #[DataProvider('unreadableAppObjects')]
+    public function test_an_app_object_it_cannot_fully_read_is_left_alone_in_both_modes(string $entry): void
+    {
+        foreach ([[], ['--lazy-locales' => true]] as $options) {
+            File::put($this->base.'/resources/js/app.ts', $entry);
+
+            $tester = $this->runInstaller($options);
+
+            $this->assertSame($entry, File::get($this->base.'/resources/js/app.ts'));
+            $this->assertStringContainsString('left as it is', $tester->getDisplay());
+            $this->assertStringContainsString('withApp(app, { page })', $tester->getDisplay());
+        }
+    }
+
+    public function test_a_commented_out_pinia_use_still_gets_pinia(): void
+    {
+        File::put($this->base.'/resources/js/app.ts', "import { createInertiaApp } from '@inertiajs/vue3';\n\n// TODO: app.use(pinia) once the store exists\ncreateInertiaApp({\n    resolve: (name) => name,\n});\n");
+
+        $this->runInstaller();
+
+        $this->assertStringContainsString("        app.use(i18n);\n        app.use(pinia);\n    },", File::get($this->base.'/resources/js/app.ts'));
     }
 }
