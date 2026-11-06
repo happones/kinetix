@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tables;
 
-use Happones\Kinetix\Flash\KinetixFlash;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
+use Happones\Kinetix\Resources\CrudEvent;
 use Happones\Kinetix\Resources\Resource;
 use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\DescriptorRejection;
@@ -93,16 +93,16 @@ class RecordModalController
 
         // Persist and fire the create/save hooks inside one transaction, so a
         // hook that throws rolls the whole write back.
-        DB::transaction(static function () use ($resource, $data): void {
+        $record = DB::transaction(static function () use ($resource, $data): Model {
             $record = $resource::getEloquentQuery()->create($data);
 
             $resource::afterCreate($record);
             $resource::afterSave($record);
+
+            return $record;
         });
 
-        KinetixFlash::success((string) __('kinetix.record_created'));
-
-        return back()->with('message', (string) __('kinetix.record_created'));
+        return $this->sendAndRedirect($resource, CrudEvent::Created, $record);
     }
 
     /**
@@ -135,9 +135,7 @@ class RecordModalController
             $resource::afterSave($record);
         });
 
-        KinetixFlash::success((string) __('kinetix.record_updated'));
-
-        return back()->with('message', (string) __('kinetix.record_updated'));
+        return $this->sendAndRedirect($resource, CrudEvent::Updated, $record);
     }
 
     /**
@@ -160,9 +158,26 @@ class RecordModalController
             $resource::afterDelete($record);
         });
 
-        KinetixFlash::success((string) __('kinetix.record_deleted'));
+        return $this->sendAndRedirect($resource, CrudEvent::Deleted, $record);
+    }
 
-        return back()->with('message', (string) __('kinetix.record_deleted'));
+    /**
+     * Send the resource's message, then go back to the index. The legacy
+     * `message` flash carries the title only when a toast was sent, so it is
+     * omitted when the message was silenced or went to the database alone.
+     *
+     * @param class-string<resource> $resource
+     */
+    private function sendAndRedirect(string $resource, CrudEvent $event, Model $record): RedirectResponse
+    {
+        $notification = $resource::sendCrudNotification($event, $record);
+        $response     = back();
+
+        if ($notification === null || ! $resource::getCrudNotificationDelivery($event, $record)->toasts()) {
+            return $response;
+        }
+
+        return $response->with('message', $notification->getTitle());
     }
 
     /**

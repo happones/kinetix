@@ -181,6 +181,41 @@ class MakeResourceCommandTest extends TestCase
         File::delete(app_path('Http/Controllers/Kinetix/PostController.php'));
     }
 
+    public function test_simple_controller_without_soft_deletes_imports_neither_db_nor_crud_event(): void
+    {
+        $this->artisan('kinetix:make-resource', ['name' => 'Post', '--simple' => true])->assertSuccessful();
+
+        $controllerPath = app_path('Http/Controllers/Kinetix/PostController.php');
+        $controller     = File::get($controllerPath);
+
+        $this->assertStringNotContainsString('use Illuminate\Support\Facades\DB;', $controller);
+        $this->assertStringNotContainsString('CrudEvent', $controller);
+
+        File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
+        File::deleteDirectory(app_path('Kinetix'));
+        File::delete($controllerPath);
+    }
+
+    public function test_full_controller_sends_crud_notifications_through_the_resource(): void
+    {
+        $this->artisan('kinetix:make-resource', ['name' => 'Post', '--soft-deletes' => true])->assertSuccessful();
+
+        $controllerPath = app_path('Http/Controllers/Kinetix/PostController.php');
+        $controller     = File::get($controllerPath);
+
+        $this->assertStringContainsString('use Happones\Kinetix\Resources\CrudEvent;', $controller);
+
+        foreach (['Created', 'Updated', 'Deleted', 'Restored', 'ForceDeleted'] as $event) {
+            $this->assertStringContainsString("PostResource::sendCrudNotification(CrudEvent::{$event}, \$record);", $controller);
+        }
+
+        $this->assertStringNotContainsString('KinetixFlash', $controller);
+
+        File::deleteDirectory(resource_path('js/pages/Kinetix/Posts'));
+        File::deleteDirectory(app_path('Kinetix'));
+        File::delete($controllerPath);
+    }
+
     public function test_simple_soft_deletes_controller_is_valid_php(): void
     {
         $this->artisan('kinetix:make-resource', ['name' => 'Post', '--simple' => true, '--soft-deletes' => true])
@@ -193,6 +228,14 @@ class MakeResourceCommandTest extends TestCase
         $this->assertStringContainsString('use App\Models\Post;', $controller);
         $this->assertStringContainsString('public function restore(', $controller);
         $this->assertStringContainsString('->withTrashed()', $controller);
+
+        // restore()/forceDelete() call these statically: each must be imported.
+        $this->assertStringContainsString('use Illuminate\Support\Facades\DB;', $controller);
+        $this->assertStringContainsString('use Happones\Kinetix\Resources\CrudEvent;', $controller);
+        $this->assertStringContainsString('use Illuminate\Support\Facades\Gate;', $controller);
+        $this->assertStringContainsString('PostResource::sendCrudNotification(CrudEvent::Restored, $record);', $controller);
+        $this->assertStringContainsString('PostResource::sendCrudNotification(CrudEvent::ForceDeleted, $record);', $controller);
+        $this->assertStringNotContainsString('KinetixFlash', $controller);
 
         exec('php -l '.escapeshellarg($controllerPath).' 2>&1', $out, $code);
         $this->assertSame(0, $code, "Generated soft-delete controller has a syntax error:\n".implode("\n", $out));

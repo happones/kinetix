@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Resources;
 
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
+use Happones\Kinetix\Notifications\Notification;
 use Happones\Kinetix\Permissions\PermissionRegistry;
 use Happones\Kinetix\Support\AutoLabel;
 use Happones\Kinetix\Tables\Table;
@@ -183,6 +184,39 @@ abstract class Resource
     public static function afterDelete(Model $record): void
     {
         //
+    }
+
+    /**
+     * The message shown after a create, update, delete, restore or force delete
+     * of one of this resource's records. Return null to send nothing. Defaults
+     * to a success notification titled with the generic `kinetix.record_*`
+     * message. Runs after the write has committed.
+     */
+    public static function getCrudNotification(CrudEvent $event, Model $record): ?Notification
+    {
+        return CrudNotifier::defaultNotification($event);
+    }
+
+    /**
+     * How that message is delivered. Defaults to a toast.
+     */
+    public static function getCrudNotificationDelivery(CrudEvent $event, Model $record): CrudNotificationDelivery
+    {
+        return CrudNotificationDelivery::Toast;
+    }
+
+    /**
+     * Send the CRUD message through the two hooks above. Called by Kinetix's own
+     * endpoints and the generated controllers; returns what was sent (null =
+     * nothing).
+     */
+    final public static function sendCrudNotification(CrudEvent $event, Model $record): ?Notification
+    {
+        $notification = static::getCrudNotification($event, $record);
+
+        return $notification === null
+            ? null
+            : CrudNotifier::deliver($notification, static::getCrudNotificationDelivery($event, $record));
     }
 
     /**

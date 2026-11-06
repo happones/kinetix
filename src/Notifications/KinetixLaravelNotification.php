@@ -23,6 +23,13 @@ class KinetixLaravelNotification extends BaseLaravelNotification implements Shou
     public ?string $type = null;
 
     /**
+     * Whether the database row is stored already read: history that must not
+     * raise the badge or toast again. A plain property for the same reason as
+     * `$type`.
+     */
+    public bool $markAsRead = false;
+
+    /**
      * Create a new notification instance.
      *
      * @param array<string, mixed> $data
@@ -32,8 +39,10 @@ class KinetixLaravelNotification extends BaseLaravelNotification implements Shou
         public array $data,
         public array $channels = ['database'],
         ?string $type = null,
+        bool $markAsRead = false,
     ) {
-        $this->type = $type;
+        $this->type       = $type;
+        $this->markAsRead = $markAsRead;
     }
 
     /**
@@ -44,11 +53,20 @@ class KinetixLaravelNotification extends BaseLaravelNotification implements Shou
      */
     public function via(object $notifiable): array
     {
-        if ($this->type === null || ! $notifiable instanceof Model) {
-            return $this->channels;
+        $channels = $this->channels;
+
+        if ($this->type !== null && $notifiable instanceof Model) {
+            $channels = app(NotificationPreferenceManager::class)->deliverable($notifiable, $this->type, $channels);
         }
 
-        return app(NotificationPreferenceManager::class)->deliverable($notifiable, $this->type, $this->channels);
+        if (! $this->markAsRead) {
+            return $channels;
+        }
+
+        return array_map(
+            static fn (string $channel): string => $channel === 'database' ? ReadDatabaseChannel::class : $channel,
+            $channels,
+        );
     }
 
     /**

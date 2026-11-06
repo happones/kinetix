@@ -16,6 +16,7 @@ use Happones\Kinetix\Data\RecordModalsData;
 use Happones\Kinetix\Data\RelationManagerData;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
+use Happones\Kinetix\Notifications\Notification;
 use Happones\Kinetix\Support\AutoLabel;
 use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
@@ -305,6 +306,41 @@ abstract class RelationManager implements Arrayable, JsonSerializable
     public function afterDelete(Model $record): void
     {
         $this->runResourceHook('afterDelete', $record);
+    }
+
+    /**
+     * The message after a create, update or delete through this manager.
+     * Defaults to the related resource's; with none, the generic one. Return
+     * null to send nothing. `$this->parent` is available to overrides.
+     */
+    public function getCrudNotification(CrudEvent $event, Model $record): ?Notification
+    {
+        $resource = $this->relatedResource();
+
+        return $resource !== null
+            ? $resource::getCrudNotification($event, $record)
+            : CrudNotifier::defaultNotification($event);
+    }
+
+    /**
+     * How that message is delivered. Defaults to the related resource's.
+     */
+    public function getCrudNotificationDelivery(CrudEvent $event, Model $record): CrudNotificationDelivery
+    {
+        $resource = $this->relatedResource();
+
+        return $resource !== null
+            ? $resource::getCrudNotificationDelivery($event, $record)
+            : CrudNotificationDelivery::Toast;
+    }
+
+    final public function sendCrudNotification(CrudEvent $event, Model $record): ?Notification
+    {
+        $notification = $this->getCrudNotification($event, $record);
+
+        return $notification === null
+            ? null
+            : CrudNotifier::deliver($notification, $this->getCrudNotificationDelivery($event, $record));
     }
 
     /**

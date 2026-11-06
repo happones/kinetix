@@ -34,6 +34,12 @@ class KinetixNotificationPreferences
     public const REPORTS = 'kinetix.reports';
 
     /**
+     * A resource record was created, updated, deleted, restored or force
+     * deleted, for the resources that persist that message to the database.
+     */
+    public const RECORDS = 'kinetix.records';
+
+    /**
      * @deprecated No notification carries it any more: a personal-data export
      *             answers the user's own request, and its notification is the
      *             only way to reach the file, so it is always delivered.

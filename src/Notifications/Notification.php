@@ -86,6 +86,31 @@ class Notification
         return $this->type;
     }
 
+    public function getTitle(): string
+    {
+        return $this->title;
+    }
+
+    public function getBody(): ?string
+    {
+        return $this->body;
+    }
+
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    public function getTeam(): int|string|null
+    {
+        return $this->team;
+    }
+
+    public function getRecipient(): mixed
+    {
+        return $this->recipient;
+    }
+
     /**
      * Set the title of the notification.
      */

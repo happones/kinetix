@@ -544,8 +544,10 @@ PHP;
             File::makeDirectory($directory, 0755, true);
         }
 
-        $softDeletesMethods = '';
-        $routePrefix        = $pluralSlug;
+        $softDeletesMethods     = '';
+        $softDeletesEventImport = '';
+        $softDeletesDbImport    = '';
+        $routePrefix            = $pluralSlug;
 
         // Under a team-prefixed group every record route carries TWO required
         // parameters ({current_team}, then the record). Laravel injects route
@@ -575,6 +577,10 @@ PHP;
 PHP;
 
         if ($softDeletes) {
+            // The simple template imports neither; the methods below use both.
+            $softDeletesEventImport = "\nuse Happones\\Kinetix\\Resources\\CrudEvent;";
+            $softDeletesDbImport    = "\nuse Illuminate\\Support\\Facades\\DB;";
+
             $softDeletesMethods = <<<PHP
 
     public function restore({$teamParam}string \$id)
@@ -586,7 +592,7 @@ PHP;
 
         \$record->restore();
 
-        KinetixFlash::success(__('kinetix.record_restored'));
+        {$resourceClass}::sendCrudNotification(CrudEvent::Restored, \$record);
 
         // getUrl() keeps the {current_team} segment — a bare route() call
         // throws under a team-prefixed group (missing required parameter).
@@ -607,7 +613,7 @@ PHP;
             {$resourceClass}::afterDelete(\$record);
         });
 
-        KinetixFlash::success(__('kinetix.record_force_deleted'));
+        {$resourceClass}::sendCrudNotification(CrudEvent::ForceDeleted, \$record);
 
         return redirect({$resourceClass}::getUrl('index'));
     }
@@ -629,8 +635,8 @@ namespace App\Http\Controllers\Kinetix;
 
 use App\Http\Controllers\Controller;
 use App\Kinetix\Resources\\{$resourceClass};
-use App\Models\\{$modelName};
-use Happones\Kinetix\Tables\Table;
+use App\Models\\{$modelName};{$softDeletesEventImport}
+use Happones\Kinetix\Tables\Table;{$softDeletesDbImport}
 use Illuminate\Support\Facades\Gate;
 
 class {$modelName}Controller extends Controller
@@ -669,9 +675,9 @@ use App\Models\\{$modelName};
 use Happones\Kinetix\Actions\Action;
 use Happones\Kinetix\Actions\DeleteAction;
 use Happones\Kinetix\Actions\EditAction;
-use Happones\Kinetix\Flash\KinetixFlash;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
+use Happones\Kinetix\Resources\CrudEvent;
 use Happones\Kinetix\Tables\Table;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -737,8 +743,9 @@ class {$modelName}Controller extends Controller
             return \$record;
         });
 
-        // The toast message — customize freely; <KinetixToaster /> shows it.
-        KinetixFlash::success(__('kinetix.record_created'));
+        // The message is the resource's: reword, persist or silence it with
+        // getCrudNotification() / getCrudNotificationDelivery() on {$resourceClass}.
+        {$resourceClass}::sendCrudNotification(CrudEvent::Created, \$record);
 
         // Destination configurable on the resource — getRedirectUrlAfterCreate()
         // (defaults to the index).
@@ -811,10 +818,10 @@ class {$modelName}Controller extends Controller
             {$resourceClass}::afterSave(\$record);
         });
 
+        {$resourceClass}::sendCrudNotification(CrudEvent::Updated, \$record);
+
         // Destination configurable on the resource — getRedirectUrlAfterSave()
         // (defaults to staying on the edit page).
-        KinetixFlash::success(__('kinetix.record_updated'));
-
         return redirect({$resourceClass}::getRedirectUrlAfterSave(\$record));
     }
 
@@ -832,7 +839,7 @@ class {$modelName}Controller extends Controller
             {$resourceClass}::afterDelete(\$record);
         });
 
-        KinetixFlash::success(__('kinetix.record_deleted'));
+        {$resourceClass}::sendCrudNotification(CrudEvent::Deleted, \$record);
 
         // getUrl() keeps the {current_team} segment — a bare route() call
         // throws under a team-prefixed group (missing required parameter).

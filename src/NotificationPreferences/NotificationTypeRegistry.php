@@ -27,6 +27,7 @@ class NotificationTypeRegistry
         KinetixNotificationPreferences::EXPORTS => ['database', 'broadcast'],
         KinetixNotificationPreferences::IMPORTS => ['database', 'broadcast'],
         KinetixNotificationPreferences::REPORTS => ['database', 'broadcast'],
+        KinetixNotificationPreferences::RECORDS => ['database', 'broadcast'],
     ];
 
     /**

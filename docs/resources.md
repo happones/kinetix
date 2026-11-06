@@ -405,6 +405,88 @@ class ProductResource extends Resource
 `resolveHref('index' | 'edit' | 'show', $record)` builds the URL (team params
 auto-filled). Delete always returns to the index.
 
+#### Messages after a write (`getCrudNotification`)
+
+Every successful create, update, delete, restore and force delete reports
+itself with a message. The message belongs to the resource, so one override
+changes it on the resource's pages, its simple-resource modals and every
+relation manager that declares the resource as `$relatedResource`.
+
+| `CrudEvent` | Default message (translation key) |
+|---|---|
+| `Created` | `kinetix.record_created` |
+| `Updated` | `kinetix.record_updated` |
+| `Deleted` | `kinetix.record_deleted` |
+| `Restored` | `kinetix.record_restored` |
+| `ForceDeleted` | `kinetix.record_force_deleted` |
+
+Two hooks shape it. `getCrudNotification()` returns the `Notification` to send
+(`null` sends nothing). `getCrudNotificationDelivery()` says how it is
+delivered:
+
+```php
+use Happones\Kinetix\Notifications\Notification;
+use Happones\Kinetix\Resources\CrudEvent;
+use Happones\Kinetix\Resources\CrudNotificationDelivery;
+use Illuminate\Database\Eloquent\Model;
+
+class OrderResource extends Resource
+{
+    public static function getCrudNotification(CrudEvent $event, Model $record): ?Notification
+    {
+        return match ($event) {
+            CrudEvent::Created => Notification::make()
+                ->success()
+                ->title("Order #{$record->number} placed")
+                ->body('The customer was emailed a receipt.'),
+            CrudEvent::Deleted => null, // silent
+            default => parent::getCrudNotification($event, $record),
+        };
+    }
+
+    public static function getCrudNotificationDelivery(CrudEvent $event, Model $record): CrudNotificationDelivery
+    {
+        return $event === CrudEvent::Created
+            ? CrudNotificationDelivery::ToastAndDatabase
+            : CrudNotificationDelivery::Toast;
+    }
+}
+```
+
+| `CrudNotificationDelivery` | What happens |
+|---|---|
+| `Toast` (default) | A one-shot toast on the next page. Nothing is stored. |
+| `Database` | Stored unread for the notification bell, and broadcast when notification broadcasting is on. No toast. |
+| `ToastAndDatabase` | A toast now, plus a row stored **already read**, so it sits in the bell's history without a badge, a second toast or a broadcast. |
+
+Good to know:
+
+- The toast shows the title, body and status only (`danger` shows as an error
+  toast). Icon, actions, duration and recipient apply to the stored
+  notification. The recipient defaults to the signed-in user (`->to($user)`
+  changes it).
+- `Database` and `ToastAndDatabase` store the row even when
+  `kinetix.notifications.database` is off, but the bell only lists stored rows
+  when `KINETIX_DATABASE_NOTIFICATIONS=true`. Without it the row exists and
+  nothing shows it.
+- Stored rows are stamped with the current team (`->team()` overrides it) and
+  carry the `kinetix.records` preference type
+  (`KinetixNotificationPreferences::RECORDS`). Register that type to let users
+  switch the stored and broadcast channels off; the toast is not a preference
+  channel.
+- `->team(null)` and `->type(null)` do not opt out: an unset (or null) team and
+  type are always stamped. Only a value you set is kept.
+- The message is sent after the write has committed, outside its transaction.
+  A hook of yours that throws surfaces as an error but does not roll the write
+  back. A failure in Kinetix's own delivery (no notifications table, a queue
+  that is down) is reported and the request still completes.
+  A failed validation, authorization or `beforeDelete` sends nothing.
+- Titles and bodies render as text. Never put HTML in them, and keep secrets
+  out of the title and body of a stored message: it outlives the record.
+- Call `XResource::sendCrudNotification($event, $record)` from your own
+  controllers instead of `KinetixFlash`. It is `final`: override the two hooks,
+  not the sender.
+
 #### Operation URLs (`Resource::getUrl()`)
 
 The same resolver is public as `getUrl(operation, ?record)`, and it is how the
@@ -537,6 +619,10 @@ with `->clickableRows(false)`, or app-wide with `kinetix.tables.clickable_rows`;
 the "⋯" actions menu keeps working either way. See
 [Tables → Clickable rows](/tables#clickable-rows).
 
+**Messages.** Create, edit and delete through the modals use the same
+`getCrudNotification()` / `getCrudNotificationDelivery()` hooks as the
+multi-page layout (see "Messages after a write").
+
 **Cancel / close.** The form modal's Cancel button (and the backdrop / × button)
 closes the modal and discards its state; the next open rebuilds the form from
 the blueprint (create) or a fresh server fetch (edit), and any validation errors
@@ -655,6 +741,7 @@ use Happones\Kinetix\Actions\DeleteAction;
 use Happones\Kinetix\Actions\EditAction;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
+use Happones\Kinetix\Resources\CrudEvent;
 use Happones\Kinetix\Tables\Table;
 use Illuminate\Http\Request;
 
@@ -687,8 +774,10 @@ class ArticleController extends Controller
 
         $record = Article::create($form->getState($request->all()));
 
-        return redirect(ArticleResource::getRedirectUrlAfterCreate($record))
-            ->with('message', 'Record created successfully.');
+        // The message is the resource's: see "Messages after a write".
+        ArticleResource::sendCrudNotification(CrudEvent::Created, $record);
+
+        return redirect(ArticleResource::getRedirectUrlAfterCreate($record));
     }
 
     public function show(Article $record)
@@ -720,18 +809,33 @@ class ArticleController extends Controller
 
         $record->update($form->getState($request->all()));
 
-        return redirect(ArticleResource::getRedirectUrlAfterSave($record))
-            ->with('message', 'Record updated successfully.');
+        ArticleResource::sendCrudNotification(CrudEvent::Updated, $record);
+
+        return redirect(ArticleResource::getRedirectUrlAfterSave($record));
     }
 
     public function destroy(Article $record)
     {
         $record->delete();
 
-        return redirect()->route('articles.index')->with('message', 'Record deleted successfully.');
+        ArticleResource::sendCrudNotification(CrudEvent::Deleted, $record);
+
+        return redirect()->route('articles.index');
     }
 }
 ```
+
+#### Upgrading an older generated controller
+
+Controllers generated before 0.279.0 call `KinetixFlash::success(__('kinetix.record_*'))`
+directly. They keep working, but they ignore the message hooks. To opt in,
+replace each of those lines with
+`ArticleResource::sendCrudNotification(CrudEvent::Created, $record);` (likewise
+`Updated`, `Deleted`, `Restored`, `ForceDeleted`) and add
+`use Happones\Kinetix\Resources\CrudEvent;`. A simple controller generated
+with `--soft-deletes` before 0.279.0 is also missing the `KinetixFlash` and
+`DB` imports its `restore()` / `forceDelete()` use: either make the swap above
+and add `use Illuminate\Support\Facades\DB;`, or add both imports.
 
 ### 3. The Scaffolded Listing page (`resources/js/pages/Kinetix/Articles/Index.vue`)
 

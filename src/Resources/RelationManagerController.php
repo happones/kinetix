@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Resources;
 
-use Happones\Kinetix\Flash\KinetixFlash;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Query\KinetixQuery;
@@ -106,18 +105,18 @@ class RelationManagerController
         // the related record AND attaches it in one step — form fields matching
         // withPivot() columns land on the pivot row, not the related model.
         // The after-hooks run in the same transaction, as on the resource.
-        DB::transaction(static function () use ($relation, $manager, $attributes, $pivot): void {
+        $record = DB::transaction(static function () use ($relation, $manager, $attributes, $pivot): Model {
             $record = $relation instanceof BelongsToMany
                 ? $relation->create($attributes, $pivot)
                 : $relation->create($attributes);
 
             $manager->afterCreate($record);
             $manager->afterSave($record);
+
+            return $record;
         });
 
-        KinetixFlash::success((string) __('kinetix.record_created'));
-
-        return back()->with('message', (string) __('kinetix.record_created'));
+        return $this->sendAndRedirect($manager, CrudEvent::Created, $record);
     }
 
     public function updateRecord(Request $request): RedirectResponse
@@ -148,9 +147,7 @@ class RelationManagerController
             $manager->afterSave($record);
         });
 
-        KinetixFlash::success((string) __('kinetix.record_updated'));
-
-        return back()->with('message', (string) __('kinetix.record_updated'));
+        return $this->sendAndRedirect($manager, CrudEvent::Updated, $record);
     }
 
     public function destroyRecord(Request $request): RedirectResponse
@@ -176,9 +173,23 @@ class RelationManagerController
             $manager->afterDelete($record);
         });
 
-        KinetixFlash::success((string) __('kinetix.record_deleted'));
+        return $this->sendAndRedirect($manager, CrudEvent::Deleted, $record);
+    }
 
-        return back()->with('message', (string) __('kinetix.record_deleted'));
+    /**
+     * Send the manager's message, then go back to the table. The legacy
+     * `message` flash carries the title only when a toast was sent.
+     */
+    private function sendAndRedirect(RelationManager $manager, CrudEvent $event, Model $record): RedirectResponse
+    {
+        $notification = $manager->sendCrudNotification($event, $record);
+        $response     = back();
+
+        if ($notification === null || ! $manager->getCrudNotificationDelivery($event, $record)->toasts()) {
+            return $response;
+        }
+
+        return $response->with('message', $notification->getTitle());
     }
 
     // -- BelongsToMany attach/detach ------------------------------------------

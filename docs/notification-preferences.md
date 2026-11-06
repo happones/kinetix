@@ -128,6 +128,7 @@ mail, so their row has no Email switch:
 | `EXPORTS` | `kinetix.exports` | an export finishes or fails |
 | `IMPORTS` | `kinetix.imports` | an import finishes or fails |
 | `REPORTS` | `kinetix.reports` | a Reports Center run is ready |
+| `RECORDS` | `kinetix.records` | a resource record was created, updated, deleted, restored or force deleted, for the resources that persist that message to the database |
 
 ```php
 'types' => [

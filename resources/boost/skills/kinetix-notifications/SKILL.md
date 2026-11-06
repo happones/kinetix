@@ -155,12 +155,14 @@ Rules that matter:
   stays silent.
 - An unknown `type` falls back to `success`; a payload without a string
   `message` is dropped silently.
-- Kinetix's own endpoints (record modals, relation-manager modal CRUD,
-  password change, forced-change redirect = warning, plan upsell = info) and
-  the `kinetix:make-resource` controllers flash through
-  `KinetixFlash::success(…)` with the generic `kinetix.record_created` /
+- Kinetix's own endpoints flash through `KinetixFlash` (password change,
+  forced-change redirect = warning, plan upsell = info). The record modals,
+  relation-manager modal CRUD and the `kinetix:make-resource` controllers send
+  the generic `kinetix.record_created` /
   `record_updated` / `record_deleted` / `record_restored` /
-  `record_force_deleted` keys. Customize by editing those lines, never by
+  `record_force_deleted` keys. Customize through `getCrudNotification()` /
+  `getCrudNotificationDelivery()` on the resource (the scaffold calls
+  `XResource::sendCrudNotification(CrudEvent::…, $record)`), never by
   adding a second toast mechanism. `kinetix_toast` stays supported for host
   code.
 - **Two hard prerequisites** (each fails as "toasts don't show" / "toasts

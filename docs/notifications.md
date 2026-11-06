@@ -187,6 +187,10 @@ Notification::make()
     ->sendToDatabase($user);
 ```
 
+> A resource that persists its CRUD messages (`CrudNotificationDelivery::Database`
+> or `ToastAndDatabase`) stores the row whatever this setting says, but the bell
+> only lists stored rows when `KINETIX_DATABASE_NOTIFICATIONS=true`.
+
 ### Real-Time Broadcasting
 
 To broadcast in real-time via WebSockets (saves to DB **and** broadcasts):
@@ -604,8 +608,10 @@ endpoints (simple-resource modals, relation-manager modal CRUD), the password
 change, the forced-password-change redirect (a **warning**) and the plan
 upsell redirect (an **info**). So do the `kinetix:make-resource` scaffolded
 controllers, with the generic `kinetix.record_created` / `record_updated` /
-`record_deleted` / `record_restored` / `record_force_deleted` messages — edit
-the scaffolded `KinetixFlash::success(…)` lines to customize per resource. A
+`record_deleted` / `record_restored` / `record_force_deleted` messages. Reword,
+silence or persist them per resource with `getCrudNotification()` and
+`getCrudNotificationDelivery()` (see "Messages after a write" in
+[Resources](resources.md)). A
 custom toaster of your own that reads `kinetix_toast` should read
 `flash.kinetix.toasts` too (`onKinetixFlash()` hands both the current page's
 and every later flash).

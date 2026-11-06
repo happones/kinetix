@@ -318,6 +318,7 @@ Notification::make()
 - `KinetixNotificationItem.vue`: Individual notification item managing action dispatchers.
 
 ### Toasts
+- New CRUD write paths (controllers, endpoints) call `{Resource}::sendCrudNotification(CrudEvent::…, $record)` (or `$manager->sendCrudNotification(…)`), never `KinetixFlash` directly: the resource owns the message, its delivery and its silencing.
 - Toasts use `vue-sonner` (store `triggerToast` → `toast.success/warning/error/info`); mount **`<KinetixToaster />`** once, and REMOVE any other `<Toaster>` (vue-sonner has ONE global queue → every mounted Toaster renders every toast, so a leftover raw Toaster repaints it light). KinetixToaster fixes dark-mode contrast by **redefining the CSS vars vue-sonner reads** via `style` (`--normal-bg`/`--normal-text`/`--normal-border` → `--popover`/`--popover-foreground`/`--border`), NOT by class overrides — class overrides (`group-[.toaster]:bg-background`) lose the specificity war vs `[data-sonner-toast]` when `vue-sonner/style.css` loads after Tailwind (→ stubborn white toast under `.dark`). Mirrors shadcn-vue new-york-v4 Sonner exactly. Forwards all Toaster props.
 
 ### Broadcasting system notifications

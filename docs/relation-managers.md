@@ -399,6 +399,18 @@ That's the whole implementation — render the manager on the parent page as in
   fails loudly at serialize time: `->modal('create')` without `form()` (or
   `->modal('view')` without `infolist()`) throws.
 
+### Messages
+
+Create, edit and delete through the modals send a CRUD message, by default the
+related resource's (`$relatedResource`), or the generic `kinetix.record_*` one
+when the manager declares none. Override it on the manager itself with the
+instance methods `getCrudNotification(CrudEvent $event, Model $record): ?Notification`
+(`null` sends nothing) and `getCrudNotificationDelivery(CrudEvent, Model): CrudNotificationDelivery`.
+`$this->parent` is available to both. A manager only sends `Created`, `Updated`
+and `Deleted`; attach, detach, associate and dissociate send none. The
+sender, `sendCrudNotification()`, is `final`. See "Messages after a write" in
+[Resources](resources.md) for the delivery options.
+
 > Prefer full pages over modals for a relation? Wire ordinary `Action`s at
 > your own nested routes (`->url(...)` / `->inertiaVisit(...)`) — modals and
 > routed actions compose freely in the same table. Authorize per row with
@@ -777,4 +789,6 @@ protected static ?string $title = 'app.relation_managers.posts';
 ```
 
 The default (no title) is the headlined relationship name; the table chrome
-(search, pagination, empty state…) is already translated in all 7 locales.
+(search, pagination, empty state…) is already translated in all 7 locales. The
+default CRUD messages reuse the `kinetix.record_*` keys, so they are translated
+too.

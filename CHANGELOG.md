@@ -13,6 +13,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.279.0] - 2026-11-06
+
+Per-resource control over the messages shown after a record is created,
+updated, deleted, restored or force-deleted: change the text, send nothing,
+or store it as a notification instead of (or as well as) the toast.
+
+### Added
+
+- `Resource::getCrudNotification(CrudEvent $event, Model $record): ?Notification`
+  (return `null` to send nothing),
+  `Resource::getCrudNotificationDelivery(CrudEvent $event, Model $record): CrudNotificationDelivery`
+  and the `final` sender `Resource::sendCrudNotification()`. `RelationManager`
+  has the same three as instance methods, defaulting to its
+  `$relatedResource`'s.
+- `CrudEvent` (`Created`, `Updated`, `Deleted`, `Restored`, `ForceDeleted`);
+  the default messages reuse the existing `kinetix.record_*` strings.
+- `CrudNotificationDelivery`:
+  - `Toast` (default, today's behaviour);
+  - `Database`: stored unread, broadcast when enabled, no toast;
+  - `ToastAndDatabase`: a toast plus a row stored already read and never
+    broadcast, so the bell doesn't toast it a second time.
+  Stored rows carry the current team and the `kinetix.records` type.
+- The simple-resource record modals, relation-manager modal CRUD and newly
+  generated resource controllers all send through these hooks.
+- `KinetixNotificationPreferences::RECORDS` (`kinetix.records`), so users can
+  turn the stored and broadcast record messages off; the toast is unaffected.
+- `Notification` getters: `getTitle()`, `getBody()`, `getStatus()`,
+  `getTeam()`, `getRecipient()`.
+
+### Fixed
+
+- `kinetix:make-resource --simple --soft-deletes` generated a controller
+  whose `restore()` and `forceDelete()` failed with a class-not-found error:
+  the template imported neither `KinetixFlash` nor `DB`.
+
+### Upgrade notes
+
+- Nothing changes without overrides: same toast, same message, same legacy
+  `message` flash. That flash is set only when a toast is sent: it is
+  omitted when a hook returns `null` or the delivery is `Database`.
+- `->team(null)` and `->type(null)` don't opt a CRUD message out of the team
+  and `kinetix.records` stamping.
+- Controllers generated before 0.279.0 keep working but ignore the hooks. To
+  opt in, replace each `KinetixFlash::success(__('kinetix.record_created'))`
+  with `PostResource::sendCrudNotification(CrudEvent::Created, $record);`
+  (likewise `Updated`, `Deleted`, `Restored`, `ForceDeleted`) and import
+  `Happones\Kinetix\Resources\CrudEvent`. A simple controller generated with
+  `--soft-deletes` before 0.279.0 also lacks the `KinetixFlash` and
+  `Illuminate\Support\Facades\DB` imports its `restore()` and `forceDelete()`
+  use: add them, or make the swap above and import `DB`.
+- `Resource` and `RelationManager` now declare `getCrudNotification`,
+  `getCrudNotificationDelivery` and a `final` `sendCrudNotification`, and
+  `Notification` declares `getTitle`, `getBody`, `getStatus`, `getTeam` and
+  `getRecipient`. A subclass that already declares one of these names with
+  another signature, or declares `sendCrudNotification` at all, fails to
+  load: rename it.
+- Rows stored by `ToastAndDatabase` go through
+  `Happones\Kinetix\Notifications\ReadDatabaseChannel`, so a
+  `NotificationSent` listener or test that compares the channel to
+  `'database'` doesn't match them.
+- `Database` and `ToastAndDatabase` store the row even when
+  `kinetix.notifications.database` is off; the bell only lists stored rows
+  when `KINETIX_DATABASE_NOTIFICATIONS=true`.
+- The message is sent after the write commits. A hook of yours that throws
+  surfaces as an error and does not roll the write back; a failure while
+  Kinetix stores or queues the notification is reported and the request
+  still succeeds.
+
 ## [0.278.1] - 2026-11-06
 
 The last leftovers from the 2026-11-05 audit.

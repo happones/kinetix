@@ -65,8 +65,8 @@ Kinetix's own builder gates itself: `Notification::make()->type('orders')`
 filters the database/broadcast channels against the recipient's matrix (no
 `via()` needed). Only while the module is on AND the type is registered; no
 type, or an unregistered one, delivers on every channel. Kinetix's notifications
-carry `KinetixNotificationPreferences::EXPORTS` / `IMPORTS` / `REPORTS`
-(`kinetix.exports`, …): register a key in `types` to let users turn it off.
+carry `KinetixNotificationPreferences::EXPORTS` / `IMPORTS` / `REPORTS` / `RECORDS`
+(`kinetix.exports`, …; `RECORDS` marks a resource's persisted CRUD messages): register a key in `types` to let users turn it off.
 They go out in-app and by broadcast only, so their rows have no mail switch.
 A personal-data (GDPR) export is untyped and always delivered (`DATA_EXPORTS`
 is deprecated). Rows are owned by key + model type (`notifiable_type`,
