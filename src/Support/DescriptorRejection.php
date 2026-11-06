@@ -20,4 +20,16 @@ enum DescriptorRejection
 
     /** Minted for a different endpoint family ({@see DescriptorAudience}). */
     case ForeignAudience;
+
+    /**
+     * The machine code a rejection answers with (`code` in the JSON), so a
+     * client can tell "reload the page" from "not allowed" without matching
+     * a translated message.
+     *
+     * @return 'descriptor_expired'|'descriptor_forbidden'
+     */
+    public function code(): string
+    {
+        return $this === self::Expired ? 'descriptor_expired' : 'descriptor_forbidden';
+    }
 }

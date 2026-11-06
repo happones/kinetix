@@ -1,9 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+    kinetixFailureMessage,
+    isKinetixThrottled,
+} from '@/composables/kinetixThrottle';
+import {
     isKinetixAbort,
+    isKinetixFetchError,
     kinetixFetch,
     xsrfToken,
 } from '@/composables/useKinetixHttp';
+import type { KinetixFetchError } from '@/composables/useKinetixHttp';
 
 afterEach(() => {
     vi.unstubAllGlobals();
@@ -95,5 +101,72 @@ describe('useKinetixHttp', () => {
         expect(isKinetixAbort(new Error('HTTP error! status: 500'))).toBe(
             false,
         );
+    });
+
+    it('carries the code and retry-after of a throttled response', async () => {
+        stubFetch({
+            ok: false,
+            status: 429,
+            headers: new Headers({ 'Retry-After': '30' }),
+            clone: () => ({
+                json: () =>
+                    Promise.resolve({
+                        message: 'Too many attempts. Try again in 42 seconds.',
+                        code: 'throttled',
+                        retry_after: 42,
+                        errors: { password: ['Too many attempts.'] },
+                    }),
+            }),
+        });
+
+        const error = (await kinetixFetch('/x', { method: 'POST' }).catch(
+            (e: unknown) => e,
+        )) as KinetixFetchError;
+
+        expect(isKinetixFetchError(error)).toBe(true);
+        expect(error.status).toBe(429);
+        expect(error.code).toBe('throttled');
+        // The payload wins over the header.
+        expect(error.retryAfter).toBe(42);
+        expect(error.errors).toEqual({ password: ['Too many attempts.'] });
+        expect(isKinetixThrottled(error)).toBe(true);
+        expect(kinetixFailureMessage(error, 'Failed')).toBe(
+            'Too many attempts. Try again in 42 seconds.',
+        );
+    });
+
+    it('falls back to the Retry-After header without a payload value', async () => {
+        stubFetch({
+            ok: false,
+            status: 429,
+            headers: new Headers({ 'Retry-After': '17' }),
+            clone: () => ({ json: () => Promise.reject(new Error('html')) }),
+        });
+
+        const error = (await kinetixFetch('/x').catch(
+            (e: unknown) => e,
+        )) as KinetixFetchError;
+
+        expect(error.retryAfter).toBe(17);
+        expect(error.code).toBeUndefined();
+    });
+
+    it('keeps a surface fallback for anything but a throttle', async () => {
+        stubFetch({
+            ok: false,
+            status: 500,
+            clone: () => ({
+                json: () => Promise.resolve({ message: 'Server Error' }),
+            }),
+        });
+
+        const error = await kinetixFetch('/x').catch((e: unknown) => e);
+
+        expect(isKinetixThrottled(error)).toBe(false);
+        expect(kinetixFailureMessage(error, 'Failed')).toBe('Failed');
+        expect(isKinetixFetchError(new Error('network'))).toBe(false);
+        expect(
+            isKinetixFetchError(new DOMException('stop', 'AbortError')),
+        ).toBe(false);
     });
 });

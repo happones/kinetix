@@ -9,6 +9,7 @@ use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\KinetixTrans;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
@@ -23,6 +24,9 @@ use UnitEnum;
  */
 class TeamSwitcherManager
 {
+    /** How many teams a search returns with no `max_teams`. */
+    private const DEFAULT_SEARCH_LIMIT = 20;
+
     /**
      * The shared-prop payload: the user's teams (each with a switch URL), the
      * current team, and an optional "create team" URL.
@@ -38,8 +42,15 @@ class TeamSwitcherManager
      *     current: array{id: int|string, name: string, initials: string, logo: string|null, logoIcon: string|null, accent: string|null, icon: string|null}|null,
      *     createUrl: string|null,
      *     switchMethod: string,
-     *     labels: array{switch: string, select: string, create: string}
+     *     labels: array{switch: string, select: string, create: string},
+     *     total?: int,
+     *     truncated?: bool,
+     *     searchUrl?: string|null
      * }
+     *
+     * The list is capped at `team_switcher.max_teams` (the current team is
+     * always in it): `truncated` says more exist, `total` how many, and
+     * `searchUrl` where to search for the rest.
      */
     public function payload(): array
     {
@@ -52,17 +63,15 @@ class TeamSwitcherManager
         $current    = $this->currentTeam($user);
         $currentKey = $current?->getKey();
 
-        $teams = $this->teamsFor($user)
-            ->map(fn (Model $team): array => [
-                'id' => $team->getKey(),
-                // The team in a URL (`/{key}/...`): what a switch that keeps
-                // the page swaps in.
-                'key'     => $team->getRouteKey(),
-                'name'    => $this->name($team),
-                'url'     => $this->switchUrl($team),
-                'current' => $team->getKey() === $currentKey,
-                ...$this->identity($team),
-            ])
+        [$listed, $truncated, $total] = $this->listedTeams($user);
+
+        // The current team beyond the cut is still listed (once).
+        if ($truncated && $current instanceof Model && ! $listed->contains(static fn (Model $team): bool => $team->getKey() === $currentKey)) {
+            $listed->push($current);
+        }
+
+        $teams = $listed
+            ->map(fn (Model $team): array => $this->option($team, $team->getKey() === $currentKey))
             ->values()
             ->all();
 
@@ -77,7 +86,145 @@ class TeamSwitcherManager
             // POST, and a GET to it is a 405.
             'switchMethod' => $this->switchMethod(),
             'labels'       => $this->labels(),
+            'total'        => $total,
+            'truncated'    => $truncated,
+            'searchUrl'    => $truncated && Route::has('kinetix.team-switcher.search') ? route('kinetix.team-switcher.search') : null,
         ];
+    }
+
+    /**
+     * The user's own teams whose search column contains `$query`
+     * (case-insensitive; `%`, `_` and `\` match literally), capped like the
+     * shared list. Never a team the user isn't a member of: the search runs
+     * on the user's teams relation only. `current` is always false.
+     *
+     * @return array{teams: list<array<string, mixed>>, truncated: bool}
+     */
+    public function search(Model $user, string $query): array
+    {
+        $relation = $this->teamsRelation($user);
+
+        if ($relation === null) {
+            return ['teams' => [], 'truncated' => false];
+        }
+
+        $related = $relation->getRelated();
+        $base    = $relation->getQuery()->getQuery();
+        $column  = $base->getGrammar()->wrap($related->qualifyColumn($this->searchColumn()));
+        $like    = $related->getConnection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+        $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $query);
+        $limit   = $this->maxTeams() ?? self::DEFAULT_SEARCH_LIMIT;
+
+        $relation->whereRaw("{$column} {$like} ? escape ?", ['%'.$escaped.'%', '\\']);
+
+        if ($base->orders === null || $base->orders === []) {
+            $relation->orderBy($related->getQualifiedKeyName());
+        }
+
+        $found     = $relation->limit($limit + 1)->get();
+        $truncated = $found->count() > $limit;
+
+        return [
+            'teams' => $found->take($limit)
+                ->map(fn (Model $team): array => $this->option($team, false))
+                ->values()
+                ->all(),
+            'truncated' => $truncated,
+        ];
+    }
+
+    /**
+     * One team as the switcher lists it.
+     *
+     * @return array<string, mixed>
+     */
+    protected function option(Model $team, bool $current): array
+    {
+        return [
+            'id' => $team->getKey(),
+            // The team in a URL (`/{key}/...`): what a switch that keeps
+            // the page swaps in.
+            'key'     => $team->getRouteKey(),
+            'name'    => $this->name($team),
+            'url'     => $this->switchUrl($team),
+            'current' => $current,
+            ...$this->identity($team),
+        ];
+    }
+
+    /**
+     * The teams the shared list holds, whether more exist, and how many
+     * there are. Without a cap: all of them ({@see teamsFor()}). With one: an
+     * already-loaded relation is sliced (no query); otherwise one query asks
+     * for one more than the cap (stable order: the relation's own, else the
+     * key), and only a user beyond the cap costs a count query.
+     *
+     * @return array{0: Collection<int, Model>, 1: bool, 2: int}
+     */
+    protected function listedTeams(Model $user): array
+    {
+        $max = $this->maxTeams();
+
+        if ($max === null) {
+            $teams = $this->teamsFor($user);
+
+            return [$teams, false, $teams->count()];
+        }
+
+        $name     = (string) config('kinetix.team_switcher.teams_relation', 'teams');
+        $relation = $user->relationLoaded($name) ? null : $this->teamsRelation($user);
+
+        if ($relation === null) {
+            $teams = $this->teamsFor($user);
+
+            return [$teams->take($max)->values(), $teams->count() > $max, $teams->count()];
+        }
+
+        $counter = clone $relation;
+        $base    = $relation->getQuery()->getQuery();
+
+        if ($base->orders === null || $base->orders === []) {
+            $relation->orderBy($relation->getRelated()->getQualifiedKeyName());
+        }
+
+        $teams     = collect($relation->limit($max + 1)->get())->values();
+        $truncated = $teams->count() > $max;
+
+        if (! $truncated) {
+            return [$teams, false, $teams->count()];
+        }
+
+        return [$teams->take($max)->values(), true, $counter->count()];
+    }
+
+    /** A fresh query on the user's teams relation; null when it isn't one. */
+    protected function teamsRelation(Model $user): ?Relation
+    {
+        $name = (string) config('kinetix.team_switcher.teams_relation', 'teams');
+
+        if (! method_exists($user, $name)) {
+            return null;
+        }
+
+        $relation = $user->{$name}();
+
+        return $relation instanceof Relation ? $relation : null;
+    }
+
+    /** `team_switcher.max_teams`: a positive cap, or null for none. */
+    protected function maxTeams(): ?int
+    {
+        $max = config('kinetix.team_switcher.max_teams', 20);
+
+        return is_numeric($max) && (int) $max > 0 ? (int) $max : null;
+    }
+
+    /** The column the search matches: `search_column`, else the name attribute. */
+    protected function searchColumn(): string
+    {
+        $column = config('kinetix.team_switcher.search_column');
+
+        return is_string($column) && $column !== '' ? $column : $this->nameAttribute();
     }
 
     /**

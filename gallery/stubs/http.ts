@@ -261,6 +261,7 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
     {
         match: /\/mail-templates$/,
         data: {
+            test: { recipients: 'self', email: 'ada@example.com' },
             templates: [
                 {
                     id: 1,
@@ -1054,6 +1055,52 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
             ],
             limit: 5,
             broadcast: null,
+        },
+    },
+    {
+        // POST: asking the provider for a QR / pairing code changes the line.
+        match: /\/channels\/\d+\/link$/,
+        data: {
+            channel: {
+                id: 3,
+                provider: 'whatsapp',
+                name: 'Billing',
+                status: 'connecting',
+                handle: null,
+                lastError: null,
+                connectedAt: null,
+                lastEventAt: null,
+                createdAt: '2026-10-17T09:00:00Z',
+            },
+            link: {
+                status: 'connecting',
+                qr: null,
+                pairingCode: 'K7Q2-9XWD',
+                expiresIn: 60,
+            },
+        },
+    },
+    {
+        // The team switcher's search, when the shared list is truncated.
+        match: /\/team-switcher\/teams\?/,
+        data: {
+            teams: [
+                {
+                    id: 41,
+                    name: 'Globex Logistics',
+                    url: '#',
+                    current: false,
+                    initials: 'GL',
+                },
+                {
+                    id: 42,
+                    name: 'Globex Retail',
+                    url: '#',
+                    current: false,
+                    initials: 'GR',
+                },
+            ],
+            truncated: false,
         },
     },
     {
@@ -2071,6 +2118,13 @@ export async function kinetixFetch<T = unknown>(
     });
 
     return (hit ? (hit.data as T) : null) ?? null;
+}
+
+export function isKinetixFetchError(error: unknown): boolean {
+    return (
+        error instanceof Error &&
+        typeof (error as { status?: unknown }).status === 'number'
+    );
 }
 
 export function isKinetixAbort(error: unknown): boolean {

@@ -36,6 +36,9 @@ describe('kinetixEcho', () => {
         await expect(
             loader.joinKinetixPresence('presence-room'),
         ).resolves.toBeNull();
+        await expect(
+            loader.listenOnKinetixChannel('inbox.1', '.x', () => {}),
+        ).resolves.toBeNull();
     });
 
     it('shares the module instance the host configured', async () => {
@@ -102,5 +105,64 @@ describe('kinetixEcho', () => {
         // A later join starts over.
         await loader.joinKinetixPresence('room');
         expect(joinSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('refcounts private channel listeners and leaves after the last release', async () => {
+        const { loader, echoVue } = await fresh();
+        echoVue.configureEcho({ broadcaster: 'null' });
+
+        const channel = { listen: vi.fn(), stopListening: vi.fn() };
+        const instance = echoVue.echo() as any;
+        const privateSpy = vi
+            .spyOn(instance, 'private')
+            .mockReturnValue(channel);
+        const leaveSpy = vi.spyOn(instance, 'leave');
+        const one = vi.fn();
+        const two = vi.fn();
+
+        const releaseOne = await loader.listenOnKinetixChannel(
+            'inbox.line.1',
+            '.inbox.updated',
+            one,
+        );
+        const releaseTwo = await loader.listenOnKinetixChannel(
+            'inbox.line.1',
+            '.inbox.updated',
+            two,
+        );
+
+        // One subscription, two listeners on it.
+        expect(privateSpy).toHaveBeenCalledTimes(1);
+        expect(channel.listen).toHaveBeenCalledWith('.inbox.updated', one);
+        expect(channel.listen).toHaveBeenCalledWith('.inbox.updated', two);
+
+        releaseOne!();
+        releaseOne!();
+        expect(channel.stopListening).toHaveBeenCalledTimes(1);
+        expect(channel.stopListening).toHaveBeenCalledWith(
+            '.inbox.updated',
+            one,
+        );
+        expect(leaveSpy).not.toHaveBeenCalled();
+
+        releaseTwo!();
+        expect(leaveSpy).toHaveBeenCalledTimes(1);
+        expect(leaveSpy).toHaveBeenCalledWith('inbox.line.1');
+
+        // A later listener subscribes again.
+        await loader.listenOnKinetixChannel('inbox.line.1', '.e', () => {});
+        expect(privateSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('resolves null when the channel cannot be subscribed', async () => {
+        const { loader, echoVue } = await fresh();
+        echoVue.configureEcho({ broadcaster: 'null' });
+        vi.spyOn(echoVue.echo() as any, 'private').mockImplementation(() => {
+            throw new Error('no socket');
+        });
+
+        await expect(
+            loader.listenOnKinetixChannel('inbox.line.2', '.e', () => {}),
+        ).resolves.toBeNull();
     });
 });

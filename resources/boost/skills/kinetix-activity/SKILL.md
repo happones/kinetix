@@ -115,3 +115,11 @@ see the setup; morph ids follow `kinetix.key_types.morph` (default bigint) —
 set it when the referenced models use UUIDs/ULIDs. Apps migrated on an older
 Kinetix have bigint columns on disk and need their own ALTER migration. Full
 recipe: the `kinetix-boost` skill, section "UUID / ULID Host Models".
+
+## Redaction and page size
+
+`ActivityRedactor` is the one rule (hidden, encrypted*, confidential,
+`password`, `remember_token`), applied at write time and again at READ time
+in `ActivityData`, so older rows never show a secret.
+`php artisan kinetix:activity:redact [--dry-run]` rewrites them at rest. The
+feed caps `per_page` at `activity.max_per_page` (100).

@@ -182,3 +182,28 @@ works with zero extra dependencies). Force either with `driver = 'spatie'` /
 - **The diff format is identical** across drivers because the
   `LogsKinetixActivity` trait computes `{ old, attributes }` itself before
   handing off to the driver.
+
+## Page size
+
+The feed endpoint caps `per_page` at `activity.max_per_page` (default
+`100`); `0` or a negative value uses `activity.per_page`. PHP callers of
+`KinetixActivity::logger()->query()` choose their own size.
+
+## Redaction of older rows
+
+Hidden, encrypted (`encrypted*`, the encrypted ArrayObject / Collection
+casts) and confidential attributes, `password` and `remember_token` are
+recorded as `[redacted]`. Rows written before that redaction existed are
+redacted when they are READ: `ActivityData` (the feed, the PHP query and
+every `ActivityLogged` consumer) applies the same rule, resolving the
+subject class (a morph alias too) once per class. A subject type that no
+longer resolves falls back to secret-looking keys (`*token*`, `*secret*`,
+`*password*`, `api_key`…). Resolving a class instantiates it once, so a
+model's constructor must not have side effects.
+
+To rewrite the stored history too (backups, other readers of the table):
+
+```bash
+php artisan kinetix:activity:redact --dry-run   # count
+php artisan kinetix:activity:redact             # rewrite (idempotent)
+```

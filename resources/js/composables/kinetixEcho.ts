@@ -148,3 +148,90 @@ export async function joinKinetixPresence(
         },
     };
 }
+
+/** The private-channel surface Kinetix uses for its own events. */
+interface KinetixEchoPrivateChannel {
+    listen(event: string, callback: (payload: any) => void): unknown;
+    stopListening(event: string, callback?: (payload: any) => void): unknown;
+}
+
+const privateChannels = new Map<
+    string,
+    { count: number; channel: KinetixEchoPrivateChannel }
+>();
+
+/**
+ * private(name).listen(event, handler), refcounted per channel name: every
+ * caller shares one subscription and the channel is left when the last
+ * listener releases. Null when Echo is unavailable or not configured.
+ *
+ * Only for channels Kinetix owns (the inbox lines, the channel manager): the
+ * last release leaves the channel, so never point it at a host channel.
+ */
+export async function listenOnKinetixChannel<T = unknown>(
+    name: string,
+    event: string,
+    handler: (payload: T) => void,
+): Promise<(() => void) | null> {
+    const module = await loadKinetixEcho();
+
+    if (module === null) {
+        return null;
+    }
+
+    let entry = privateChannels.get(name);
+
+    try {
+        if (entry === undefined) {
+            entry = {
+                count: 0,
+                channel: module
+                    .echo()
+                    .private(name) as unknown as KinetixEchoPrivateChannel,
+            };
+            privateChannels.set(name, entry);
+        }
+
+        entry.channel.listen(event, handler);
+    } catch (error) {
+        console.warn('[kinetix] Could not listen on the channel.', error);
+
+        if (entry !== undefined && entry.count === 0) {
+            privateChannels.delete(name);
+        }
+
+        return null;
+    }
+
+    entry.count++;
+
+    const joined = entry;
+    let released = false;
+
+    return () => {
+        if (released) {
+            return;
+        }
+
+        released = true;
+        joined.count--;
+
+        try {
+            joined.channel.stopListening(event, handler);
+        } catch {
+            // The connection is already gone; nothing left to unbind.
+        }
+
+        if (joined.count > 0 || privateChannels.get(name) !== joined) {
+            return;
+        }
+
+        privateChannels.delete(name);
+
+        try {
+            module.echo().leave(name);
+        } catch {
+            // The connection is already gone.
+        }
+    };
+}

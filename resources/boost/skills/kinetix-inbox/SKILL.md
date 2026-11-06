@@ -63,6 +63,8 @@ php artisan vendor:publish --tag=kinetix-inbox-migrations   # needs kinetix-chan
 - **Hook for bots**: `ConversationMessageCreated` (contact messages only). Reply via `InboxManager::send` so it shows in the thread.
 - **Frontend**:
     - `<KinetixInbox>` = `Inbox/KinetixInboxList` + `KinetixInboxThread` (+ `KinetixInboxBubble`, `KinetixInboxComposer`).
+    - **Realtime (REQUIRED)**: never import `@laravel/echo-vue` statically. Listen through `listenOnKinetixChannel(name, event, handler)` from `composables/kinetixEcho.ts` (refcounted per channel, left at the last release, null without Echo), and only when the server flags a line's `broadcast`. Release on unmount, including a subscribe still in flight. `bundleGuard.echo.spec.ts` enforces it.
+    - **Polls (REQUIRED)**: list and thread polls go through `useKinetixPolling` (`immediate: false`, paused while hidden); the thread polls only while open and no line pushes to it.
     - Optimistic send uses `localId`.
     - Images dispatch a cancelable `kinetix:preview`; if unhandled, they open in a new tab.
 - **Quick replies**:

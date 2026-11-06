@@ -1,4 +1,5 @@
 import { Folder, LayoutDashboard, Settings, Users } from '@lucide/vue';
+import { usePage } from '@inertiajs/vue3';
 import { defineComponent, h, ref, type Component } from 'vue';
 import KinetixWizard from '@/components/KinetixWizard.vue';
 import KinetixImportModal from '@/components/KinetixImportModal.vue';
@@ -3435,6 +3436,28 @@ export const specimens: Specimen[] = [
         title: 'Team switcher (open)',
         component: KinetixTeamSwitcher,
         width: 280,
+        openSelector: '#specimen button',
+    },
+    {
+        name: 'team-switcher-search',
+        title: 'Team switcher, truncated list with search (open)',
+        component: defineComponent({
+            name: 'GalleryTruncatedTeamSwitcher',
+            setup() {
+                // The shared list is capped: the menu opens on a search box.
+                Object.assign(
+                    (usePage().props as Record<string, any>).kinetix_teams,
+                    {
+                        truncated: true,
+                        total: 48,
+                        searchUrl: '/_kinetix/team-switcher/teams',
+                    },
+                );
+
+                return () => h(KinetixTeamSwitcher);
+            },
+        }),
+        width: 300,
         openSelector: '#specimen button',
     },
     {

@@ -14,6 +14,11 @@ use Illuminate\Database\Eloquent\Model;
  * itself, round-tripping it through the cast's `set()` to encrypt it in
  * place. Needed because `ConfidentialCipher`'s legacy-plaintext fallback
  * means old rows read fine but stay unencrypted until migrated.
+ *
+ * It also re-wraps values already encrypted in the older (v1) envelope, and
+ * v2 envelopes bound to their column only (rows written without model
+ * events), as v2 sealed to their table, column and row; once it has run for
+ * every model, `kinetix.confidential.legacy_envelopes` can be turned off.
  */
 class ConfidentialEncryptExistingCommand extends Command
 {
@@ -22,7 +27,7 @@ class ConfidentialEncryptExistingCommand extends Command
         {--column=* : Column(s) to encrypt; defaults to the model\'s confidentialColumns() when it uses HasConfidentialAttributes}
         {--chunk=500 : Rows processed per chunk}';
 
-    protected $description = "Migrate a model column's existing plaintext data through ConfidentialCast, encrypting it in place";
+    protected $description = "Encrypt a model column's existing plaintext through ConfidentialCast, and re-wrap older envelopes bound to their row";
 
     public function handle(): int
     {
@@ -50,6 +55,28 @@ class ConfidentialEncryptExistingCommand extends Command
         $chunkSize = (int) $this->option('chunk');
         $total     = 0;
 
+        // Reading what is being re-wrapped (v1 and column-bound envelopes)
+        // must work even once strict mode refuses them.
+        $strict = config('kinetix.confidential.legacy_envelopes', true);
+        config()->set('kinetix.confidential.legacy_envelopes', true);
+
+        try {
+            $this->rewrap($modelClass, $columns, $chunkSize, $total);
+        } finally {
+            config()->set('kinetix.confidential.legacy_envelopes', $strict);
+        }
+
+        $this->info("Encrypted or re-wrapped {$total} row(s) across [".implode(', ', $columns)."] on {$modelClass}.");
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * @param class-string<Model> $modelClass
+     * @param array<int, string>  $columns
+     */
+    private function rewrap(string $modelClass, array $columns, int $chunkSize, int &$total): void
+    {
         // `revealed()` is required here: without it, reading `$row->{$column}`
         // through the cast would return the MASKED placeholder (when the
         // console session holds no reveal grant), and re-saving that would
@@ -66,9 +93,5 @@ class ConfidentialEncryptExistingCommand extends Command
                 }
             });
         });
-
-        $this->info("Encrypted {$total} row(s) across [".implode(', ', $columns)."] on {$modelClass}.");
-
-        return self::SUCCESS;
     }
 }

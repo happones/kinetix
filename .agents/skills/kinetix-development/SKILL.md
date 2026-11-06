@@ -232,6 +232,34 @@ that test, never an accident.
 7. **Generated controllers pass page props as closures** (`'table' => fn () => …`),
    so a partial reload builds only what it asks for. Authorization stays eager.
 
+### Endpoint Security Rules (REQUIRED — v0.278.0)
+
+1. **A throttle on an endpoint that confirms a password, queues work, sends
+   mail or calls a provider goes through `Support\KinetixThrottle`.** Add a
+   named limiter to `KinetixThrottle::LIMITERS` (config key, default,
+   optional error field) and put `KinetixThrottle::middleware('kinetix-x')`
+   on the route. Limiters are registered UNCONDITIONALLY in `boot()`,
+   outside `$this->routes()`: a cached route that names a missing limiter
+   answers every request 429. Config is read inside the limiter, so never
+   build a `throttle:N,M` string from config at registration. Every password
+   confirmation shares `kinetix-password`. `RouteCacheBootTest` checks every
+   limiter on a cached boot.
+2. **An endpoint that does not carry the team segment but acts for a team
+   binds the request to the token's team claim** (the export pattern in
+   `ExportController::start`): set the route's `current_team` parameter to
+   the claim, resolve with `KinetixTeams::currentTeam()` (membership check,
+   404 → 403), and run authorization inside `PermissionTeam::run()`. Never
+   fall back to the user's stored `currentTeam` when the token names a team.
+3. **Secrets at rest use `Support\Casts\EncryptedWithPlaintextFallback`**
+   (legacy plaintext still reads; encrypts only when the column fits a
+   ciphertext) or an `encrypted*` cast on a TEXT column, plus `$hidden`.
+4. **New descriptor rejections carry `code`** (`DescriptorRejection::code()`:
+   `descriptor_expired` / `descriptor_forbidden`), statuses and messages
+   unchanged, so the client can offer a reload.
+5. **Attribute redaction goes through `Activity\ActivityRedactor` (model
+   attributes) and `Support\SensitiveKeys` (arbitrary payload keys).** Never
+   a local list of key names.
+
 ### Localization & Documentation Rules
 
 - **Shipped locales (v0.89.0)**: en, es, fr, pt, zh, ja, ru — EVERY new key must be added to all seven (`TranslationParityTest` enforces). Publishing is selective: `kinetix.translations.locales` (null = all; string 'en,ja' from env or array) drives `KinetixServiceProvider::translationPublishMap()` → per-locale dirs on the `kinetix-translations` tag (and therefore `kinetix:upgrade`). Tests `TranslationPublishTest`/`TranslationPublishAllTest` (reflection-clear `ServiceProvider::$publishes` statics before boot — they leak across tests).

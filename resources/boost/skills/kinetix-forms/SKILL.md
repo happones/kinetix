@@ -226,3 +226,14 @@ the FORM's own width (CSS container queries), so forms in modals collapse
 correctly; spans clamp to the available columns per breakpoint and can never
 overflow. `columnSpan('full')` spans the row at every size.
 
+## Disabled fields in repeater rows; clearing write-only values
+
+- `disabled()`/`disabledWhen()` inside Repeater/TableRepeater rows is enforced
+  on the server through a server-issued `__kinetix_row` key per stored row:
+  keyed rows keep their stored locked values, new/stale/duplicate rows get
+  defaults. `getState()` strips the key. One nesting level. A live hook that
+  rebuilds rows from scratch must copy `Repeater::ROW_KEY` into each rebuilt
+  row (recompute never mints keys; reorder/drop/insert keep them).
+- A write-only field with its own stored value that isn't required is
+  `isClearable`; submitting `Form::CLEAR_SENTINEL` (`'__kinetix_clear__'`)
+  clears it. On any other field the sentinel means "unchanged".

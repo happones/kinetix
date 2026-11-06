@@ -499,6 +499,20 @@ export interface KinetixTeamsState {
     switchMethod?: 'get' | 'post' | 'put' | 'patch';
     /** The switcher's words, in the app's terms (`team_switcher.labels`). */
     labels?: { switch: string; select: string; create: string };
+    /** How many teams the user belongs to; `teams` may hold fewer (`truncated`). */
+    total?: number;
+    /** `teams` is capped by `team_switcher.max_teams`: search for the rest. */
+    truncated?: boolean;
+    /** GET with `?q=` → KinetixTeamSearchResult; set only when truncated. */
+    searchUrl?: string | null;
+}
+
+/** The team-switcher search endpoint's answer (`kinetix.team-switcher.search`). */
+export interface KinetixTeamSearchResult {
+    /** The user's own teams that match; `current` is always false (compare ids). */
+    teams: KinetixTeamOption[];
+    /** More teams match than the endpoint returned. */
+    truncated: boolean;
 }
 
 /** A single breadcrumb item, derived from a Kinetix Resource. */
@@ -1264,6 +1278,17 @@ export interface KinetixMailTemplate {
     format: 'markdown' | 'html';
     variables: KinetixMailVariable[];
     enabled: boolean;
+}
+
+/**
+ * Where mail-template test emails may go: the `test` key of the mail
+ * templates index (`mail_templates.test_recipients`).
+ */
+export interface KinetixMailTestMeta {
+    /** `self`: only the acting user's own address; `any`: any address. */
+    recipients: 'self' | 'any';
+    /** The acting user's own address, prefilled into the test field. */
+    email: string | null;
 }
 
 /** A headline metric shown in a chart widget header. */

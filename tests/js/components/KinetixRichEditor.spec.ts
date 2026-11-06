@@ -215,7 +215,7 @@ describe('basic editor sanitizes untrusted HTML', () => {
         const w = mountWith(KinetixRichEditorBasic, { value: '' });
 
         const buttons = w.findAll('button');
-        await buttons[buttons.length - 1].trigger('mousedown');
+        await buttons[buttons.length - 1].trigger('click');
 
         expect(exec).not.toHaveBeenCalledWith(
             'createLink',
@@ -224,7 +224,7 @@ describe('basic editor sanitizes untrusted HTML', () => {
         );
 
         prompt.mockReturnValue('https://a.test/');
-        await buttons[buttons.length - 1].trigger('mousedown');
+        await buttons[buttons.length - 1].trigger('click');
 
         expect(exec).toHaveBeenCalledWith(
             'createLink',

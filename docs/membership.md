@@ -835,3 +835,21 @@ admin, never a stray personal team.
   (422 for anyone else, owners included).
 - **Audit** who provisioned/revoked whom (`invited_by`, timestamps) — this is a
   privileged, organization-shaping action.
+
+## Rate limit
+
+`membership.resend_throttle` limits re-sending an activation link per user, as `"attempts,minutes"` (default
+`'6,1'`); `false` turns it off. Over the limit the endpoint answers
+`429` with `{"message": "<translated>", "code": "throttled", "retry_after": N}`
+and the `Retry-After` header. The limit is read on every request, so it
+also applies to cached routes.
+
+## Activation passwords
+
+The password a member chooses on the activation page follows the app's
+`Password::defaults()` (8 characters minimum when the app sets none). Set
+your rule in a service provider:
+
+```php
+Password::defaults(fn () => Password::min(12)->mixedCase()->uncompromised());
+```

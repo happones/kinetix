@@ -88,3 +88,13 @@ php artisan vendor:publish --tag=kinetix-channels-migrations
   `{id}/status`, `{id}/disconnect`, `{id}/restart`, `{id}/test` — all
   `channels.manage`.
 - **WhatsApp options**: `direct_only` (1:1 chats only; `status@broadcast` always dropped), `typing` (Evolution `delay` = min_ms + ms_per_char × length, ≤ max_ms), `webhook_events` (extra events; child drivers override `webhookEvents()`). A provider 4xx → `ChannelException` with `refusedByProvider` and the body's `response.message`.
+
+## Link is POST
+
+`POST {prefix}/channels/{channel}/link` with JSON `{phone: string|null}` (a GET
+is 405). `status` stays GET.
+
+## Rate limit
+
+`channels.action_throttle` (default `'10,1'`, `false` = off) limits link requests and test messages (shared) per user. Over
+it: `429` `{message, code: "throttled", retry_after}` + `Retry-After`.

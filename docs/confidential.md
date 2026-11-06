@@ -301,3 +301,85 @@ class AwsKmsKeyManager implements KeyManager
 - **One global keyring in v1** — not per-team. Kinetix already has
   first-class team scoping elsewhere (`kinetix.activity`, `kinetix.settings`);
   a per-team keyring is a natural future extension, not built now.
+
+## Rate limit on the password check
+
+The password check shares ONE per-user budget with every other Kinetix
+endpoint that confirms the current password (the confidential unlock,
+deleting the account, logging out other devices, the connected-accounts
+password and the password change): 5 attempts a minute by default, so a
+hijacked session can't guess the password online, not even by rotating
+endpoints. Every attempt counts, the successful ones too.
+
+```php
+// config/kinetix.php
+'password_confirmation' => [
+    'throttle' => '5,1', // "attempts,minutes"; false turns it off
+],
+```
+
+Over the limit the endpoint answers `429` with a translated message:
+`{"message": "Too many attempts. Try again in 42 seconds.", "code": "throttled", "retry_after": 42, "errors": {"password": ["…"]}}`
+plus the `Retry-After` header. An Inertia request (the password change
+screen) is sent back with the message as the `password` field error.
+
+## Envelopes are sealed to their row
+
+Every value the cast writes is a v2 envelope, sealed (as AES-GCM
+associated data) to its table and column, and to its row once the row has
+a key. When a model is read with its key (`find()`, `get()`, tables, forms,
+infolists, exports), a ciphertext copied into another row or column, or
+whose envelope is edited, no longer decrypts: reading it throws instead of
+revealing another row's value.
+
+How a value gets bound to its row:
+
+- A row that has no key yet (an auto-increment insert) is sealed to its
+  column first and re-sealed to its key right after it is created: one extra
+  `UPDATE` per created row that holds confidential values (no model events,
+  no `updated_at`).
+- `replicate()` re-seals the copy, which binds to its own key once saved.
+- Changing a row's primary key, renaming the table or the column, or
+  copying ciphertext at the database level makes a row-bound value
+  unreadable, by design.
+
+What the binding does NOT cover:
+
+- **Reads that don't know their row.** `pluck()`, `value()` or a select
+  without the key hydrate a model with no key, so the value is checked
+  against the table and column only: a ciphertext copied from another row
+  of the same column reads there.
+- **Values bound to their column only** (`r: null`): rows written without
+  model events never get bound to their key: `createQuietly()`,
+  `saveQuietly()` on a new model, `Model::withoutEvents()`, and
+  query-builder inserts. Such a value can be moved to any row of its
+  column and still reads, even on a keyed read, until strict mode (below)
+  is on. `kinetix:doctor` counts them per column; `kinetix:confidential:encrypt-existing`
+  binds them.
+
+### Strict mode
+
+Envelopes written before row binding (v1) and column-bound ones still read
+while `confidential.legacy_envelopes` is `true` (the default). Re-wrap every
+model's values with
+`php artisan kinetix:confidential:encrypt-existing "App\Models\Patient"`
+(it binds both kinds to their row), check `kinetix:doctor` shows none left,
+then set it to `false`:
+
+```php
+'confidential' => [
+    'legacy_envelopes' => env('KINETIX_CONFIDENTIAL_LEGACY_ENVELOPES', true),
+],
+```
+
+With it off, a v1 envelope throws, and a keyed read refuses a
+column-bound envelope, except the one the same model instance sealed before
+it had a key (so a `created` observer can read what was just saved, before
+the row is bound; a value read fresh from the database, a `refresh()`
+included, never qualifies). Keyless reads stay checked against the column only.
+Writing rows quietly afterwards creates new column-bound values, which a
+keyed read then refuses: run `encrypt-existing` after such imports.
+
+`ConfidentialCipher::encrypt()` called by your own code without a
+`ConfidentialContext` still writes a v1 envelope (not bound). Both versions
+require a 12-byte IV and a 16-byte tag.

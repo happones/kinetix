@@ -269,7 +269,7 @@ describe('KinetixChannelLinker', () => {
         vi.useFakeTimers();
         let polls = 0;
         serve({
-            'GET /_kinetix/channels/1/link': () => ({
+            'POST /_kinetix/channels/1/link': () => ({
                 channel: line(),
                 link: {
                     status: 'connecting',
@@ -319,23 +319,22 @@ describe('KinetixChannelLinker', () => {
 
     it('links by pairing code on a phone that cannot scan the screen', async () => {
         serve({
-            'GET /_kinetix/channels/1/link?phone': () => ({
+            // A POST: a phone number asks for a pairing code, none for a QR.
+            'POST /_kinetix/channels/1/link': (body) => ({
                 channel: line(),
-                link: {
-                    status: 'connecting',
-                    qr: null,
-                    pairingCode: 'ABCD1234',
-                    expiresIn: 30,
-                },
-            }),
-            'GET /_kinetix/channels/1/link': () => ({
-                channel: line(),
-                link: {
-                    status: 'connecting',
-                    qr: 'data:image/png;base64,QR',
-                    pairingCode: null,
-                    expiresIn: 30,
-                },
+                link: (body as { phone: string | null }).phone
+                    ? {
+                          status: 'connecting',
+                          qr: null,
+                          pairingCode: 'ABCD1234',
+                          expiresIn: 30,
+                      }
+                    : {
+                          status: 'connecting',
+                          qr: 'data:image/png;base64,QR',
+                          pairingCode: null,
+                          expiresIn: 30,
+                      },
             }),
             'GET /_kinetix/channels/1/status': () => ({ channel: line() }),
         });
@@ -362,9 +361,18 @@ describe('KinetixChannelLinker', () => {
         phone.form?.dispatchEvent(new Event('submit'));
         await flushPromises();
 
-        expect(fetchMock).toHaveBeenCalledWith(
-            '/_kinetix/channels/1/link?phone=%2B52%2055%201234%205678',
-        );
+        // Never in the URL: a state change goes in a POST body.
+        expect(fetchMock).toHaveBeenCalledWith('/_kinetix/channels/1/link', {
+            method: 'POST',
+            body: { phone: '+52 55 1234 5678' },
+        });
+        expect(fetchMock).toHaveBeenCalledWith('/_kinetix/channels/1/link', {
+            method: 'POST',
+            body: { phone: null },
+        });
+        expect(
+            fetchMock.mock.calls.some(([url]) => String(url).includes('?')),
+        ).toBe(false);
         expect(
             document.querySelector('[data-test="channel-pairing-code"]')
                 ?.textContent,
@@ -376,23 +384,21 @@ describe('KinetixChannelLinker', () => {
 describe('KinetixChannelLinker phone', () => {
     it('asks for the number with a country picker and sends it whole', async () => {
         serve({
-            'GET /_kinetix/channels/1/link?phone=': () => ({
+            'POST /_kinetix/channels/1/link': (body) => ({
                 channel: line(),
-                link: {
-                    status: 'connecting',
-                    qr: null,
-                    pairingCode: 'ABCD1234',
-                    expiresIn: 60,
-                },
-            }),
-            'GET /_kinetix/channels/1/link': () => ({
-                channel: line(),
-                link: {
-                    status: 'connecting',
-                    qr: 'data:image/png;base64,QR',
-                    pairingCode: null,
-                    expiresIn: 30,
-                },
+                link: (body as { phone: string | null }).phone
+                    ? {
+                          status: 'connecting',
+                          qr: null,
+                          pairingCode: 'ABCD1234',
+                          expiresIn: 60,
+                      }
+                    : {
+                          status: 'connecting',
+                          qr: 'data:image/png;base64,QR',
+                          pairingCode: null,
+                          expiresIn: 30,
+                      },
             }),
             'GET /_kinetix/channels/1/status': () => ({ channel: line() }),
         });
@@ -433,9 +439,10 @@ describe('KinetixChannelLinker phone', () => {
         phone.form?.dispatchEvent(new Event('submit'));
         await flushPromises();
 
-        expect(fetchMock).toHaveBeenCalledWith(
-            '/_kinetix/channels/1/link?phone=%2B525512345678',
-        );
+        expect(fetchMock).toHaveBeenCalledWith('/_kinetix/channels/1/link', {
+            method: 'POST',
+            body: { phone: '+525512345678' },
+        });
         w.unmount();
     });
 });

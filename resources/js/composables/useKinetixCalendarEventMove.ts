@@ -13,6 +13,10 @@ import {
     formatEventInstant,
     parseAnchorDate,
 } from '@/composables/kinetixCalendarDates';
+import {
+    isKinetixDescriptorExpired,
+    toastKinetixDescriptorExpired,
+} from '@/composables/kinetixDescriptorExpired';
 import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import { useKinetixTouchDrag } from '@/composables/useKinetixTouchDrag';
@@ -215,9 +219,14 @@ export function useKinetixCalendarEventMove(
             router.reload(only?.length ? { only } : {});
 
             return true;
-        } catch {
+        } catch (error) {
             patchEvent(event, null);
-            toast.error(write.failMessage);
+
+            if (isKinetixDescriptorExpired(error)) {
+                toastKinetixDescriptorExpired(t);
+            } else {
+                toast.error(write.failMessage);
+            }
 
             return false;
         }

@@ -2382,3 +2382,54 @@ const handleFormSubmit = (formValues: Record<string, any>) => {
     </div>
 </template>
 ```
+
+## Disabled fields inside repeater rows
+
+`disabled()` / `disabledWhen()` on a field inside a `Repeater` or
+`TableRepeater` row is enforced on the server too (opt out with
+`savedWhenDisabled()`):
+
+- each stored row the form renders carries a server-issued key,
+  `__kinetix_row` (an HMAC over the form, the field, the record, the row's
+  position and its locked values);
+- on submit, a row with a valid key takes its disabled values from the
+  stored row it names, whatever order the rows come back in;
+- a row without a key (added in the browser), with a stale key (the stored
+  row changed meanwhile) or with a key another row already claimed is a NEW
+  row: its disabled sub-fields get their default.
+
+A live hook that sets the rows (`$set('items', …)`) keeps each row's key
+as it came in, so reordering, dropping or inserting rows is safe. A hook
+that REBUILDS rows from scratch must carry `Repeater::ROW_KEY` across:
+
+```php
+$set('items', array_map(
+    fn (array $row): array => ['name' => strtoupper($row['name']), Repeater::ROW_KEY => $row[Repeater::ROW_KEY] ?? null],
+    $get('items') ?? [],
+));
+```
+
+A row the hook creates (or rebuilds without the key) is a new row, and its
+disabled sub-fields get their default; keys are only minted when the form
+is rendered from the stored record.
+
+`getState()` and `Repeater::dehydrate()` strip the key; code that reads
+`$request->input('items')` directly sees it. A repeater without disabled
+sub-fields carries no keys. One level only: a repeater nested inside a row
+is enforced in the browser.
+
+## Removing a write-only value
+
+A write-only field (`writeOnly()`, encrypted settings) that holds its OWN
+stored value and isn't required is flagged `isClearable` next to
+`isWithheld`. The field then shows a "Remove saved value" button
+(`kinetix.form_withheld_clear`) under it, only when `isWithheld &&
+isClearable`. Clicking it submits `Form::CLEAR_SENTINEL`
+(`'__kinetix_clear__'`) and shows "The saved value will be removed when you
+save." with an Undo button; typing cancels it, Undo goes back to blank
+(= keep), and the control never shows the sentinel.
+
+On the server the sentinel clears the field (its state is the field's empty
+value) only when the field is clearable; on any other field (required, an
+inherited secret, a hidden model attribute) it means "unchanged" and is
+never stored.

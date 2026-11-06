@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Data;
 
+use Happones\Kinetix\Activity\ActivityRedactor;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\LaravelData\Data;
@@ -29,7 +30,9 @@ class ActivityData extends Data
 
     /**
      * Normalizes either the native Kinetix Activity model or spatie's Activity
-     * model into one DTO, so the frontend contract is driver-agnostic.
+     * model into one DTO, so the frontend contract is driver-agnostic. The
+     * recorded values pass {@see ActivityRedactor::redactFor()}: whatever
+     * reads activity through here never sees a secret, old rows included.
      */
     public static function fromModel(Model $activity): self
     {
@@ -45,7 +48,9 @@ class ActivityData extends Data
         $causer     = $activity->getAttribute('causer');
         $causerName = $causer instanceof Model ? $causer->getAttribute('name') : null;
 
-        $createdAt = $activity->getAttribute('created_at');
+        $createdAt   = $activity->getAttribute('created_at');
+        $subjectType = $activity->getAttribute('subject_type');
+        $subjectType = is_string($subjectType) ? $subjectType : null;
 
         return new self(
             $activity->getKey(),
@@ -53,11 +58,13 @@ class ActivityData extends Data
             $activity->getAttribute('description'),
             is_string($causerName) ? $causerName : null,
             $activity->getAttribute('causer_id'),
-            $activity->getAttribute('subject_type'),
+            $subjectType,
             $activity->getAttribute('subject_id'),
+            // Redacted on read too: rows written before write-time redaction
+            // still hold hidden, encrypted and confidential values.
             [
-                'old'        => (array) ($properties['old'] ?? []),
-                'attributes' => (array) ($properties['attributes'] ?? []),
+                'old'        => ActivityRedactor::redactFor($subjectType, (array) ($properties['old'] ?? [])),
+                'attributes' => ActivityRedactor::redactFor($subjectType, (array) ($properties['attributes'] ?? [])),
             ],
             $createdAt instanceof \DateTimeInterface ? $createdAt->format(\DateTimeInterface::ATOM) : null,
         );

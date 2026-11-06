@@ -63,8 +63,9 @@ mounts and still polls. See [Notifications → Real-time
 broadcasting](/notifications#real-time-broadcasting-echo).
 
 `useKinetixPresence()` (and `<KinetixOnlineUsers>`) loads Echo the same way,
-the first time a presence channel is joined. The Inbox and Channels modules
-still import Echo directly, which only affects their own pages.
+the first time a presence channel is joined. The Inbox and Channels pages load
+it the same way, and only when a line broadcasts; otherwise they poll, and
+their polls pause while the tab is hidden.
 
 ### Tables and forms
 
@@ -418,6 +419,13 @@ Props that change on their own or carry security state, such as the bell,
 alerts, impersonation, billing and entitlements, are never kept, even when
 listed; `kinetix:doctor` warns about them. Set `'once' => []` to send every
 prop on every visit. On inertia-laravel 2 nothing changes.
+
+### Team switcher
+
+The switcher shares at most `team_switcher.max_teams` teams (20 by default,
+always including the current one) and counts the rest only for users above
+the cap; a search box covers the others. Set `max_teams` to `null` to share
+every team.
 
 ### Index controllers
 

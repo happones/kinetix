@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Spatie\Permission\Models\Role;
@@ -325,7 +326,7 @@ class MembershipController
 
         $validated = $request->validate([
             'name'     => ['required', 'string', 'max:255'],
-            'password' => ['required', 'confirmed', 'min:8'],
+            'password' => ['required', 'string', 'confirmed', Password::defaults()],
         ]);
 
         // Re-check the allow-list at activation time, in case config changed

@@ -295,3 +295,13 @@ The board is fully keyboard-operable — no pointer required:
   assistive-tech users learn the arrow-key affordance on focus.
 - Columns are labelled groups (`role="group"`, name + card count), and failed
   moves surface both as a toast and through its polite live region.
+
+## An expired page
+
+When the page's signed descriptor is refused, the move endpoint adds a
+machine `code` to its JSON (statuses and messages are unchanged):
+`descriptor_expired` (expired, or unreadable after an app key rotation) or
+`descriptor_forbidden` (another user, team or endpoint). On
+`descriptor_expired` the component shows ONE toast (`kinetix.descriptor_expired`)
+with a Reload button (`router.reload()`, which keeps the page's state); any
+other refusal keeps its old message.

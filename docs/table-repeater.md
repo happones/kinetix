@@ -118,3 +118,11 @@ table's) is refused with `403`, even when its payload looks the same.
 
 When the server refuses an autosave (a denied row policy, an expired page),
 the field shows the server's message, and a refused delete puts the row back.
+
+## Disabled columns
+
+In the default (deferred) mode a disabled column is enforced on the server:
+stored rows keep their values through a server-issued `__kinetix_row` key,
+and rows added in the browser get the column's default (see
+[Forms](/forms#disabled-fields-inside-repeater-rows)). An autosave
+TableRepeater leaves disabled columns out of its signed allowlist, as before.

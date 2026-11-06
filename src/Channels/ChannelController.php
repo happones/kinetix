@@ -116,7 +116,11 @@ class ChannelController
         return response()->json(['status' => 'success']);
     }
 
-    /** A fresh QR — or, with `?phone=`, a pairing code — for a line waiting to be linked. */
+    /**
+     * A fresh QR — or, with a `phone` in the JSON body, a pairing code — for
+     * a line waiting to be linked. POST only: it asks the provider for a new
+     * code, a side effect a cross-site GET must not trigger.
+     */
     public function link(Request $request): JsonResponse
     {
         Gate::authorize('channels.manage');

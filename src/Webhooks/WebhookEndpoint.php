@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Webhooks;
 
+use Happones\Kinetix\Support\Casts\EncryptedWithPlaintextFallback;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
@@ -28,11 +29,22 @@ class WebhookEndpoint extends Model
     protected $guarded = [];
 
     /**
+     * The signing secret never leaves the server in a serialized endpoint.
+     *
+     * @var list<string>
+     */
+    protected $hidden = ['secret'];
+
+    /**
+     * The secret is encrypted at rest; one stored before that reads as it
+     * is until `kinetix:webhooks:encrypt-secrets` encrypts it.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
+            'secret' => EncryptedWithPlaintextFallback::class,
             'events' => 'array',
             'active' => 'boolean',
         ];

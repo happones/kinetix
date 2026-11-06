@@ -6,9 +6,11 @@ namespace Happones\Kinetix\Tests\Feature;
 
 use Happones\Kinetix\KinetixServiceProvider;
 use Happones\Kinetix\Permissions\PermissionRegistry;
+use Happones\Kinetix\Support\KinetixThrottle;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Auth\Access\Gate as AccessGate;
 use Illuminate\Broadcasting\BroadcastManager;
+use Illuminate\Cache\RateLimiter;
 use Illuminate\Contracts\Auth\Access\Gate as GateContract;
 use Illuminate\Contracts\Broadcasting\Factory as BroadcastFactory;
 use Illuminate\Events\Dispatcher;
@@ -17,6 +19,7 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter as RateLimiterFacade;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -69,7 +72,7 @@ class RouteCacheBootTest extends TestCase
         $this->assertGreaterThan(100, $uncached['routes']);
         $this->assertSame(0, $cached['routes']);
 
-        foreach (['abilities', 'channels', 'aliases', 'features', 'listeners'] as $part) {
+        foreach (['abilities', 'channels', 'aliases', 'features', 'listeners', 'wildcards', 'limiters'] as $part) {
             $this->assertSame($uncached[$part], $cached[$part], "The cached boot lost {$part}.");
         }
 
@@ -81,6 +84,11 @@ class RouteCacheBootTest extends TestCase
         $this->assertContains('kinetix.shared-props', $cached['aliases']);
         $this->assertContains('kinetix.permissions.team', $cached['aliases']);
         $this->assertContains('kinetix.plan', $cached['aliases']);
+
+        // A cached route naming a missing limiter would answer every request 429.
+        $this->assertSame(array_keys(KinetixThrottle::LIMITERS), $cached['limiters']);
+        $this->assertContains('eloquent.created: *', $cached['wildcards']);
+        $this->assertContains('eloquent.replicating: *', $cached['wildcards']);
     }
 
     /**
@@ -88,7 +96,7 @@ class RouteCacheBootTest extends TestCase
      * dispatcher and permission registry, and take stock of what it
      * registered.
      *
-     * @return array{routes: int, abilities: list<string>, channels: list<string>, aliases: list<string>, features: list<string>, listeners: array<string, int>}
+     * @return array{routes: int, abilities: list<string>, channels: list<string>, aliases: list<string>, features: list<string>, listeners: array<string, int>, wildcards: list<string>, limiters: list<string>}
      */
     private function bootFresh(bool $cached): array
     {
@@ -112,6 +120,10 @@ class RouteCacheBootTest extends TestCase
         Broadcast::clearResolvedInstance(BroadcastFactory::class);
 
         $this->app->forgetInstance(PermissionRegistry::class);
+
+        $limiter = new RateLimiter($this->app->make('cache')->driver());
+        $this->app->instance(RateLimiter::class, $limiter);
+        RateLimiterFacade::clearResolvedInstance(RateLimiter::class);
 
         (new KinetixServiceProvider($this->app))->boot();
 
@@ -142,6 +154,11 @@ class RouteCacheBootTest extends TestCase
             'aliases'   => $aliases,
             'features'  => $features,
             'listeners' => $listeners,
+            'wildcards' => array_keys((array) (new \ReflectionProperty($events, 'wildcards'))->getValue($events)),
+            'limiters'  => array_values(array_filter(
+                array_keys(KinetixThrottle::LIMITERS),
+                static fn (string $name): bool => $limiter->limiter($name) !== null,
+            )),
         ];
     }
 

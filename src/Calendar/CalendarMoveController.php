@@ -120,11 +120,11 @@ class CalendarMoveController
         try {
             $payload = Crypt::decrypt((string) $request->input('model'));
         } catch (Throwable) {
-            return $this->error('kinetix.table_invalid_signature', 400);
+            return $this->error('kinetix.table_invalid_signature', 400, DescriptorRejection::Expired->code());
         }
 
         if (! is_array($payload)) {
-            return $this->error('kinetix.table_invalid_signature', 400);
+            return $this->error('kinetix.table_invalid_signature', 400, DescriptorRejection::Expired->code());
         }
 
         $modelClass  = $payload['model']       ?? null;
@@ -145,7 +145,7 @@ class CalendarMoveController
         if ($rejection !== null) {
             return $this->error($rejection === DescriptorRejection::Expired
                 ? 'kinetix.table_descriptor_expired'
-                : 'kinetix.table_write_forbidden', 403);
+                : 'kinetix.table_write_forbidden', 403, $rejection->code());
         }
 
         // A resizable-only calendar's descriptor can't move events, nor a
@@ -238,8 +238,18 @@ class CalendarMoveController
         return $this->error('kinetix.calendar_invalid_date', 422);
     }
 
-    private function error(string $key, int $status): JsonResponse
+    /**
+     * The JSON error; `$code` is the machine code a descriptor rejection
+     * carries ({@see DescriptorRejection::code()}).
+     */
+    private function error(string $key, int $status, ?string $code = null): JsonResponse
     {
-        return response()->json(['status' => 'error', 'message' => __($key)], $status);
+        $body = ['status' => 'error', 'message' => __($key)];
+
+        if ($code !== null) {
+            $body['code'] = $code;
+        }
+
+        return response()->json($body, $status);
     }
 }

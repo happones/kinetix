@@ -288,3 +288,24 @@ their own provider to the account or change how it signs in.
 Access / refresh tokens are stored **encrypted** and never serialized to the
 client. `index` returns the caller's accounts, the provider catalog (with a
 `linked` flag) and `hasPassword`.
+
+## Rate limit on the password check
+
+Setting or changing the password here shares ONE per-user budget with every other Kinetix
+endpoint that confirms the current password (the confidential unlock,
+deleting the account, logging out other devices, the connected-accounts
+password and the password change): 5 attempts a minute by default, so a
+hijacked session can't guess the password online, not even by rotating
+endpoints. Every attempt counts, the successful ones too.
+
+```php
+// config/kinetix.php
+'password_confirmation' => [
+    'throttle' => '5,1', // "attempts,minutes"; false turns it off
+],
+```
+
+Over the limit the endpoint answers `429` with a translated message:
+`{"message": "Too many attempts. Try again in 42 seconds.", "code": "throttled", "retry_after": 42, "errors": {"password": ["…"]}}`
+plus the `Retry-After` header. An Inertia request (the password change
+screen) is sent back with the message as the `password` field error.

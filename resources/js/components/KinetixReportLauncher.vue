@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
+import { kinetixFailureMessage } from '@/composables/kinetixThrottle';
 import { useKinetixReportTypes } from '@/composables/useKinetixReportTypes';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import type { ReportTypeData } from '@/types/kinetix';
@@ -31,8 +32,10 @@ async function runNow(type: ReportTypeData): Promise<void> {
     try {
         await launch(type.token);
         toast.success(t('kinetix.report_launched'));
-    } catch {
-        toast.error(t('kinetix.report_launch_failed'));
+    } catch (error) {
+        toast.error(
+            kinetixFailureMessage(error, t('kinetix.report_launch_failed')),
+        );
     } finally {
         launching.value = null;
     }

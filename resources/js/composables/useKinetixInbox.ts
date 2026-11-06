@@ -1,11 +1,12 @@
 import { usePage } from '@inertiajs/vue3';
-import { echo, echoIsConfigured } from '@laravel/echo-vue';
 import { computed, onUnmounted, ref } from 'vue';
+import { listenOnKinetixChannel } from '@/composables/kinetixEcho';
 import {
     isKinetixAbort,
     kinetixFetch,
     kinetixRoutePrefix,
 } from '@/composables/useKinetixHttp';
+import { useKinetixPolling } from '@/composables/useKinetixPolling';
 import type {
     KinetixConversation,
     KinetixConversationMessage,
@@ -43,7 +44,8 @@ export interface KinetixInboxDraft {
  * (search, filters, infinite scroll), the open thread (older pages, catching
  * up), optimistic sending with files, replies and notes, per-user reads,
  * assignment and archiving. Updates arrive by broadcast when the lines
- * broadcast and Echo is configured, else by polling.
+ * broadcast and Echo is configured, else by polling. Echo is only downloaded
+ * when the server says a line broadcasts.
  */
 export function useKinetixInbox() {
     const page = usePage<KinetixSharedProps>();
@@ -78,10 +80,26 @@ export function useKinetixInbox() {
     let poll = { list: 15, thread: 5 };
     let listAbort: AbortController | null = null;
     let threadAbort: AbortController | null = null;
-    let listTimer: ReturnType<typeof setInterval> | null = null;
-    let threadTimer: ReturnType<typeof setInterval> | null = null;
     let localCounter = 0;
-    const subscribed: string[] = [];
+    let disposed = false;
+    // Line channel => its release; `pending` holds the ones still loading Echo.
+    const listeners = new Map<string, () => void>();
+    const pending = new Set<string>();
+    // Every broadcasting line is being listened to: no polling needed.
+    const live = ref(false);
+    // A conversation is open, so its thread wants catching up.
+    let threadOpen = false;
+
+    const listPolling = useKinetixPolling(() => refreshList(), {
+        interval: () => poll.list * 1000,
+        pauseWhenHidden: true,
+        immediate: false,
+    });
+    const threadPolling = useKinetixPolling(() => catchUp(), {
+        interval: () => poll.thread * 1000,
+        pauseWhenHidden: true,
+        immediate: false,
+    });
 
     const broadcasting = computed(() =>
         channels.value.some((line) => !!line.broadcast),
@@ -157,7 +175,7 @@ export function useKinetixInbox() {
             composer.value = data.composer;
             flowsEnabled.value = data.flows ?? false;
             poll = data.poll;
-            subscribe();
+            void subscribe();
         } catch (error) {
             if (!isKinetixAbort(error)) {
                 throw error;
@@ -560,58 +578,112 @@ export function useKinetixInbox() {
         }
     }
 
-    function subscribe(): void {
-        if (!echoIsConfigured()) {
+    /**
+     * Listen on every broadcasting line, through the shared Echo loader. A
+     * line the server doesn't flag never loads Echo; without a listener (no
+     * broadcasting, Echo unavailable or not configured) the list polls.
+     */
+    async function subscribe(): Promise<void> {
+        const names = [
+            ...new Set(
+                channels.value
+                    .map((line) => line.broadcast)
+                    .filter((name): name is string => !!name),
+            ),
+        ].filter((name) => !listeners.has(name) && !pending.has(name));
+
+        if (!broadcasting.value) {
+            live.value = false;
             startListPolling();
+            syncThreadPolling();
 
             return;
         }
 
-        channels.value.forEach((line) => {
-            if (line.broadcast && !subscribed.includes(line.broadcast)) {
-                subscribed.push(line.broadcast);
-                echo()
-                    .private(line.broadcast)
-                    .listen('.inbox.updated', onUpdate);
-            }
-        });
+        if (names.length === 0) {
+            return;
+        }
 
-        if (!broadcasting.value) {
+        names.forEach((name) => pending.add(name));
+
+        const results = await Promise.all(
+            names.map(
+                async (name) =>
+                    [
+                        name,
+                        await listenOnKinetixChannel(
+                            name,
+                            '.inbox.updated',
+                            onUpdate,
+                        ),
+                    ] as const,
+            ),
+        );
+
+        let unavailable = false;
+
+        for (const [name, release] of results) {
+            pending.delete(name);
+
+            if (release === null) {
+                unavailable = true;
+            } else if (disposed) {
+                release();
+            } else {
+                listeners.set(name, release);
+            }
+        }
+
+        if (disposed) {
+            return;
+        }
+
+        live.value = !unavailable && listeners.size > 0;
+
+        if (live.value) {
+            listPolling.stop();
+        } else {
             startListPolling();
         }
+
+        syncThreadPolling();
     }
 
     function startListPolling(): void {
-        if (!listTimer && poll.list > 0) {
-            listTimer = setInterval(() => void refreshList(), poll.list * 1000);
+        if (poll.list > 0) {
+            listPolling.start();
+        }
+    }
+
+    /** The open thread polls only while nothing is pushed to it. */
+    function syncThreadPolling(): void {
+        if (threadOpen && !live.value && poll.thread > 0) {
+            threadPolling.start();
+        } else {
+            threadPolling.stop();
         }
     }
 
     function startThreadPolling(): void {
-        stopThreadPolling();
-
-        if ((!broadcasting.value || !echoIsConfigured()) && poll.thread > 0) {
-            threadTimer = setInterval(() => void catchUp(), poll.thread * 1000);
-        }
+        // A newly opened thread restarts the countdown.
+        threadPolling.stop();
+        threadOpen = true;
+        syncThreadPolling();
     }
 
     function stopThreadPolling(): void {
-        if (threadTimer) {
-            clearInterval(threadTimer);
-            threadTimer = null;
-        }
+        threadOpen = false;
+        threadPolling.stop();
     }
 
     onUnmounted(() => {
+        disposed = true;
         listAbort?.abort();
         threadAbort?.abort();
-
-        if (listTimer) {
-            clearInterval(listTimer);
-        }
-
+        listPolling.stop();
         stopThreadPolling();
-        subscribed.forEach((name) => echo().leave(name));
+        listeners.forEach((release) => release());
+        listeners.clear();
     });
 
     return {

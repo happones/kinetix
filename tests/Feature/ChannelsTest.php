@@ -314,7 +314,7 @@ class ChannelsTest extends TestCase
         $user    = $this->manager();
 
         $this->actingAs($user)
-            ->getJson("/_kinetix/channels/{$channel->id}/link?phone=%2B52%2055%201234%205678")
+            ->postJson("/_kinetix/channels/{$channel->id}/link", ['phone' => '+52 55 1234 5678'])
             ->assertOk()
             ->assertJsonPath('link.pairingCode', 'ABCD1234')
             ->assertJsonPath('link.qr', null);
@@ -324,10 +324,46 @@ class ChannelsTest extends TestCase
         $this->evolution->state = 'open';
 
         $this->actingAs($user)
-            ->getJson("/_kinetix/channels/{$channel->id}/link")
+            ->postJson("/_kinetix/channels/{$channel->id}/link")
             ->assertOk()
             ->assertJsonPath('link.status', 'connected')
             ->assertJsonPath('channel.status', 'connected');
+    }
+
+    public function test_a_cross_site_get_cannot_request_a_pairing_code(): void
+    {
+        $channel = $this->line();
+
+        $this->actingAs($this->manager())
+            ->getJson("/_kinetix/channels/{$channel->id}/link?phone=%2B15551234567")
+            ->assertStatus(405);
+
+        $this->assertSame([], $this->evolution->callsTo('connect'));
+    }
+
+    public function test_an_invalid_phone_is_a_422_and_reaches_no_provider(): void
+    {
+        $channel = $this->line();
+
+        $this->actingAs($this->manager())
+            ->postJson("/_kinetix/channels/{$channel->id}/link", ['phone' => 'call me maybe'])
+            ->assertStatus(422);
+
+        $this->assertSame([], $this->evolution->callsTo('connect'));
+    }
+
+    public function test_link_and_test_share_one_throttle(): void
+    {
+        config()->set('kinetix.channels.action_throttle', '2,1');
+        $channel = $this->line();
+        $user    = $this->manager();
+
+        $this->actingAs($user)->postJson("/_kinetix/channels/{$channel->id}/link")->assertOk();
+        $this->actingAs($user)->postJson("/_kinetix/channels/{$channel->id}/link")->assertOk();
+
+        $this->actingAs($user)->postJson("/_kinetix/channels/{$channel->id}/test", ['to' => '+15551234567', 'text' => 'hi'])
+            ->assertStatus(429)
+            ->assertJsonPath('code', 'throttled');
     }
 
     public function test_the_status_the_linker_polls_asks_the_provider_at_most_every_few_seconds(): void

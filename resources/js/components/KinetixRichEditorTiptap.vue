@@ -9,7 +9,9 @@ import {
     Quote,
     Strikethrough,
 } from '@lucide/vue';
+import { ToolbarButton, ToolbarRoot } from 'reka-ui';
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import type { Component } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { loadKinetixTiptap } from '@/composables/useKinetixRichEditorEngine';
 
@@ -19,6 +21,9 @@ import { loadKinetixTiptap } from '@/composables/useKinetixRichEditorEngine';
  * loader in its entry file (its own import, resolved by its own build), and
  * apps that don't register see the install notice — no import shape inside a
  * published component can be optional at build time AND resolvable at runtime.
+ *
+ * The toolbar is the same labelled ARIA toolbar as the basic driver: one tab
+ * stop, arrow-key navigation, and `aria-pressed` on every toggle.
  */
 const props = withDefaults(
     defineProps<{
@@ -109,36 +114,60 @@ const run = (fn: (chain: any) => any) => {
     }
 };
 
-const tools = [
-    { key: 'bold', icon: Bold, run: () => run((c) => c.toggleBold()) },
-    { key: 'italic', icon: Italic, run: () => run((c) => c.toggleItalic()) },
+interface ToolButton {
+    key: string;
+    /** `kinetix.*` key of the button's accessible name. */
+    label: string;
+    icon: Component;
+    run: () => void;
+}
+
+const tools: ToolButton[] = [
+    {
+        key: 'bold',
+        label: 'editor_bold',
+        icon: Bold,
+        run: () => run((c) => c.toggleBold()),
+    },
+    {
+        key: 'italic',
+        label: 'editor_italic',
+        icon: Italic,
+        run: () => run((c) => c.toggleItalic()),
+    },
     {
         key: 'strike',
+        label: 'editor_strike',
         icon: Strikethrough,
         run: () => run((c) => c.toggleStrike()),
     },
     {
         key: 'h1',
+        label: 'editor_heading_1',
         icon: Heading1,
         run: () => run((c) => c.toggleHeading({ level: 1 })),
     },
     {
         key: 'h2',
+        label: 'editor_heading_2',
         icon: Heading2,
         run: () => run((c) => c.toggleHeading({ level: 2 })),
     },
     {
         key: 'bulletList',
+        label: 'editor_bullet_list',
         icon: List,
         run: () => run((c) => c.toggleBulletList()),
     },
     {
         key: 'orderedList',
+        label: 'editor_ordered_list',
         icon: ListOrdered,
         run: () => run((c) => c.toggleOrderedList()),
     },
     {
         key: 'blockquote',
+        label: 'editor_blockquote',
         icon: Quote,
         run: () => run((c) => c.toggleBlockquote()),
     },
@@ -156,25 +185,27 @@ const tools = [
         v-else
         class="shadow-xs overflow-hidden rounded-md border border-input bg-transparent transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 dark:bg-input/30"
     >
-        <div
+        <ToolbarRoot
+            :aria-label="t('kinetix.editor_toolbar')"
+            orientation="horizontal"
+            loop
             class="gap-0.5 p-1 flex flex-wrap items-center border-b border-border bg-muted/40"
         >
-            <button
+            <ToolbarButton
                 v-for="tool in tools"
                 :key="tool.key"
-                type="button"
                 :disabled="disabled"
-                class="size-7 rounded inline-flex items-center justify-center transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none"
-                :class="
-                    active[tool.key]
-                        ? 'bg-accent text-accent-foreground'
-                        : 'text-muted-foreground'
-                "
+                :aria-label="t(`kinetix.${tool.label}`)"
+                :title="t(`kinetix.${tool.label}`)"
+                :aria-pressed="active[tool.key] === true"
+                :data-tool="tool.key"
+                class="size-7 rounded inline-flex items-center justify-center text-muted-foreground transition-[color,background-color,box-shadow] outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none aria-pressed:bg-accent aria-pressed:text-accent-foreground"
+                @mousedown.prevent
                 @click="tool.run()"
             >
-                <component :is="tool.icon" class="size-4" />
-            </button>
-        </div>
+                <component :is="tool.icon" class="size-4" aria-hidden="true" />
+            </ToolbarButton>
+        </ToolbarRoot>
         <div
             ref="element"
             class="kx-tiptap min-h-32 px-3 py-2 text-sm [&_.ProseMirror]:min-h-28 [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:text-lg [&_h2]:font-semibold [&_ul]:pl-5 [&_ol]:pl-5 [&_blockquote]:pl-3 text-foreground [&_.ProseMirror]:outline-none [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:text-muted-foreground [&_ol]:list-decimal [&_ul]:list-disc"

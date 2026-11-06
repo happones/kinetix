@@ -15,8 +15,13 @@ use Illuminate\Http\Request;
  *
  *     public function context(Request $request): array
  *     {
- *         return ['team_id' => $request->user()?->currentTeam?->getKey()];
+ *         return ['team_id' => KinetixTeams::currentTeamKey($request)];
  *     }
+ *
+ * Read the team through `KinetixTeams::currentTeamKey()`, not the user's
+ * stored `currentTeam`: an export started from a team's page runs in THAT
+ * team (the export token carries it), whichever team the user last switched
+ * to.
  *
  * Without it, a queued importer or exporter that infers the tenant
  * (`Team::first()`, an unscoped query) reads or writes another tenant's rows.

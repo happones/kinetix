@@ -41,6 +41,7 @@ class KanbanMoveController
             return response()->json([
                 'status'  => 'error',
                 'message' => __('kinetix.table_invalid_signature'),
+                'code'    => DescriptorRejection::Expired->code(),
             ], 400);
         }
 
@@ -48,6 +49,7 @@ class KanbanMoveController
             return response()->json([
                 'status'  => 'error',
                 'message' => __('kinetix.table_invalid_signature'),
+                'code'    => DescriptorRejection::Expired->code(),
             ], 400);
         }
 
@@ -76,6 +78,7 @@ class KanbanMoveController
                 'message' => $rejection === DescriptorRejection::Expired
                     ? __('kinetix.table_descriptor_expired')
                     : __('kinetix.table_write_forbidden'),
+                'code' => $rejection->code(),
             ], 403);
         }
 

@@ -298,3 +298,11 @@ php artisan kinetix:report-runs:prune {--days=}
 Deletes the generated file + row for completed runs past `expires_at`, and
 the row alone for failed/cancelled runs older than `retention_days`. Add it to
 your scheduler alongside the dispatch command.
+
+## Rate limit
+
+`reports_center.launch_throttle` limits launching, retrying and "run now" (one shared counter) per user, as `"attempts,minutes"` (default
+`'10,1'`); `false` turns it off. Over the limit the endpoint answers
+`429` with `{"message": "<translated>", "code": "throttled", "retry_after": N}`
+and the `Retry-After` header. The limit is read on every request, so it
+also applies to cached routes.

@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Activity\Concerns;
 
+use Happones\Kinetix\Activity\ActivityRedactor;
 use Happones\Kinetix\Activity\KinetixActivity;
-use Happones\Kinetix\Confidential\Casts\ConfidentialCast;
-use Illuminate\Database\Eloquent\Casts\AsEncryptedArrayObject;
-use Illuminate\Database\Eloquent\Casts\AsEncryptedCollection;
 
 /**
  * Add to an Eloquent model to auto-record create/update/delete activity (with an
@@ -79,23 +77,13 @@ trait LogsKinetixActivity
     /**
      * Whether an attribute's value stays out of the log: hidden ones, and the
      * ones stored encrypted (`encrypted*` casts, the encrypted ArrayObject /
-     * Collection casts, ConfidentialCast).
+     * Collection casts, ConfidentialCast). The rule is
+     * {@see ActivityRedactor::redacts()}, the same one the feed applies when
+     * it reads older rows; override this to redact more at write time.
      */
     protected function kinetixActivityRedacts(string $key): bool
     {
-        if (in_array($key, $this->getHidden(), true) || $this->isEncryptedCastable($key) || ConfidentialCast::appliesTo($this, $key)) {
-            return true;
-        }
-
-        $cast = $this->getCasts()[$key] ?? null;
-
-        if (! is_string($cast)) {
-            return false;
-        }
-
-        $class = explode(':', $cast, 2)[0];
-
-        return in_array($class, [AsEncryptedArrayObject::class, AsEncryptedCollection::class], true);
+        return ActivityRedactor::redacts($this, $key);
     }
 
     /**

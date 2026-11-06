@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Mail;
 
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\Auth\CanResetPassword;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -15,7 +17,7 @@ use Illuminate\Validation\Rule;
  */
 class MailTemplateController
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         Gate::authorize('viewKinetixMail');
 
@@ -30,7 +32,13 @@ class MailTemplateController
             ->sortBy('name')
             ->values();
 
-        return response()->json(['templates' => $templates]);
+        return response()->json([
+            'templates' => $templates,
+            'test'      => [
+                'recipients' => $this->testRecipients(),
+                'email'      => $this->actorEmail($request),
+            ],
+        ]);
     }
 
     public function store(Request $request): JsonResponse
@@ -116,16 +124,58 @@ class MailTemplateController
         return response()->json($template->render((array) ($validated['data'] ?? [])));
     }
 
+    /**
+     * Send the template to a test address. With `mail_templates.test_recipients`
+     * = `'self'` (the default) it only goes to the acting user's own address
+     * (`email` may be left out); another address is a 422 and nothing is
+     * sent, so the endpoint can't mail strangers. `'any'` accepts any
+     * address.
+     */
     public function test(Request $request): JsonResponse
     {
         Gate::authorize('viewKinetixMail');
 
         $model = $this->findTemplate($request);
-        $email = (string) $request->validate(['email' => ['required', 'email']])['email'];
+
+        if ($this->testRecipients() === 'any') {
+            $email = (string) $request->validate(['email' => ['required', 'email']])['email'];
+        } else {
+            $email = $this->actorEmail($request);
+            $given = $request->validate(['email' => ['nullable', 'string']])['email'] ?? null;
+
+            if ($email === null || (is_string($given) && $given !== '' && strcasecmp(trim($given), $email) !== 0)) {
+                return response()->json(['message' => __('kinetix.mail_test_self_only')], 422);
+            }
+        }
 
         KinetixMail::test($model->key, $email);
 
         return response()->json(['status' => 'success']);
+    }
+
+    /** @return 'self'|'any' */
+    protected function testRecipients(): string
+    {
+        return config('kinetix.mail_templates.test_recipients', 'self') === 'any' ? 'any' : 'self';
+    }
+
+    /** The acting user's own address, where `'self'` test emails go. */
+    protected function actorEmail(Request $request): ?string
+    {
+        return $this->emailOf($request->user());
+    }
+
+    /** A user's address: the one password resets go to, else its `email`. */
+    protected function emailOf(?Authenticatable $user): ?string
+    {
+        if ($user === null) {
+            return null;
+        }
+
+        $email = $user instanceof CanResetPassword ? $user->getEmailForPasswordReset() : null;
+        $email = $email !== null && $email !== '' ? $email : data_get($user, 'email');
+
+        return is_string($email) && filter_var($email, FILTER_VALIDATE_EMAIL) !== false ? $email : null;
     }
 
     /**

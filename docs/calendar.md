@@ -475,3 +475,13 @@ controllers then flash `KinetixFlash::success(…)` and redirect, exactly like
 
 `week-starts-on`, `locale` (BCP-47, via `Intl.DateTimeFormat`), and all UI
 strings (`calendar_*`) are localized (en/es/fr/pt/zh/ja/ru).
+
+## An expired page
+
+When the page's signed descriptor is refused, the move endpoint adds a
+machine `code` to its JSON (statuses and messages are unchanged):
+`descriptor_expired` (expired, or unreadable after an app key rotation) or
+`descriptor_forbidden` (another user, team or endpoint). On
+`descriptor_expired` the component shows ONE toast (`kinetix.descriptor_expired`)
+with a Reload button (`router.reload()`, which keeps the page's state); any
+other refusal keeps its old message.

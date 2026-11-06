@@ -12,6 +12,7 @@ use Happones\Kinetix\Help\HelpManager;
 use Happones\Kinetix\NotificationPreferences\NotificationPreference;
 use Happones\Kinetix\Permissions\PermissionTeam;
 use Happones\Kinetix\Settings\SettingsManager;
+use Happones\Kinetix\Support\Casts\EncryptedWithPlaintextFallback;
 use Spatie\Permission\PermissionRegistrar;
 
 /**
@@ -69,6 +70,10 @@ final class KinetixStateReset
         PasswordObserver::flush();
         PasswordHistory::flush();
         NotificationPreference::flushOwnerTypeColumn();
+
+        // Whether the webhook secret column fits a ciphertext: a migration
+        // between jobs or Octane requests must be seen.
+        EncryptedWithPlaintextFallback::flush();
 
         BootWarnings::flush();
 

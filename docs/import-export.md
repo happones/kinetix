@@ -1321,3 +1321,31 @@ worker. For the user to see them you need:
 
 With both flags off, completion notifications are persisted but never surfaced.
 :::
+
+## Rate limit
+
+`exports.start_throttle` limits starting an export per user, as `"attempts,minutes"` (default
+`'10,1'`); `false` turns it off. Over the limit the endpoint answers
+`429` with `{"message": "<translated>", "code": "throttled", "retry_after": N}`
+and the `Retry-After` header. The limit is read on every request, so it
+also applies to cached routes.
+
+## Exports run in the team they were started from
+
+The export endpoint is not team-prefixed, so the exporter token carries the
+team the export button was rendered in. Starting an export binds the
+request to that team: the user's membership in it is checked (a team they
+left answers `403`), `authorize()` and the relation scope are judged in it
+(spatie's team id is pinned for the check and restored after), and the
+notification team and `context()` are captured from it. A token minted
+with no team context uses the user's stored team, as before.
+
+Read the team in `context()` through `KinetixTeams::currentTeamKey($request)`,
+never through `$request->user()->currentTeam`:
+
+```php
+public function context(Request $request): array
+{
+    return ['team_id' => KinetixTeams::currentTeamKey($request)];
+}
+```

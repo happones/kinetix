@@ -75,3 +75,16 @@ KinetixGdpr::deleteUsing(fn ($user) => $user->forceDelete());
 confirmation dialog (password field when required); on success logs out and
 `router.visit(redirect)`. `useKinetixGdpr()` → `{ exporting, deleting,
 exportData, deleteAccount(password?) }`. i18n `gdpr_*` (en/es/fr/pt).
+
+## Rate limit (password confirmation)
+
+The password check shares ONE per-user budget (`password_confirmation.throttle`,
+default `'5,1'`, `false` = off) with every Kinetix endpoint that confirms the
+current password. Over it: `429` `{message, code: "throttled", retry_after,
+errors.password}`; an Inertia request goes back with a `password` error.
+Every attempt counts.
+
+## Rate limit
+
+`gdpr.export_throttle` (default `'3,60'`, `false` = off) limits data export requests per user. Over
+it: `429` `{message, code: "throttled", retry_after}` + `Retry-After`.

@@ -10,6 +10,7 @@ import {
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
+import { kinetixFailureMessage } from '@/composables/kinetixThrottle';
 import { useKinetixGdpr } from '@/composables/useKinetixGdpr';
 import {
     buttonVariants,
@@ -42,8 +43,10 @@ async function onExport(): Promise<void> {
     try {
         await exportData();
         toast.success(t('kinetix.gdpr_export_queued'));
-    } catch {
-        toast.error(t('kinetix.gdpr_export_failed'));
+    } catch (error) {
+        toast.error(
+            kinetixFailureMessage(error, t('kinetix.gdpr_export_failed')),
+        );
     }
 }
 

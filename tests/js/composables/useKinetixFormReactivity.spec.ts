@@ -8,7 +8,15 @@ vi.mock('@/composables/useKinetixHttp', () => ({
     isKinetixAbort: (e: unknown) =>
         e instanceof Error && e.name === 'AbortError',
 }));
-vi.mock('@inertiajs/vue3', () => ({ usePage: () => ({ props: {} }) }));
+const reloadMock = vi.fn();
+vi.mock('@inertiajs/vue3', () => ({
+    usePage: () => ({ props: {} }),
+    router: { reload: (...args: unknown[]) => reloadMock(...args) },
+}));
+const toastError = vi.fn();
+vi.mock('vue-sonner', () => ({
+    toast: { error: (...args: unknown[]) => toastError(...args) },
+}));
 
 import {
     applyFormChanges,
@@ -264,6 +272,90 @@ describe('useKinetixFormReactivity', () => {
         await flush();
         await frame();
         expect(document.activeElement).toBe(country);
+    });
+});
+
+describe('useKinetixFormReactivity on an expired descriptor', () => {
+    beforeEach(() => {
+        fetchMock.mockReset();
+        toastError.mockReset();
+    });
+
+    const expired = () =>
+        Object.assign(new Error('Form session expired.'), {
+            status: 403,
+            code: 'descriptor_expired',
+        });
+
+    it('toasts once, stops posting the dead descriptor and resumes with a new one', async () => {
+        fetchMock.mockRejectedValueOnce(expired());
+        let descriptor = 'old-token';
+
+        const { onFieldChange, expired: isExpired } = useKinetixFormReactivity({
+            descriptor: () => descriptor,
+            getValues: () => ({ country: 'fr' }),
+            onSchema: () => {},
+            onChanges: () => {},
+            debounce: 0,
+        });
+
+        onFieldChange(true, 'country');
+        await flush();
+        await flush();
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(toastError).toHaveBeenCalledTimes(1);
+        expect(toastError.mock.calls[0][0]).toBe('kinetix.descriptor_expired');
+        expect(toastError.mock.calls[0][1].id).toBe(
+            'kinetix-descriptor-expired',
+        );
+        expect(isExpired.value).toBe(true);
+
+        // A later change does not re-post the dead descriptor.
+        onFieldChange(true, 'country');
+        await flush();
+        await flush();
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+
+        // The reload brings a fresh descriptor: recomputes are back, and the
+        // fields of the rejected request are not replayed.
+        descriptor = 'new-token';
+        fetchMock.mockResolvedValueOnce({ schema: [], changes: {} });
+        onFieldChange(true, 'state');
+        await flush();
+        await flush();
+
+        expect(isExpired.value).toBe(false);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        const [, opts] = fetchMock.mock.calls[1] as [string, any];
+        expect(opts.body.descriptor).toBe('new-token');
+        expect(opts.body.changed).toEqual(['state']);
+    });
+
+    it('requeues fields after any other failure (unchanged)', async () => {
+        fetchMock.mockRejectedValueOnce(
+            Object.assign(new Error('boom'), { status: 500 }),
+        );
+
+        const { onFieldChange } = useKinetixFormReactivity({
+            descriptor: () => 'token',
+            getValues: () => ({}),
+            onSchema: () => {},
+            onChanges: () => {},
+            debounce: 0,
+        });
+
+        onFieldChange(true, 'a');
+        await flush();
+        await flush();
+        fetchMock.mockResolvedValueOnce({ schema: [], changes: {} });
+        onFieldChange(true, 'b');
+        await flush();
+        await flush();
+
+        expect(toastError).not.toHaveBeenCalled();
+        const [, opts] = fetchMock.mock.calls[1] as [string, any];
+        expect(opts.body.changed).toEqual(['a', 'b']);
     });
 });
 

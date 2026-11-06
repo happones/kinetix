@@ -4,6 +4,10 @@ import { usePage } from '@inertiajs/vue3';
 import { nextTick, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
+import {
+    isKinetixDescriptorExpired,
+    toastKinetixDescriptorExpired,
+} from '@/composables/kinetixDescriptorExpired';
 import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import { useKinetixTouchDrag } from '@/composables/useKinetixTouchDrag';
@@ -205,10 +209,15 @@ async function moveCard(
         );
 
         return true;
-    } catch {
+    } catch (error) {
         fromCol.cards = previousFrom;
         toCol.cards = previousTo;
-        toast.error(t('kinetix.kanban_move_failed'));
+
+        if (isKinetixDescriptorExpired(error)) {
+            toastKinetixDescriptorExpired(t);
+        } else {
+            toast.error(t('kinetix.kanban_move_failed'));
+        }
 
         return false;
     }

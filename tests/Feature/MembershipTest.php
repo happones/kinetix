@@ -19,6 +19,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Validation\Rules\Password;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionServiceProvider;
@@ -173,6 +174,32 @@ class MembershipTest extends TestCase
             'user_id' => $user->id,
             'name'    => 'Jane Doe',
         ]);
+    }
+
+    public function test_activation_follows_the_apps_password_rules(): void
+    {
+        Password::defaults(fn () => Password::min(12)->mixedCase());
+
+        try {
+            $provision = MemberProvision::create([
+                'email'      => 'weak@example.com',
+                'role'       => 'editor',
+                'status'     => MemberProvisionStatus::Pending,
+                'expires_at' => now()->addDay(),
+            ]);
+
+            $url = URL::temporarySignedRoute('kinetix.membership.activate.show', now()->addDay(), ['provision' => $provision->id]);
+
+            $this->post($url, [
+                'name'                  => 'Weak',
+                'password'              => 'abcdefgh',
+                'password_confirmation' => 'abcdefgh',
+            ])->assertSessionHasErrors('password');
+
+            $this->assertNull(MemberUser::where('email', 'weak@example.com')->first());
+        } finally {
+            Password::$defaultCallback = null;
+        }
     }
 
     /**

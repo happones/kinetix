@@ -33,7 +33,7 @@ class FormRecomputeController
         $payload = SignedDescriptor::open((string) $request->input('descriptor'));
 
         if ($payload === null) {
-            return response()->json(['message' => __('kinetix.form_session_expired')], 400);
+            return response()->json(['message' => __('kinetix.form_session_expired'), 'code' => DescriptorRejection::Expired->code()], 400);
         }
 
         $rejection = SignedDescriptor::rejection($payload, $request, DescriptorAudience::FormRecompute);
@@ -43,6 +43,7 @@ class FormRecomputeController
                 'message' => $rejection === DescriptorRejection::Expired
                     ? __('kinetix.form_session_expired')
                     : __('kinetix.table_write_forbidden'),
+                'code' => $rejection->code(),
             ], 403);
         }
 
@@ -124,7 +125,7 @@ class FormRecomputeController
             return $resource::form(Form::make($record)->operation($operation))->reactiveVia($resource);
         }
 
-        return response()->json(['message' => __('kinetix.form_session_expired')], 400);
+        return response()->json(['message' => __('kinetix.form_session_expired'), 'code' => DescriptorRejection::Expired->code()], 400);
     }
 
     /**

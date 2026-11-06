@@ -242,3 +242,26 @@ before every delivery**. Two driver-specific differences to know:
 Kinetix logs spatie's per-attempt outcomes by listening to its
 `WebhookCallSucceeded`/`WebhookCallFailed` events (correlated by a `meta` tag), so
 your dashboard stays consistent across drivers.
+
+## Secrets at rest
+
+Endpoint signing secrets are encrypted with the app key
+(`WebhookEndpoint::$secret` reads the plaintext; it is `$hidden`). Existing
+installs upgrade without breaking:
+
+1. Without migrating, plaintext secrets keep reading and signing, and new
+   ones stay plaintext (the original `varchar(255)` can't hold a
+   ciphertext). `kinetix:doctor` says what to do.
+2. Publish and run the migration that widens the column:
+   `php artisan vendor:publish --tag=kinetix-webhooks-migrations && php artisan migrate`.
+   New and rotated secrets are then encrypted. Kinetix re-checks the column
+   at the start of every queued job and Octane request; restart your
+   long-lived workers after migrating anyway (`php artisan queue:restart`,
+   `php artisan octane:reload`), so no process keeps an older answer.
+3. Encrypt the existing ones once: `php artisan kinetix:webhooks:encrypt-secrets`
+   (idempotent).
+
+Signatures are identical throughout. Code that reads the column raw (SQL,
+`getRawOriginal()`) sees the ciphertext afterwards. A secret encrypted under
+another `APP_KEY` fails to decrypt: keep the old key in `APP_PREVIOUS_KEYS`
+when rotating, or rotate those endpoints' secrets; the doctor lists them.

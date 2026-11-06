@@ -8,6 +8,7 @@ import {
 } from '@/composables/kinetixFieldConstraints';
 import type { Requirement } from '@/composables/kinetixFieldConstraints';
 import { kinetixComponentOf } from '@/composables/kinetixLazy';
+import { isKinetixClearValue } from '@/composables/kinetixWriteOnly';
 import { useKinetixFieldConditions } from '@/composables/useKinetixFieldConditions';
 import { useKinetixRepeater } from '@/composables/useKinetixRepeaterField';
 import './kinetix-grid.css';
@@ -134,6 +135,10 @@ const touch = (name: string): void => {
     }
 };
 
+/** A field's value as its rules see it: a pending clear is blank. */
+const ownValue = (name: string): unknown =>
+    isKinetixClearValue(props.values[name]) ? '' : props.values[name];
+
 /**
  * The errors this level shows: the server's (and Precognition's) first, then
  * what the field's own rules say about a value it has left.
@@ -150,7 +155,7 @@ const shownErrors = computed<Record<string, string>>(() => {
 
         const violation = requirementViolation(
             requirementsOf(comp),
-            props.values[name],
+            ownValue(name),
             props.values,
             t,
         );
@@ -477,7 +482,7 @@ const renderSchema = computed(() =>
                 :name="comp.name"
                 :constraints="comp.constraints"
                 :requirements="requirementsOf(comp)"
-                :value="values[comp.name]"
+                :value="ownValue(comp.name)"
                 :values="values"
                 :has-error="!!shownErrors[comp.name]"
                 :listed-by-input="listedByInput(comp)"

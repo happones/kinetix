@@ -62,3 +62,8 @@ models, so observers fire. The relation resolves only via
 `table-repeater` field type. Cells reuse `KinetixFormSchema`, so all field types
 render. `useKinetixTableRepeater()` → `{ create, update, remove }` backs autosave.
 i18n: `add_item`, `remove`, `export`, `table_repeater_empty`.
+
+## Disabled columns
+
+Deferred mode enforces disabled columns on the server via `__kinetix_row`
+row keys (new rows get defaults). Autosave keeps its allowlist.

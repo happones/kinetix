@@ -152,5 +152,9 @@ class FormFieldData extends Data
         // write-only field, a hidden or confidential attribute): the field
         // renders empty, and leaving it blank keeps the stored value.
         public bool $isWithheld = false,
+        // The withheld value may be removed: submitting the field as
+        // `Form::CLEAR_SENTINEL` clears it (a write-only field with its own
+        // stored value that is not required).
+        public bool $isClearable = false,
     ) {}
 }

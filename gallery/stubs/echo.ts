@@ -1,9 +1,9 @@
 /**
  * Minimal @laravel/echo-vue stub for the screenshot gallery. Presence
  * immediately reports a fixed set of online members so <KinetixOnlineUsers>
- * renders a populated facepile without a real WebSocket server. The Kinetix
- * hosts reach it through a dynamic import (composables/kinetixEcho.ts), the
- * inbox and channel linker through static ones.
+ * renders a populated facepile without a real WebSocket server. Every Kinetix
+ * caller (layout hosts, inbox, channel linker) reaches it through the dynamic
+ * import in composables/kinetixEcho.ts.
  */
 const members = [
     { id: 1, name: 'Ada Lovelace', avatar: null },

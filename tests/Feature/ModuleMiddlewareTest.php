@@ -50,7 +50,7 @@ class ModuleMiddlewareTest extends TestCase
         'wizards', 'gdpr', 'accessibility', 'connected_accounts', 'sessions', 'comments', 'tags',
         'notification_preferences', 'saved_views', 'announcements', 'queue', 'mail_templates', 'health',
         'reports_center', 'confidential', 'dismissals', 'notifications', 'tables', 'forms', 'uploads',
-        'imports', 'exports',
+        'imports', 'exports', 'team_switcher',
     ];
 
     /**

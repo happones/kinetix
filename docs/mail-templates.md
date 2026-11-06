@@ -185,3 +185,36 @@ all gated by `viewKinetixMail`. Another team's template is a `404`:
 | `DELETE` | `{prefix}/mail-templates/{id}`     | Delete |
 | `POST`   | `{prefix}/mail-templates/preview`  | Render unsaved content (live preview) |
 | `POST`   | `{prefix}/mail-templates/{id}/test`| Send a test |
+
+## Test emails
+
+By default a test email only goes to the acting user's own address
+(`getEmailForPasswordReset()`, else `email`): the `email` field may be left
+out, and another address answers `422` with `kinetix.mail_test_self_only`
+and sends nothing, so the endpoint can't be used to mail strangers. Allow
+any address with:
+
+```php
+'mail_templates' => [
+    'test_recipients' => 'any', // 'self' (default) | 'any'
+    'test_throttle'   => '5,1', // "attempts,minutes"; false turns it off
+],
+```
+
+The index carries where test emails go, next to the templates:
+
+```json
+{"templates": [...], "test": {"recipients": "self", "email": "ada@example.com"}}
+```
+
+In `self` mode the component prefills the address from `test.email`, shows
+it read-only with the `kinetix.mail_test_self_hint` line, and confirms a
+send with `kinetix.mail_test_sent`.
+
+## Rate limit
+
+`mail_templates.test_throttle` limits sending test emails per user, as `"attempts,minutes"` (default
+`'5,1'`); `false` turns it off. Over the limit the endpoint answers
+`429` with `{"message": "<translated>", "code": "throttled", "retry_after": N}`
+and the `Retry-After` header. The limit is read on every request, so it
+also applies to cached routes.

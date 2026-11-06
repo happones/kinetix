@@ -1,6 +1,6 @@
 import { usePage } from '@inertiajs/vue3';
-import { echo, echoIsConfigured } from '@laravel/echo-vue';
 import { onUnmounted, ref } from 'vue';
+import { listenOnKinetixChannel } from '@/composables/kinetixEcho';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import type {
     KinetixChannel,
@@ -118,14 +118,17 @@ export function useKinetixChannels() {
         channels.value = channels.value.filter((c) => c.id !== channel.id);
     }
 
-    /** A fresh QR — or, with a phone number, a pairing code. */
+    /**
+     * A fresh QR — or, with a phone number, a pairing code. A POST: asking
+     * the provider for a code changes the line's state.
+     */
     async function link(
         channel: KinetixChannel,
         phone?: string | null,
     ): Promise<KinetixChannelLink | null> {
-        const query = phone ? `?phone=${encodeURIComponent(phone)}` : '';
         const data = await kinetixFetch<LinkResponse>(
-            `${base()}/${channel.id}/link${query}`,
+            `${base()}/${channel.id}/link`,
+            { method: 'POST', body: { phone: phone || null } },
         );
 
         if (data?.channel) {
@@ -202,20 +205,26 @@ export function useKinetixChannels() {
     }
 
     let listening: string | null = null;
+    let release: (() => void) | null = null;
+    let disposed = false;
 
     /**
      * Receive status and QR changes as they happen, when broadcasting is on
      * and Echo is configured; a no-op otherwise (the linker polls anyway).
+     * Echo is only downloaded when the server says the lines broadcast.
      */
     function listen(onUpdate: (update: KinetixChannelUpdate) => void): void {
-        if (!broadcast.value || listening || !echoIsConfigured()) {
+        if (!broadcast.value || listening) {
             return;
         }
 
-        listening = broadcast.value;
-        echo()
-            .private(listening)
-            .listen('.channel.updated', (update: KinetixChannelUpdate) => {
+        const name = broadcast.value;
+        listening = name;
+
+        void listenOnKinetixChannel<KinetixChannelUpdate>(
+            name,
+            '.channel.updated',
+            (update) => {
                 const current = channels.value.find((c) => c.id === update.id);
 
                 if (current) {
@@ -227,14 +236,24 @@ export function useKinetixChannels() {
                 }
 
                 onUpdate(update);
-            });
+            },
+        ).then((stop) => {
+            if (stop === null) {
+                // No Echo: a later listen() may try again.
+                listening = null;
+            } else if (disposed) {
+                stop();
+            } else {
+                release = stop;
+            }
+        });
     }
 
     onUnmounted(() => {
-        if (listening) {
-            echo().leave(listening);
-            listening = null;
-        }
+        disposed = true;
+        release?.();
+        release = null;
+        listening = null;
     });
 
     return {

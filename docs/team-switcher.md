@@ -342,12 +342,70 @@ there is no wildcard DNS.
   teams: { id, name, url: string | null, current: boolean }[],
   current: { id, name } | null,
   createUrl: string | null,
+  total?: number,            // how many teams the user belongs to
+  truncated?: boolean,       // `teams` holds fewer than `total`
+  searchUrl?: string | null, // set only when truncated
 }
 ```
 
 `url` is `null` when the configured switch route doesn't exist, so the switcher
 degrades gracefully. The payload is empty (`enabled: false`) for guests or when
 the feature is off.
+
+### Long team lists
+
+An agency or support user can belong to hundreds of teams. Shipping all of
+them on every navigation costs about 190 bytes per team, so the shared list is
+capped:
+
+```php
+'team_switcher' => [
+    // How many teams the prop carries. null = all of them.
+    'max_teams' => 20,
+
+    // The column the search matches. null = `name_attribute`, which then
+    // has to be a real column (not an accessor).
+    'search_column' => null,
+
+    // Searches per user: 'attempts,minutes'. false turns the limit off.
+    'search_throttle' => '60,1',
+],
+```
+
+- The current team is always in the list, even when it falls beyond the cut.
+- When the list is cut, `truncated` is `true`, `total` says how many teams the
+  user has, and `searchUrl` points at the search endpoint.
+- Set `max_teams` to `null` to share every team, as before.
+
+When the list is truncated, `<KinetixTeamSwitcher>` opens on a search box:
+
+- Typing searches the user's **own** teams (`GET {prefix}/team-switcher/teams?q=…`,
+  route `kinetix.team-switcher.search`). Requests are debounced, and a newer
+  query cancels the one in flight.
+- The results replace the list; clearing the box brings the shared list back.
+- The number of results is announced to screen readers, and the menu says
+  "Showing 20 of 48 teams" under the list.
+- Arrow Down moves from the box into the list, and Arrow Up on the first team
+  goes back to the box. Typed keys never trigger the menu's type-ahead.
+
+Without truncation the menu is exactly the plain list.
+
+The endpoint answers `{ teams: KinetixTeamOption[], truncated: boolean }` with
+the same team shape as the prop (`current` is always `false`: compare ids with
+`kinetix_teams.current.id`). It never returns a team the user isn't a member
+of, sends `Cache-Control: no-store`, and answers 429 when the user searches too
+fast. A custom switcher can call it through `useKinetixTeamSearch()`:
+
+```ts
+import { useKinetixTeams, useKinetixTeamSearch } from '@/composables/useKinetixTeams'
+
+const { current, searchUrl } = useKinetixTeams()
+const { query, results, moreResults, error } = useKinetixTeamSearch({
+    url: () => searchUrl.value,
+    currentId: () => current.value?.id,
+})
+// Bind `query` to an input; `results` is null while the box is empty.
+```
 
 ### Keeping the list between visits
 

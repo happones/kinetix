@@ -120,6 +120,47 @@ describe('KinetixTableRepeater', () => {
         expect(last[0].name).toBe('B');
     });
 
+    it("keeps each row's server key through edits and removals, never on a new row", async () => {
+        const rows = [
+            { name: 'A', qty: 2, __kinetix_row: '0.AAAA' },
+            { name: 'B', qty: 3, __kinetix_row: '1.BBBB' },
+        ];
+        const w = mount(KinetixTableRepeater, {
+            props: {
+                comp: baseComp,
+                modelValue: rows,
+                errors: {},
+                'onUpdate:modelValue': (value: any[]) =>
+                    w.setProps({ modelValue: value }),
+            },
+            global: { plugins: [i18n] },
+        });
+        const latest = () =>
+            w.emitted('update:modelValue')!.at(-1)![0] as any[];
+
+        // Two cells per row (name, qty): the third is row 1's name.
+        const cell = w.findAll('input.cell')[2];
+        (cell.element as HTMLInputElement).value = 'B2';
+        await cell.trigger('input');
+        expect(latest()[1]).toMatchObject({
+            name: 'B2',
+            __kinetix_row: '1.BBBB',
+        });
+
+        await w
+            .findAll('button')
+            .find((b) => b.text().includes('Add item'))!
+            .trigger('click');
+        expect(latest()).toHaveLength(3);
+        expect('__kinetix_row' in latest()[2]).toBe(false);
+
+        await w.find('tbody tr [aria-label="Remove"]').trigger('click');
+        expect(latest().map((r) => r.__kinetix_row)).toEqual([
+            '1.BBBB',
+            undefined,
+        ]);
+    });
+
     it('computes a column summary (sum)', () => {
         const w = mountIt(baseComp, [
             { name: 'A', qty: 2 },

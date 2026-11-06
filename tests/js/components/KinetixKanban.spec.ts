@@ -2,16 +2,23 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import { createI18n } from 'vue-i18n';
 
+const reloadMock = vi.fn();
 vi.mock('@inertiajs/vue3', () => ({
     usePage: () => ({ props: {} }),
-    router: { reload: vi.fn() },
+    router: { reload: (...args: unknown[]) => reloadMock(...args) },
 }));
 const fetchMock = vi.fn().mockResolvedValue({ status: 'success' });
 vi.mock('@/composables/useKinetixHttp', () => ({
     kinetixFetch: (...args: unknown[]) => fetchMock(...args),
     kinetixRoutePrefix: () => '_kinetix',
 }));
-vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+const toastError = vi.fn();
+vi.mock('vue-sonner', () => ({
+    toast: {
+        success: vi.fn(),
+        error: (...args: unknown[]) => toastError(...args),
+    },
+}));
 
 import KinetixKanban from '@/components/KinetixKanban.vue';
 
@@ -451,6 +458,42 @@ describe('KinetixKanban reorderable boards', () => {
         expect(titles(w, 'todo')).toEqual(['Card A', 'Card C']);
         expect(titles(w, 'doing')).toEqual(['Card X', 'Card Y']);
         w.unmount();
+    });
+
+    it('an expired descriptor shows the reload toast, other refusals the move-failed one', async () => {
+        const refuse = async (code: string): Promise<void> => {
+            fetchMock.mockClear();
+            fetchMock.mockRejectedValueOnce(
+                Object.assign(new Error('refused'), { status: 403, code }),
+            );
+            const w = mountIt();
+            await w.findAll('article')[0].trigger('keydown', {
+                key: 'ArrowRight',
+            });
+            await Promise.resolve();
+            await Promise.resolve();
+            w.unmount();
+        };
+
+        toastError.mockClear();
+        reloadMock.mockClear();
+        await refuse('descriptor_expired');
+
+        expect(toastError).toHaveBeenCalledTimes(1);
+        const [message, options] = toastError.mock.calls[0] as [
+            string,
+            { id: string; action: { label: string; onClick: () => void } },
+        ];
+        expect(message).toBe('kinetix.descriptor_expired');
+        expect(options.id).toBe('kinetix-descriptor-expired');
+        expect(options.action.label).toBe('kinetix.reload_page');
+        expect(reloadMock).not.toHaveBeenCalled();
+        options.action.onClick();
+        expect(reloadMock).toHaveBeenCalledTimes(1);
+
+        toastError.mockClear();
+        await refuse('descriptor_forbidden');
+        expect(toastError).toHaveBeenCalledWith('kinetix.kanban_move_failed');
     });
 
     it('a plain board appends, sends no order and ignores the up and down keys', async () => {

@@ -1,8 +1,11 @@
 import { router, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, getCurrentScope, onScopeDispose, ref, watch } from 'vue';
+import type { Ref } from 'vue';
+import { isKinetixAbort, kinetixFetch } from '@/composables/useKinetixHttp';
 import type {
     KinetixSharedProps,
     KinetixTeamOption,
+    KinetixTeamSearchResult,
     KinetixTeamsState,
 } from '@/types/kinetix';
 
@@ -32,6 +35,16 @@ export function useKinetixTeams() {
     const createUrl = computed(() => state.value?.createUrl ?? null);
     /** The switcher's words in the app's terms (`team_switcher.labels`). */
     const labels = computed(() => state.value?.labels ?? null);
+    /** `teams` is capped (`team_switcher.max_teams`): search finds the rest. */
+    const truncated = computed<boolean>(() => state.value?.truncated === true);
+    /** How many teams the user belongs to (`teams.length` when not shared). */
+    const total = computed<number>(
+        () => state.value?.total ?? teams.value.length,
+    );
+    /** The team search endpoint; set only while the list is truncated. */
+    const searchUrl = computed<string | null>(() =>
+        truncated.value ? (state.value?.searchUrl ?? null) : null,
+    );
 
     /**
      * The active team's route key — the `{current_team}` segment the server
@@ -122,9 +135,146 @@ export function useKinetixTeams() {
         currentTeamKey,
         createUrl,
         labels,
+        truncated,
+        total,
+        searchUrl,
         teamUrl,
         switchTeam,
     };
+}
+
+export interface UseKinetixTeamSearchOptions {
+    /** The search endpoint (`kinetix_teams.searchUrl`); null turns search off. */
+    url: () => string | null | undefined;
+    /** The current team's id: results mark it `current` (the server never does). */
+    currentId: () => number | string | null | undefined;
+    /** ms of quiet typing before a request. Default 250. */
+    debounce?: number;
+    /** Called with the result count after every completed search. */
+    onResults?: (count: number) => void;
+    /** Called with the server's message when a search fails. */
+    onError?: (message: string) => void;
+}
+
+export interface UseKinetixTeamSearch {
+    query: Ref<string>;
+    /** The matches for `query`, or null while there is no query. */
+    results: Ref<KinetixTeamOption[] | null>;
+    /** More teams match than the endpoint returned. */
+    moreResults: Ref<boolean>;
+    searching: Ref<boolean>;
+    /** The server's message when a search failed (e.g. throttled). */
+    error: Ref<string | null>;
+    reset(): void;
+}
+
+/**
+ * Search the user's own teams when the shared list is truncated. Debounced;
+ * a new query aborts the request in flight, so a slow answer for an older
+ * query never replaces a newer one.
+ */
+export function useKinetixTeamSearch(
+    options: UseKinetixTeamSearchOptions,
+): UseKinetixTeamSearch {
+    const query = ref('');
+    const results = ref<KinetixTeamOption[] | null>(null);
+    const moreResults = ref(false);
+    const searching = ref(false);
+    const error = ref<string | null>(null);
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let controller: AbortController | null = null;
+
+    function cancel(): void {
+        if (timer !== null) {
+            clearTimeout(timer);
+            timer = null;
+        }
+
+        controller?.abort();
+        controller = null;
+    }
+
+    async function run(term: string): Promise<void> {
+        const url = options.url();
+
+        if (!url) {
+            return;
+        }
+
+        controller?.abort();
+        const mine = new AbortController();
+        controller = mine;
+        searching.value = true;
+
+        try {
+            const data = await kinetixFetch<KinetixTeamSearchResult>(
+                `${url}${url.includes('?') ? '&' : '?'}q=${encodeURIComponent(term)}`,
+                { signal: mine.signal },
+            );
+            const currentId = options.currentId();
+
+            results.value = (data?.teams ?? []).map((team) => ({
+                ...team,
+                current: currentId != null && team.id === currentId,
+            }));
+            moreResults.value = data?.truncated === true;
+            error.value = null;
+            options.onResults?.(results.value.length);
+        } catch (e) {
+            if (isKinetixAbort(e)) {
+                return;
+            }
+
+            results.value = [];
+            moreResults.value = false;
+            error.value = e instanceof Error && e.message ? e.message : null;
+
+            if (error.value !== null) {
+                options.onError?.(error.value);
+            }
+        } finally {
+            if (controller === mine) {
+                controller = null;
+                searching.value = false;
+            }
+        }
+    }
+
+    watch(query, (value) => {
+        cancel();
+
+        const term = value.trim();
+
+        if (term === '') {
+            results.value = null;
+            moreResults.value = false;
+            error.value = null;
+            searching.value = false;
+
+            return;
+        }
+
+        timer = setTimeout(() => {
+            timer = null;
+            void run(term.slice(0, 100));
+        }, options.debounce ?? 250);
+    });
+
+    function reset(): void {
+        cancel();
+        query.value = '';
+        results.value = null;
+        moreResults.value = false;
+        error.value = null;
+        searching.value = false;
+    }
+
+    if (getCurrentScope()) {
+        onScopeDispose(cancel);
+    }
+
+    return { query, results, moreResults, searching, error, reset };
 }
 
 /**

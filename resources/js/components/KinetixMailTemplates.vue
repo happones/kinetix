@@ -2,19 +2,21 @@
 import { Plus, Send, Trash2 } from '@lucide/vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { toast } from 'vue-sonner';
 import { useKinetixMailTemplates } from '@/composables/useKinetixMailTemplates';
 import {
     buttonVariants,
     inputClass,
 } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixMailTemplate } from '@/types/kinetix';
+import KinetixButton from './KinetixButton.vue';
 
 /**
  * Manager for editable mail templates: a list, an editor (subject + Markdown/HTML
  * body with `{{ variables }}`), a live preview and a "send test" action.
  */
 const { t } = useI18n();
-const { templates, load, save, remove, preview, sendTest } =
+const { templates, testMeta, load, save, remove, preview, sendTest } =
     useKinetixMailTemplates();
 
 const blank = (): KinetixMailTemplate => ({
@@ -71,10 +73,17 @@ function fitPreview(event: Event): void {
     }
 }
 const testEmail = ref('');
+const sendingTest = ref(false);
+/** Test emails can only go to the user's own address: the field is fixed. */
+const testSelfOnly = computed(() => testMeta.value.recipients === 'self');
 const saving = ref(false);
 
 onMounted(async () => {
     await load();
+
+    if (testMeta.value.email && !testEmail.value) {
+        testEmail.value = testMeta.value.email;
+    }
 
     // Open the first template on first load so the editor isn't empty.
     if (templates.value.length && draft.value.id == null) {
@@ -175,8 +184,24 @@ function removeVariable(index: number): void {
 }
 
 async function test(): Promise<void> {
-    if (draft.value.id != null && testEmail.value) {
+    if (draft.value.id == null || !testEmail.value || sendingTest.value) {
+        return;
+    }
+
+    sendingTest.value = true;
+
+    try {
         await sendTest(draft.value.id, testEmail.value);
+        toast.success(t('kinetix.mail_test_sent'));
+    } catch (error) {
+        // The server's own message: a wrong address, a throttle, …
+        toast.error(
+            error instanceof Error && error.message
+                ? error.message
+                : t('kinetix.save_failed'),
+        );
+    } finally {
+        sendingTest.value = false;
     }
 }
 </script>
@@ -343,24 +368,37 @@ async function test(): Promise<void> {
 
             <!-- Actions -->
             <div class="gap-2 flex flex-wrap items-center justify-between">
-                <div class="gap-2 flex items-center">
+                <div class="gap-x-2 gap-y-1 flex flex-wrap items-center">
                     <input
                         v-model="testEmail"
                         type="email"
+                        data-test="mail-test-email"
                         :class="[inputClass, 'w-48']"
+                        :aria-label="t('kinetix.mail_test_email')"
                         :placeholder="t('kinetix.mail_test_email')"
-                    />
-                    <button
-                        type="button"
-                        :class="
-                            buttonVariants({ variant: 'outline', size: 'sm' })
+                        :readonly="testSelfOnly"
+                        :aria-describedby="
+                            testSelfOnly ? 'kinetix-mail-test-hint' : undefined
                         "
+                    />
+                    <KinetixButton
+                        variant="outline"
+                        size="sm"
+                        data-test="mail-send-test"
+                        :loading="sendingTest"
                         :disabled="draft.id == null || !testEmail"
                         @click="test"
                     >
-                        <Send class="size-4" />
+                        <template #icon><Send class="size-4" /></template>
                         {{ t('kinetix.mail_send_test') }}
-                    </button>
+                    </KinetixButton>
+                    <p
+                        v-if="testSelfOnly"
+                        id="kinetix-mail-test-hint"
+                        class="text-xs basis-full text-muted-foreground"
+                    >
+                        {{ t('kinetix.mail_test_self_hint') }}
+                    </p>
                 </div>
                 <div class="gap-2 flex items-center">
                     <button

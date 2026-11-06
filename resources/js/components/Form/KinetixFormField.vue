@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { Component } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { dateBounds } from '@/composables/kinetixFieldConstraints';
 import { kinetixComponentOf } from '@/composables/kinetixLazy';
 import type { KinetixLazyComponent } from '@/composables/kinetixLazy';
+import {
+    isKinetixClearValue,
+    KINETIX_CLEAR_VALUE,
+} from '@/composables/kinetixWriteOnly';
+import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
+import KinetixButton from '../KinetixButton.vue';
 import CheckboxField from './fields/CheckboxField.vue';
 import HiddenField from './fields/HiddenField.vue';
 import SelectField from './fields/SelectField.vue';
@@ -272,6 +278,76 @@ const baseComp = computed(() =>
         : props.comp,
 );
 
+/**
+ * A clearable withheld field (write-only, its own stored value, not required)
+ * offers "Remove saved value": the field's value becomes the clear sentinel,
+ * which the server turns into a removal on save. The control shows it as
+ * empty, typing cancels the clear, and Undo goes back to blank (= keep).
+ */
+const clearable = computed<boolean>(
+    () => withheld.value && props.comp.isClearable === true,
+);
+const cleared = computed<boolean>(
+    () => clearable.value && isKinetixClearValue(props.values[props.comp.name]),
+);
+
+/** What the control renders: never the sentinel itself. */
+const controlValue = computed<any>(() =>
+    isKinetixClearValue(props.values[props.comp.name])
+        ? ''
+        : props.values[props.comp.name],
+);
+
+const { announce } = useKinetixAnnounce();
+const clearButton = ref<InstanceType<typeof KinetixButton> | null>(null);
+const undoButton = ref<InstanceType<typeof KinetixButton> | null>(null);
+
+function focusButton(button: InstanceType<typeof KinetixButton> | null): void {
+    (button?.$el as HTMLElement | undefined)?.focus();
+}
+
+// The button the user pressed disappears with the state it changes: once the
+// parent has applied the new value and the DOM has followed, focus moves to
+// the button that takes its place.
+let focusAfterChange: boolean | null = null;
+
+watch(
+    cleared,
+    (now) => {
+        if (focusAfterChange !== now) {
+            return;
+        }
+
+        focusAfterChange = null;
+        focusButton(now ? undoButton.value : clearButton.value);
+    },
+    { flush: 'post' },
+);
+
+function clearSaved(): void {
+    focusAfterChange = true;
+    emit('update', KINETIX_CLEAR_VALUE);
+    announce(t('kinetix.form_withheld_cleared'));
+}
+
+function undoClear(): void {
+    focusAfterChange = false;
+    emit('update', '');
+    announce(t('kinetix.form_withheld_hint'));
+}
+
+/**
+ * A control's update. While cleared, an empty update (a blur, a reset) is not
+ * the user typing, so it doesn't cancel the clear; any real value does.
+ */
+function onControlUpdate(value: any): void {
+    if (cleared.value && (value === '' || value === null)) {
+        return;
+    }
+
+    emit('update', value);
+}
+
 const fieldComp = computed(() => {
     const comp = baseComp.value;
 
@@ -327,7 +403,9 @@ const errorA11yAttrs = computed<Record<string, string | undefined>>(() => {
 
     const describedBy = [
         props.comp.description ? `${props.comp.name}-help` : null,
-        withheld.value ? `${props.comp.name}-withheld` : null,
+        withheld.value
+            ? `${props.comp.name}-${cleared.value ? 'cleared' : 'withheld'}`
+            : null,
         props.describedBy ?? null,
         hasError ? `${props.comp.name}-error` : null,
     ]
@@ -357,26 +435,62 @@ const errorA11yAttrs = computed<Record<string, string | undefined>>(() => {
         :is="dedicated"
         v-else-if="dedicated"
         :comp="fieldComp"
-        :value="values[comp.name]"
+        :value="controlValue"
         v-bind="errorA11yAttrs"
-        @update="emit('update', $event)"
+        @update="onControlUpdate"
     />
 
     <!-- Straight passthroughs to an existing Kinetix control. -->
     <component
         :is="delegateComponent"
         v-else-if="delegate"
-        :value="values[comp.name]"
+        :value="controlValue"
         v-bind="{ ...delegate.props(baseComp, values), ...errorA11yAttrs }"
-        @update:value="emit('update', $event)"
+        @update:value="onControlUpdate"
     />
 
     <!-- A stored value exists but isn't sent: blank keeps it. -->
     <p
-        v-if="withheld && (dedicated || delegate)"
+        v-if="withheld && !clearable && (dedicated || delegate)"
         :id="`${comp.name}-withheld`"
         class="text-xs mt-1 text-muted-foreground"
     >
         {{ t('kinetix.form_withheld_hint') }}
     </p>
+
+    <!-- …and it can be removed: the clear control, then its status + Undo. -->
+    <div
+        v-else-if="clearable && (dedicated || delegate)"
+        class="gap-x-2 text-xs mt-1 flex flex-wrap items-center text-muted-foreground"
+        :data-test="`${comp.name}-withheld-clear`"
+    >
+        <template v-if="cleared">
+            <p :id="`${comp.name}-cleared`">
+                {{ t('kinetix.form_withheld_cleared') }}
+            </p>
+            <KinetixButton
+                ref="undoButton"
+                variant="link"
+                size="sm"
+                :disabled="comp.isDisabled"
+                @click="undoClear"
+            >
+                {{ t('kinetix.form_withheld_undo') }}
+            </KinetixButton>
+        </template>
+        <template v-else>
+            <p :id="`${comp.name}-withheld`">
+                {{ t('kinetix.form_withheld_hint') }}
+            </p>
+            <KinetixButton
+                ref="clearButton"
+                variant="link"
+                size="sm"
+                :disabled="comp.isDisabled"
+                @click="clearSaved"
+            >
+                {{ t('kinetix.form_withheld_clear') }}
+            </KinetixButton>
+        </template>
+    </div>
 </template>

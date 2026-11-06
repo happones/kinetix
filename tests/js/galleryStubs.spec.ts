@@ -58,6 +58,34 @@ const importedNames = (module: string): string[] => {
     ];
 };
 
+/**
+ * Modules some code reaches only through a dynamic import, with the variable
+ * the loaded module is bound to there: the names read off it count as imports.
+ * echo-vue is only ever loaded this way (see bundleGuard.echo.spec.ts).
+ */
+const DYNAMIC_IMPORTERS: Record<string, { file: string; binding: string }> = {
+    '@laravel/echo-vue': {
+        file: 'resources/js/composables/kinetixEcho.ts',
+        binding: 'module',
+    },
+};
+
+const dynamicNames = (module: string): string[] => {
+    const importer = DYNAMIC_IMPORTERS[module];
+
+    if (!importer) {
+        return [];
+    }
+
+    const source = fs.readFileSync(path.join(root, importer.file), 'utf8');
+    const pattern = new RegExp(
+        `\\b${importer.binding}\\s*\\.\\s*(\\w+)\\s*\\(`,
+        'g',
+    );
+
+    return [...new Set([...source.matchAll(pattern)].map((m) => m[1]))];
+};
+
 const exportedNames = (file: string): string[] =>
     [
         ...fs
@@ -72,7 +100,9 @@ describe('gallery stubs', () => {
         '%s stub exports every name the components import',
         (module, stub) => {
             const exported = exportedNames(stub);
-            const imported = importedNames(module);
+            const imported = [
+                ...new Set([...importedNames(module), ...dynamicNames(module)]),
+            ];
 
             expect(imported.length).toBeGreaterThan(0);
             expect(imported.filter((name) => !exported.includes(name))).toEqual(

@@ -203,4 +203,59 @@ describe('KinetixEventCalendar drag-and-drop moves', () => {
         const originCell = w.get('[data-calendar-drop="day:2026-06-15"]');
         expect(originCell.text()).toContain('Launch');
     });
+
+    it('an expired descriptor toasts "out of date" once, with a Reload action', async () => {
+        const expired = () =>
+            Object.assign(new Error('Table descriptor expired.'), {
+                status: 403,
+                code: 'descriptor_expired',
+            });
+        fetchMock
+            .mockRejectedValueOnce(expired())
+            .mockRejectedValueOnce(expired());
+        const w = mountIt();
+
+        for (const day of ['2026-06-18', '2026-06-19']) {
+            await chipOf(w, 'Launch')!.trigger('dragstart');
+            await w.get(`[data-calendar-drop="day:${day}"]`).trigger('drop');
+            await Promise.resolve();
+            await Promise.resolve();
+            await w.vm.$nextTick();
+        }
+
+        expect(toastError).toHaveBeenCalledTimes(2);
+
+        // The same toast id both times: the toaster shows a single toast.
+        const [message, options] = toastError.mock.calls[0] as [
+            string,
+            { id: string; action: { label: string; onClick: () => void } },
+        ];
+        expect(message).toBe('kinetix.descriptor_expired');
+        expect(options.id).toBe('kinetix-descriptor-expired');
+        expect(toastError.mock.calls[1][1].id).toBe(options.id);
+        expect(options.action.label).toBe('kinetix.reload_page');
+        expect(reloadMock).not.toHaveBeenCalled();
+
+        options.action.onClick();
+        expect(reloadMock).toHaveBeenCalledTimes(1);
+        expect(reloadMock).toHaveBeenCalledWith();
+    });
+
+    it('any other refusal keeps the move-failed message', async () => {
+        fetchMock.mockRejectedValueOnce(
+            Object.assign(new Error('nope'), {
+                status: 403,
+                code: 'descriptor_forbidden',
+            }),
+        );
+        const w = mountIt();
+
+        await chipOf(w, 'Launch')!.trigger('dragstart');
+        await w.get('[data-calendar-drop="day:2026-06-18"]').trigger('drop');
+        await Promise.resolve();
+        await Promise.resolve();
+        await w.vm.$nextTick();
+
+        expect(toastError).toHaveBeenCalledWith('kinetix.calendar_move_failed');
+    });
 });

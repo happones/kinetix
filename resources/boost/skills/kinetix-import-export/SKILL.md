@@ -231,3 +231,15 @@ class ContactExporter extends Exporter
 - **Template download**: the modal offers "Download template" by default (CSV of the column labels — they auto-map on upload). Opt out with `protected bool $downloadableTemplate = false`; rename with `protected ?string $templateFileName` (default = studly class name `.csv`; `.csv` is appended when an override omits it — read the name via `getTemplateDownloadName()`). The template starts with a UTF-8 BOM (Excel/Windows) and `FileReader` skips a BOM on upload. Endpoint `GET {prefix}/imports/template?importer={token}`.
 - **Multi-tenancy (IMPORTANT)**: the queued job has no request — never infer the tenant inside `importRow()` (e.g. `Team::first()` is a cross-tenant leak). Override `context(Request $request): array` to capture `['team_id' => $request->user()?->currentTeam?->getKey()]` at dispatch; it is serialized with the job and restored before any row — read it via `$this->context['team_id']` / `getContext()`. Exporters have the same hook: scope `query()` with `$this->context['team_id']` — an unscoped `query()` exports every tenant's rows.
 - **i18n & docs**: any new option/label must be added to every shipped locale under `resources/lang/*/kinetix.php` and to `docs/import-export.md`.
+
+## Rate limit
+
+`exports.start_throttle` (default `'10,1'`, `false` = off) limits starting an export per user. Over
+it: `429` `{message, code: "throttled", retry_after}` + `Retry-After`.
+
+## Team of an export
+
+`exports/start` binds the request to the exporter token's team claim
+(membership-checked, `authorize()` in that team). In `context()` read the
+team with `KinetixTeams::currentTeamKey($request)`, never
+`$request->user()->currentTeam`.

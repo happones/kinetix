@@ -183,7 +183,8 @@ abstract class SettingsPage
      * the global value until it really changes it. An encrypted value is never
      * compared with the inherited one (the comparison would tell whoever
      * submits it whether they guessed the global secret): a submitted secret
-     * is always stored as the team's own.
+     * is always stored as the team's own, and a removed one (submitted as
+     * {@see Form::CLEAR_SENTINEL}) is forgotten.
      *
      * @param  array<string, mixed> $input
      * @return array<string, mixed>
@@ -207,6 +208,16 @@ abstract class SettingsPage
             $key = $this->prefixed($name);
 
             $isEncrypted = in_array($name, $encrypted, true);
+
+            // A secret the user removed ("Remove saved value"): the scope
+            // forgets it; a team then inherits the global value again.
+            if ($isEncrypted && $value === null) {
+                if (array_key_exists($key, $own)) {
+                    $settings->forget($key);
+                }
+
+                continue;
+            }
 
             if (! $isEncrypted && array_key_exists($key, $inherited) && $inherited[$key] === $value) {
                 if (array_key_exists($key, $own)) {

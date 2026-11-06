@@ -296,3 +296,13 @@ the Roles tab is gated by `can('roles.manage')`):
 > and point users at `GET {prefix}/settings` — the bundled controller renders the
 > `settings.view` page with the full page list. Both paths use the same JSON
 > `update` endpoint.
+
+## Removing a secret
+
+An encrypted field the scope sets itself (not inherited) and that isn't
+required shows a "Remove saved value" control (only when the field is
+`isWithheld && isClearable`). Typing cancels it, Undo goes back to blank
+(= keep), and the control never shows the sentinel. On save the scope
+forgets the key; on a team page the team then inherits the global value
+again. A required secret, or one the team inherits, can't be removed this
+way.

@@ -140,3 +140,18 @@ import KinetixIntegrationLogs from '@/components/kinetix/KinetixIntegrationLogs.
 Each feed enforces its own gate server-side (`webhooks.manage` /
 `viewKinetixApiLogs`); mount the component behind the same check for a clean
 denied state.
+
+## Redaction
+
+Request bodies and JSON response bodies are redacted at any depth (lists
+too) BEFORE they are cut to `body_limit`: the value of every key that
+contains `password`, `passwd`, `passphrase`, `secret`, `token`,
+`authorization`, `cookie`, `credential`, `signature`, `private_key`,
+`api_key`, `apikey` or `access_key`, or has a segment `key`, `keys`, `pin`,
+`otp`, `ssn`, `cvv`, `cvc`, `pwd`, `bearer`, `jwt` or `auth` (`apiKey`,
+`x-api-key`, `idempotency_key`, `x-auth`, `user_pwd` match; `keyword`,
+`monkey`, `author`, `passport`, `compass` don't), becomes `[redacted]`. `api_logs.redact` adds substrings to that
+rule. Some non-secret keys (`token_count`, `key_results`) are redacted too.
+
+A JSON response over 1 MiB is stored as `[omitted: too large to redact]`;
+a non-JSON response is stored as it is (truncated). Headers are not logged.

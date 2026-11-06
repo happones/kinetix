@@ -1,6 +1,11 @@
 import { usePage } from '@inertiajs/vue3';
-import { getCurrentInstance, onBeforeUnmount, ref } from 'vue';
-import type { Ref } from 'vue';
+import { computed, getCurrentInstance, onBeforeUnmount, ref } from 'vue';
+import type { ComputedRef, Ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import {
+    isKinetixDescriptorExpired,
+    toastKinetixDescriptorExpired,
+} from '@/composables/kinetixDescriptorExpired';
 import {
     isKinetixAbort,
     kinetixFetch,
@@ -79,6 +84,10 @@ export function applyFormChanges(
  *   - FOCUS PRESERVATION: if the schema swap blurs the input the user was in,
  *     focus and caret go back to it. Focus the user moved elsewhere is left
  *     alone.
+ *   - EXPIRY: when the server says the descriptor is expired or unreadable,
+ *     one "page out of date" toast offers a reload and no later change POSTs
+ *     the dead descriptor again. A new descriptor (the reload brings one)
+ *     re-enables recomputes.
  *
  * A form with no descriptor (not reactive) makes `onFieldChange` a no-op.
  */
@@ -86,7 +95,30 @@ export function useKinetixFormReactivity(
     options: UseKinetixFormReactivityOptions,
 ) {
     const page = usePage();
+    const instance = getCurrentInstance();
+    const translate = instance ? useI18n().t : null;
     const recomputing: Ref<boolean> = ref(false);
+    // The descriptor the server rejected as expired. Recomputes stay off
+    // until the form is handed a different one.
+    const expiredDescriptor: Ref<string | null> = ref(null);
+
+    const liveDescriptor = (): string | null => {
+        const descriptor = options.descriptor();
+
+        if (!descriptor) {
+            return null;
+        }
+
+        if (expiredDescriptor.value !== null) {
+            if (descriptor === expiredDescriptor.value) {
+                return null;
+            }
+
+            expiredDescriptor.value = null;
+        }
+
+        return descriptor;
+    };
 
     let timer: ReturnType<typeof setTimeout> | null = null;
     let controller: AbortController | null = null;
@@ -159,7 +191,7 @@ export function useKinetixFormReactivity(
     };
 
     const send = async (): Promise<void> => {
-        const descriptor = options.descriptor();
+        const descriptor = liveDescriptor();
 
         if (!descriptor) {
             return;
@@ -211,6 +243,22 @@ export function useKinetixFormReactivity(
 
             restoreFocus(focus);
         } catch (e) {
+            if (isKinetixDescriptorExpired(e)) {
+                // Re-posting a dead descriptor can only fail again: drop the
+                // pending fields and wait for the reload's fresh descriptor.
+                recomputing.value = false;
+                expiredDescriptor.value = descriptor;
+
+                if (mySeq === seq) {
+                    changed = [];
+                    inFlight = [];
+                }
+
+                toastKinetixDescriptorExpired(translate ?? ((key) => key));
+
+                return;
+            }
+
             if (!isKinetixAbort(e)) {
                 // A failed recompute leaves the current schema in place — the
                 // form stays usable rather than breaking on a transient error
@@ -240,7 +288,7 @@ export function useKinetixFormReactivity(
         name?: string,
         debounce?: number,
     ): void => {
-        if (!isLive || !options.descriptor()) {
+        if (!isLive || !liveDescriptor()) {
             return;
         }
 
@@ -278,9 +326,16 @@ export function useKinetixFormReactivity(
         controller = null;
     };
 
-    if (getCurrentInstance()) {
+    if (instance) {
         onBeforeUnmount(dispose);
     }
 
-    return { onFieldChange, recomputing, dispose };
+    /** The server rejected the current descriptor; recomputes are off. */
+    const expired: ComputedRef<boolean> = computed(
+        () =>
+            expiredDescriptor.value !== null &&
+            expiredDescriptor.value === options.descriptor(),
+    );
+
+    return { onFieldChange, recomputing, expired, dispose };
 }

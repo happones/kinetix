@@ -9,6 +9,7 @@ use Happones\Kinetix\Data\FormData;
 use Happones\Kinetix\Data\FormFieldData;
 use Happones\Kinetix\Forms\Components\Component;
 use Happones\Kinetix\Forms\Components\Field;
+use Happones\Kinetix\Forms\Components\Repeater;
 use Happones\Kinetix\Resources\Resource;
 use Happones\Kinetix\Support\Contracts\ResolvesRelationships;
 use Happones\Kinetix\Support\DescriptorAudience;
@@ -17,6 +18,7 @@ use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rules\RequiredIf;
 use JsonSerializable;
 use ReflectionClass;
 use Stringable;
@@ -73,6 +75,13 @@ class Form implements Arrayable, JsonSerializable
      * non-reactive (its closures can't be rebuilt server-side).
      */
     protected ?string $reactiveResource = null;
+
+    /**
+     * The value a clearable write-only field submits to remove its stored
+     * value ({@see FormFieldData::$isClearable}). Honoured only for those
+     * fields; on any other field it means "unchanged" and is never stored.
+     */
+    public const CLEAR_SENTINEL = '__kinetix_clear__';
 
     /**
      * Fields whose value never travels to the browser ({@see writeOnly()}).
@@ -369,6 +378,12 @@ class Form implements Arrayable, JsonSerializable
                 continue;
             }
 
+            // A write-only value the user chose to remove: no rule runs on
+            // the sentinel.
+            if ($this->clears($field, $name, $data)) {
+                continue;
+            }
+
             // A hidden attribute left as it rendered keeps its stored value
             // (see keepsStoredValue()), so there is nothing to validate.
             if ($this->keepsStoredValue($field, $name, $data)) {
@@ -504,6 +519,13 @@ class Form implements Arrayable, JsonSerializable
                 continue;
             }
 
+            // Removing a write-only value: the field's empty state.
+            if ($this->clears($field, $name, $data)) {
+                $state[$name] = $field->dehydrate(null, $this->record);
+
+                continue;
+            }
+
             if ($this->keepsStoredValue($field, $name, $data)) {
                 continue;
             }
@@ -525,11 +547,56 @@ class Form implements Arrayable, JsonSerializable
                 continue;
             }
 
-            $value        = $data[$name] ?? $field->getDefaultValue($this->record);
+            $value = $data[$name] ?? $field->getDefaultValue($this->record);
+
+            // A repeater's rows: their disabled sub-fields come from the
+            // stored row each row's key names, else their default.
+            if ($field instanceof Repeater && is_array($value)) {
+                $value = $field->lockRows($value, $this->storedRows($field, $name), $this->record, static::class);
+            }
+
             $state[$name] = $field->dehydrate($value, $this->record);
         }
 
         return $state;
+    }
+
+    /**
+     * The rows a repeater rendered: the form's own data when it was filled,
+     * else the record's stored value — the source {@see getState()} judges
+     * top-level disabled fields from.
+     *
+     * @return array<array-key, mixed>
+     */
+    private function storedRows(Repeater $field, string $name): array
+    {
+        if ($this->isFilled) {
+            $rows = $this->data[$name] ?? [];
+        } elseif ($this->record !== null && $this->record->exists) {
+            $rows = $field->hydrate(data_get($this->record, $name), $this->record);
+        } else {
+            $rows = [];
+        }
+
+        return is_array($rows) ? $rows : [];
+    }
+
+    /**
+     * `$data` with every repeater's rows keyed ({@see Repeater::keyRows()}),
+     * for the copy that travels to the browser.
+     *
+     * @param  array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    protected function keyRepeaterRows(array $data): array
+    {
+        foreach ($this->getFields() as $name => $field) {
+            if ($field instanceof Repeater && is_array($data[$name] ?? null)) {
+                $data[$name] = $field->keyRows($data[$name], $this->record, static::class);
+            }
+        }
+
+        return $data;
     }
 
     /**
@@ -616,7 +683,10 @@ class Form implements Arrayable, JsonSerializable
     {
         $submitted = $data[$name] ?? null;
 
-        return blank($submitted)
+        // The clear sentinel on a field that may not be cleared: unchanged,
+        // so it is never stored.
+        return $submitted === self::CLEAR_SENTINEL
+            || blank($submitted)
             || $submitted === false
             || $submitted == $field->hydrate(null, $this->record);
     }
@@ -630,6 +700,69 @@ class Form implements Arrayable, JsonSerializable
     private function isBlankWriteOnly(Field $field, string $name, array $data): bool
     {
         return in_array($name, $this->writeOnly, true) && $this->isUnchangedWithheld($field, $name, $data);
+    }
+
+    /**
+     * Whether `$name` may be cleared from the form: a write-only field
+     * holding its OWN stored value (not one inherited from another scope)
+     * that is not required.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function isClearable(Field $field, string $name, array $data = []): bool
+    {
+        if (! in_array($name, $this->writeOnly, true) || isset($this->inheritedWriteOnly[$name]) || ! $this->hasStoredWriteOnly($name)) {
+            return false;
+        }
+
+        if (self::hasRequiredRule($field->getRules($this->record)) || $this->ignoresDisabled($field, $data)) {
+            return false;
+        }
+
+        return ! $field->isConditionallyRequired($data);
+    }
+
+    /**
+     * Whether any rule can require the field: `required`, any `required_*`
+     * (`required_with`, `required_if`, …) in a rule string or a pipe-joined
+     * one, or a rule object such as `Rule::requiredIf()`.
+     *
+     * @param array<int, mixed> $rules
+     */
+    private static function hasRequiredRule(array $rules): bool
+    {
+        foreach ($rules as $rule) {
+            if ($rule instanceof RequiredIf) {
+                return true;
+            }
+
+            if (is_object($rule)) {
+                $rule = $rule instanceof Stringable ? (string) $rule : '';
+            }
+
+            if (! is_string($rule)) {
+                continue;
+            }
+
+            foreach (explode('|', $rule) as $part) {
+                if (str_starts_with(strtolower(trim(explode(':', $part, 2)[0])), 'required')) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether this submit removes a write-only field's stored value: the
+     * field is clearable and came back as {@see CLEAR_SENTINEL}.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function clears(Field $field, string $name, array $data): bool
+    {
+        return ($data[$name] ?? null) === self::CLEAR_SENTINEL && $this->isClearable($field, $name, $data);
     }
 
     /**
@@ -715,8 +848,9 @@ class Form implements Arrayable, JsonSerializable
      *
      * @param array<int, mixed>   $components
      * @param array<string, true> $names
+     * @param array<string, true> $clearable  the withheld names the user may clear
      */
-    private static function flagWithheld(array $components, array $names): void
+    private static function flagWithheld(array $components, array $names, array $clearable = []): void
     {
         foreach ($components as $component) {
             if (! $component instanceof FormFieldData) {
@@ -724,13 +858,14 @@ class Form implements Arrayable, JsonSerializable
             }
 
             if ($component->name !== null) {
-                $component->isWithheld = isset($names[$component->name]);
+                $component->isWithheld  = isset($names[$component->name]);
+                $component->isClearable = isset($clearable[$component->name]);
 
                 continue;
             }
 
             if (is_array($component->schema)) {
-                self::flagWithheld($component->schema, $names);
+                self::flagWithheld($component->schema, $names, $clearable);
             }
         }
     }
@@ -836,6 +971,11 @@ class Form implements Arrayable, JsonSerializable
             $field->runAfterStateUpdated($state, $changes, $this->record);
         }
 
+        // Repeater rows a hook set keep the `Repeater::ROW_KEY` they came in
+        // with (the submit verifies it), so reordering, dropping or adding
+        // rows never re-keys them by position; a row that arrives without a
+        // key (one the hook built) is never given one: it is a new row.
+
         // Seed the (possibly $set-mutated) state into every field so the
         // re-serialization evaluates reactive closures against it.
         foreach ($fields as $field) {
@@ -898,12 +1038,21 @@ class Form implements Arrayable, JsonSerializable
         $withheld = $this->withheldNames();
 
         if ($withheld !== []) {
-            self::flagWithheld($serializedSchema, $withheld);
+            $fields    = $this->getFields();
+            $clearable = [];
+
+            foreach (array_keys($withheld) as $name) {
+                if (isset($fields[$name]) && $this->isClearable($fields[$name], $name, $this->data)) {
+                    $clearable[$name] = true;
+                }
+            }
+
+            self::flagWithheld($serializedSchema, $withheld, $clearable);
         }
 
         return new FormData(
             schema: $serializedSchema,
-            data: $this->data,
+            data: $this->keyRepeaterRows($this->data),
             rules: $this->clientRules(),
             operation: $this->operation,
             precognitive: $this->precognitive,

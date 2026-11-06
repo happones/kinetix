@@ -387,3 +387,28 @@ WhatsApp lines testable without a server.
   the current team.
 - Telegram bots are the sanctioned way in. Kinetix doesn't log into personal
   Telegram accounts.
+
+## Linking is a POST
+
+`kinetix.channels.link` asks the provider for a new QR or pairing code, so
+it only answers `POST` (a `GET` is a `405`, so a cross-site link can't
+trigger it). The component sends:
+
+```http
+POST {prefix}/channels/{channel}/link
+Content-Type: application/json
+
+{"phone": "+52 55 1234 5678"}
+```
+
+`phone` is `null` (or absent) for a QR. Code of your own that called the
+old `GET …/link?phone=` must switch to this. `status` stays a `GET`: its
+provider check is a read.
+
+## Rate limit
+
+`channels.action_throttle` limits link requests and test messages (one shared counter) per user, as `"attempts,minutes"` (default
+`'10,1'`); `false` turns it off. Over the limit the endpoint answers
+`429` with `{"message": "<translated>", "code": "throttled", "retry_after": N}`
+and the `Retry-After` header. The limit is read on every request, so it
+also applies to cached routes.

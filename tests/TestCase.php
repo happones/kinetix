@@ -38,6 +38,10 @@ abstract class TestCase extends Orchestra
         // Run Kinetix routes without auth/CSRF so endpoint logic can be tested directly.
         $app['config']->set('kinetix.middleware', []);
 
+        // The named limiters count attempts in the cache; the skeleton's
+        // `database` store has no table here.
+        $app['config']->set('cache.default', 'array');
+
         // Ensure spatie/laravel-data transformation config has concrete defaults.
         $app['config']->set('data.max_transformation_depth', 512);
         $app['config']->set('data.throw_when_max_transformation_depth_reached', false);

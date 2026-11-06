@@ -28,6 +28,7 @@ use Happones\Kinetix\Channels\Events\ChannelMessageStatusUpdated;
 use Happones\Kinetix\Channels\Evolution\EvolutionClientGateway;
 use Happones\Kinetix\Channels\Evolution\EvolutionGateway;
 use Happones\Kinetix\Commands\ActivityPruneCommand;
+use Happones\Kinetix\Commands\ActivityRedactCommand;
 use Happones\Kinetix\Commands\ApiLogsPruneCommand;
 use Happones\Kinetix\Commands\ChannelsSyncCommand;
 use Happones\Kinetix\Commands\ConfidentialEncryptExistingCommand;
@@ -64,10 +65,12 @@ use Happones\Kinetix\Commands\RoutesCommand;
 use Happones\Kinetix\Commands\SendNotificationCommand;
 use Happones\Kinetix\Commands\SendReportsCommand;
 use Happones\Kinetix\Commands\UpgradeCommand;
+use Happones\Kinetix\Commands\WebhooksEncryptSecretsCommand;
 use Happones\Kinetix\Commands\WebhooksPruneCommand;
 use Happones\Kinetix\Comments\CommentController;
 use Happones\Kinetix\Comments\CommentManager;
 use Happones\Kinetix\Comments\CommentRegistry;
+use Happones\Kinetix\Confidential\ConfidentialBinding;
 use Happones\Kinetix\Confidential\ConfidentialController;
 use Happones\Kinetix\Confidential\ConfidentialManager;
 use Happones\Kinetix\Confidential\KeyManagers\KeyManager;
@@ -176,6 +179,7 @@ use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\KinetixSharedProps;
 use Happones\Kinetix\Support\KinetixStateReset;
 use Happones\Kinetix\Support\KinetixTeams;
+use Happones\Kinetix\Support\KinetixThrottle;
 use Happones\Kinetix\Support\WeeklySchedule;
 use Happones\Kinetix\Tables\AggregatesController;
 use Happones\Kinetix\Tables\BulkActionController;
@@ -185,6 +189,7 @@ use Happones\Kinetix\Tables\TableWriteController;
 use Happones\Kinetix\Tags\TagController;
 use Happones\Kinetix\Tags\TagManager;
 use Happones\Kinetix\Tags\TagRegistry;
+use Happones\Kinetix\Teams\TeamSwitcherController;
 use Happones\Kinetix\Teams\TeamSwitcherManager;
 use Happones\Kinetix\Tokens\TokenController;
 use Happones\Kinetix\Tokens\TokenScopeRegistry;
@@ -437,6 +442,10 @@ class KinetixServiceProvider extends ServiceProvider
     {
         $this->validateEnvironment();
 
+        // Named limiters for the sensitive endpoints. Registered on every
+        // boot, outside the route blocks: cached routes still name them.
+        KinetixThrottle::register();
+
         // Register package translation namespace
         $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'kinetix');
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'kinetix');
@@ -519,6 +528,8 @@ class KinetixServiceProvider extends ServiceProvider
                 MakePageCommand::class,
                 ActivityPruneCommand::class,
                 WebhooksPruneCommand::class,
+                WebhooksEncryptSecretsCommand::class,
+                ActivityRedactCommand::class,
                 ChannelsSyncCommand::class,
                 FlowsResumeCommand::class,
                 SendReportsCommand::class,
@@ -635,6 +646,7 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000004_create_kinetix_webhook_endpoints_table.php'                   => database_path('migrations/2026_01_01_000004_create_kinetix_webhook_endpoints_table.php'),
                 __DIR__.'/../database/migrations/2026_01_01_000005_create_kinetix_webhook_logs_table.php'                        => database_path('migrations/2026_01_01_000005_create_kinetix_webhook_logs_table.php'),
                 __DIR__.'/../database/migrations/2026_01_01_000047_add_endpoint_created_index_to_kinetix_webhook_logs_table.php' => database_path('migrations/2026_01_01_000047_add_endpoint_created_index_to_kinetix_webhook_logs_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000051_widen_secret_on_kinetix_webhook_endpoints_table.php'          => database_path('migrations/2026_01_01_000051_widen_secret_on_kinetix_webhook_endpoints_table.php'),
             ], 'kinetix-webhooks-migrations');
 
             // Publish the optional Channels module's migration (linked lines).
@@ -795,6 +807,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the export download endpoint
         $this->routes($this->registerExportRoutes(...));
+
+        // The team switcher's search, for users in more teams than it lists
+        $this->routes($this->registerTeamSwitcherRoutes(...));
 
         // Register the file-upload endpoints used by the FileUpload field
         $this->routes($this->registerUploadRoutes(...));
@@ -1103,6 +1118,7 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::get('/', [PasswordController::class, 'show'])
                     ->name('kinetix.password.change.show');
                 Route::post('/', [PasswordController::class, 'update'])
+                    ->middleware(KinetixThrottle::middleware('kinetix-password'))
                     ->name('kinetix.password.change');
             });
 
@@ -1121,6 +1137,7 @@ class KinetixServiceProvider extends ServiceProvider
                     Route::get('/', [PasswordController::class, 'show'])
                         ->name("kinetix.password.{$profile}.change.show");
                     Route::post('/', [PasswordController::class, 'update'])
+                        ->middleware(KinetixThrottle::middleware('kinetix-password'))
                         ->name("kinetix.password.{$profile}.change");
                 });
         }
@@ -1215,6 +1232,7 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::post('/', [MembershipController::class, 'store'])
                     ->name('kinetix.members.store');
                 Route::post('{provision}/resend', [MembershipController::class, 'resend'])
+                    ->middleware(KinetixThrottle::middleware('kinetix-member-resend'))
                     ->name('kinetix.members.resend');
                 // Issuing a member's temporary password while impersonating
                 // would let the admin take that member over.
@@ -1628,11 +1646,11 @@ class KinetixServiceProvider extends ServiceProvider
                     Route::post('/', [ChannelController::class, 'store'])->name('kinetix.channels.store');
                     Route::put('{channel}', [ChannelController::class, 'update'])->name('kinetix.channels.update');
                     Route::delete('{channel}', [ChannelController::class, 'destroy'])->name('kinetix.channels.destroy');
-                    Route::get('{channel}/link', [ChannelController::class, 'link'])->name('kinetix.channels.link');
+                    Route::post('{channel}/link', [ChannelController::class, 'link'])->middleware(KinetixThrottle::middleware('kinetix-channels'))->name('kinetix.channels.link');
                     Route::get('{channel}/status', [ChannelController::class, 'status'])->name('kinetix.channels.status');
                     Route::post('{channel}/disconnect', [ChannelController::class, 'disconnect'])->name('kinetix.channels.disconnect');
                     Route::post('{channel}/restart', [ChannelController::class, 'restart'])->name('kinetix.channels.restart');
-                    Route::post('{channel}/test', [ChannelController::class, 'test'])->name('kinetix.channels.test');
+                    Route::post('{channel}/test', [ChannelController::class, 'test'])->middleware(KinetixThrottle::middleware('kinetix-channels'))->name('kinetix.channels.test');
                 });
         });
 
@@ -2016,8 +2034,8 @@ class KinetixServiceProvider extends ServiceProvider
             KinetixTeams::routes([...$middleware, 'kinetix.impersonation.protect'])
                 ->prefix("{$prefix}/gdpr")
                 ->group(function () {
-                    Route::post('export', [GdprController::class, 'export'])->name('kinetix.gdpr.export');
-                    Route::post('delete', [GdprController::class, 'destroy'])->name('kinetix.gdpr.delete');
+                    Route::post('export', [GdprController::class, 'export'])->middleware(KinetixThrottle::middleware('kinetix-gdpr-export'))->name('kinetix.gdpr.export');
+                    Route::post('delete', [GdprController::class, 'destroy'])->middleware(KinetixThrottle::middleware('kinetix-password'))->name('kinetix.gdpr.delete');
                 });
         });
     }
@@ -2102,7 +2120,7 @@ class KinetixServiceProvider extends ServiceProvider
                     // hand an impersonating admin a way back in: blocked.
                     Route::get('redirect/{provider}', [ConnectedAccountController::class, 'redirect'])->middleware('kinetix.impersonation.protect')->name('kinetix.connected-accounts.redirect');
                     Route::get('callback/{provider}', [ConnectedAccountController::class, 'callback'])->middleware('kinetix.impersonation.protect')->name('kinetix.connected-accounts.callback');
-                    Route::post('password', [ConnectedAccountController::class, 'password'])->middleware('kinetix.impersonation.protect')->name('kinetix.connected-accounts.password');
+                    Route::post('password', [ConnectedAccountController::class, 'password'])->middleware(['kinetix.impersonation.protect', KinetixThrottle::middleware('kinetix-password')])->name('kinetix.connected-accounts.password');
                     Route::delete('{account}', [ConnectedAccountController::class, 'destroy'])->middleware('kinetix.impersonation.protect')->name('kinetix.connected-accounts.destroy');
                 });
         });
@@ -2131,7 +2149,7 @@ class KinetixServiceProvider extends ServiceProvider
                 ->prefix("{$prefix}/sessions")
                 ->group(function () {
                     Route::get('/', [SessionController::class, 'index'])->name('kinetix.sessions.index');
-                    Route::delete('others', [SessionController::class, 'destroyOthers'])->name('kinetix.sessions.destroy-others');
+                    Route::delete('others', [SessionController::class, 'destroyOthers'])->middleware(KinetixThrottle::middleware('kinetix-password'))->name('kinetix.sessions.destroy-others');
                 });
         });
     }
@@ -2418,7 +2436,7 @@ class KinetixServiceProvider extends ServiceProvider
                     Route::post('preview', [MailTemplateController::class, 'preview'])->name('kinetix.mail-templates.preview');
                     Route::put('{template}', [MailTemplateController::class, 'update'])->name('kinetix.mail-templates.update');
                     Route::delete('{template}', [MailTemplateController::class, 'destroy'])->name('kinetix.mail-templates.destroy');
-                    Route::post('{template}/test', [MailTemplateController::class, 'test'])->name('kinetix.mail-templates.test');
+                    Route::post('{template}/test', [MailTemplateController::class, 'test'])->middleware(KinetixThrottle::middleware('kinetix-mail-test'))->name('kinetix.mail-templates.test');
                 });
         });
     }
@@ -2483,15 +2501,15 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::get('report-types', [ReportTypeController::class, 'index'])->name('kinetix.report-types.index');
 
                 Route::get('report-runs', [ReportRunController::class, 'index'])->name('kinetix.report-runs.index');
-                Route::post('report-runs/launch', [ReportRunController::class, 'launch'])->name('kinetix.report-runs.launch');
+                Route::post('report-runs/launch', [ReportRunController::class, 'launch'])->middleware(KinetixThrottle::middleware('kinetix-report-runs'))->name('kinetix.report-runs.launch');
                 Route::post('report-runs/{run}/cancel', [ReportRunController::class, 'cancel'])->name('kinetix.report-runs.cancel');
-                Route::post('report-runs/{run}/retry', [ReportRunController::class, 'retry'])->name('kinetix.report-runs.retry');
+                Route::post('report-runs/{run}/retry', [ReportRunController::class, 'retry'])->middleware(KinetixThrottle::middleware('kinetix-report-runs'))->name('kinetix.report-runs.retry');
 
                 Route::get('report-schedules', [ReportScheduleController::class, 'index'])->name('kinetix.report-schedules.index');
                 Route::post('report-schedules', [ReportScheduleController::class, 'store'])->name('kinetix.report-schedules.store');
                 Route::put('report-schedules/{schedule}', [ReportScheduleController::class, 'update'])->name('kinetix.report-schedules.update');
                 Route::delete('report-schedules/{schedule}', [ReportScheduleController::class, 'destroy'])->name('kinetix.report-schedules.destroy');
-                Route::post('report-schedules/{schedule}/run-now', [ReportScheduleController::class, 'runNow'])->name('kinetix.report-schedules.run-now');
+                Route::post('report-schedules/{schedule}/run-now', [ReportScheduleController::class, 'runNow'])->middleware(KinetixThrottle::middleware('kinetix-report-runs'))->name('kinetix.report-schedules.run-now');
             });
 
             // Registered WITHOUT the team prefix, same reasoning as the existing
@@ -2508,7 +2526,7 @@ class KinetixServiceProvider extends ServiceProvider
 
     /**
      * Register the optional Confidential Fields module: the reveal-gate
-     * unlock/lock endpoints and their gate.
+     * unlock/lock endpoints, their gate, and the row binding listeners.
      */
     protected function registerConfidential(): void
     {
@@ -2520,6 +2538,12 @@ class KinetixServiceProvider extends ServiceProvider
             Gate::define('revealKinetixConfidential', fn ($user = null): bool => $this->app->environment('local'));
         }
 
+        // Seal values to their row once it has a key, and re-seal a
+        // replica's values before it is saved.
+        $this->app->singleton(ConfidentialBinding::class);
+        Event::listen('eloquent.created: *', [ConfidentialBinding::class, 'created']);
+        Event::listen('eloquent.replicating: *', [ConfidentialBinding::class, 'replicating']);
+
         $this->routes(function (): void {
             $prefix     = config('kinetix.route_prefix', '_kinetix');
             $middleware = $this->moduleMiddleware('confidential');
@@ -2529,7 +2553,7 @@ class KinetixServiceProvider extends ServiceProvider
             }
 
             KinetixTeams::routes($middleware)->prefix("{$prefix}")->group(function () {
-                Route::post('confidential/unlock', [ConfidentialController::class, 'unlock'])->name('kinetix.confidential.unlock');
+                Route::post('confidential/unlock', [ConfidentialController::class, 'unlock'])->middleware(KinetixThrottle::middleware('kinetix-password'))->name('kinetix.confidential.unlock');
                 Route::post('confidential/lock', [ConfidentialController::class, 'lock'])->name('kinetix.confidential.lock');
             });
         });
@@ -3543,18 +3567,38 @@ class KinetixServiceProvider extends ServiceProvider
         // download URL is generated inside queued jobs (ExportProcessor,
         // GdprExportJob) where there is no request to resolve a
         // `{current_team}` segment from — requiring the parameter would throw
-        // UrlGenerationException. Authorization is the signed token, and the
-        // export query runs in the job, so an exporter that needs the tenant
-        // must capture it into its parameters at dispatch time.
+        // UrlGenerationException. Authorization is the signed token: `start`
+        // binds the request to the token's team claim (membership-checked),
+        // and the export query runs in the job, so an exporter that needs the
+        // tenant captures `KinetixTeams::currentTeamKey()` at dispatch time.
         Route::middleware($middleware)
             ->prefix("{$prefix}/exports")
             ->group(function () {
                 Route::post('start', [ExportController::class, 'start'])
+                    ->middleware(KinetixThrottle::middleware('kinetix-exports'))
                     ->name('kinetix.exports.start');
 
                 Route::get('download', [ExportController::class, 'download'])
                     ->name('kinetix.exports.download');
             });
+    }
+
+    /**
+     * Register the team switcher's search endpoint (when the switcher is
+     * on). Not team-prefixed: its URL travels in the shared payload, and it
+     * only ever searches the user's own teams.
+     */
+    protected function registerTeamSwitcherRoutes(): void
+    {
+        if (! config('kinetix.team_switcher.enabled', false)) {
+            return;
+        }
+
+        $prefix = config('kinetix.route_prefix', '_kinetix');
+
+        Route::middleware([...$this->moduleMiddleware('team_switcher', teamRouted: false), KinetixThrottle::middleware('kinetix-team-search')])
+            ->get("{$prefix}/team-switcher/teams", [TeamSwitcherController::class, 'search'])
+            ->name('kinetix.team-switcher.search');
     }
 
     /**

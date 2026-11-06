@@ -271,9 +271,12 @@ abstract class Field extends Component
      * field of the form itself it is enforced on the server too: a value
      * submitted for it is ignored — an existing record keeps what it has, a
      * new one gets the value the form was filled with, else the default. Opt
-     * out with {@see savedWhenDisabled()}. Inside Repeater rows it is a UI
-     * affordance only (rows can't be matched to stored rows); an autosave
-     * TableRepeater leaves disabled columns out of its signed allowlist.
+     * out with {@see savedWhenDisabled()}. Inside the rows of a form's
+     * Repeater / TableRepeater it is enforced too: a stored row keeps its
+     * value (rows carry a server-issued key, {@see Repeater::ROW_KEY}) and a
+     * row added in the browser gets the default. A repeater nested inside a
+     * row is enforced in the browser only. An autosave TableRepeater leaves
+     * disabled columns out of its signed allowlist.
      */
     public function disabled(mixed $condition = true): static
     {

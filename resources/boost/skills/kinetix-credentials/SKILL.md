@@ -199,3 +199,11 @@ screen forever. `return blank($this->email) || ! is_null($this->email_verified_a
 - `src/Credentials/Middleware/EnsurePasswordIsCurrent.php` · alias `kinetix.password`
 - `resources/js/components/KinetixPasswordChange.vue` · prop `kinetix_credentials`
 - `database/migrations/*_create_kinetix_password_history_table.php` · `*_add_kinetix_password_fields_to_users_table.php` · `*_add_kinetix_identity_fields_to_users_table.php`
+
+## Rate limit (password confirmation)
+
+The password check shares ONE per-user budget (`password_confirmation.throttle`,
+default `'5,1'`, `false` = off) with every Kinetix endpoint that confirms the
+current password. Over it: `429` `{message, code: "throttled", retry_after,
+errors.password}`; an Inertia request goes back with a `password` error.
+Every attempt counts.

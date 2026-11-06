@@ -77,3 +77,11 @@ relative last-active, a "this device" badge, and **Log out other sessions** with
 an inline password prompt (when required). `useKinetixSessions()` →
 `{ sessions, databaseDriver, requiresPassword, loading, load, logoutOthers }`.
 i18n `session*` (en/es/fr/pt).
+
+## Rate limit (password confirmation)
+
+The password check shares ONE per-user budget (`password_confirmation.throttle`,
+default `'5,1'`, `false` = off) with every Kinetix endpoint that confirms the
+current password. Over it: `429` `{message, code: "throttled", retry_after,
+errors.password}`; an Inertia request goes back with a `password` error.
+Every attempt counts.

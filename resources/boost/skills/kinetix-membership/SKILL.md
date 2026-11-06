@@ -355,3 +355,10 @@ see the setup; morph ids follow `kinetix.key_types.morph` (default bigint) —
 set it when the referenced models use UUIDs/ULIDs. Apps migrated on an older
 Kinetix have bigint columns on disk and need their own ALTER migration. Full
 recipe: the `kinetix-boost` skill, section "UUID / ULID Host Models".
+
+## Rate limit
+
+`membership.resend_throttle` (default `'6,1'`, `false` = off) limits re-sending an activation link per user. Over
+it: `429` `{message, code: "throttled", retry_after}` + `Retry-After`.
+
+Activation passwords follow `Password::defaults()`.

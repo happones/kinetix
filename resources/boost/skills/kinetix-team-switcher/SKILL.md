@@ -39,6 +39,9 @@ component just visits it. Switching itself stays in your app.
     'logo'      => ['enabled' => false, 'attribute' => 'logo', 'disk' => null, 'resolver' => null, 'default' => null],
     'indicator' => ['enabled' => false, 'attribute' => null, 'colors' => [], 'resolver' => null,
                     'icon' => null, 'icons' => [], 'enum_icons' => false, 'icon_resolver' => null],
+    'max_teams'       => 20,     // teams in the prop; null = all
+    'search_column'   => null,   // null = name_attribute (must be a real column)
+    'search_throttle' => '60,1', // 'attempts,minutes'; false = off
 ],
 ```
 
@@ -77,6 +80,11 @@ You provide `teams.switch` (e.g. a controller calling `$user->switchTeam($team)`
   memoized per request, user and segment, so asking again is free; a 404 is
   never stored. After changing a user's membership and re-checking in the same
   request, call `KinetixTeams::forgetCurrentTeam()`.
+- **Cap.** The prop carries at most `max_teams` teams (the current team always
+  included) plus `total`, `truncated` and `searchUrl` (set only when
+  truncated). `GET {prefix}/team-switcher/teams?q=` (`kinetix.team-switcher.search`)
+  searches the user's OWN teams relation only → `{ teams, truncated }`;
+  `current` is always false there (compare ids). Never widen it to all teams.
 - `kinetix_teams` can be kept by the browser between visits (inertia-laravel 3):
   add it to `kinetix.shared_props.once`. It refreshes on a team switch, a full
   load, `once_ttl` and `KinetixSharedProps::refresh()` — call that after your
@@ -101,6 +109,13 @@ i18n `teams_switch/select/new`.
 - `keep-page` (or `switchTeam(team, { keepPage: true })`): after switching, reopen
   the same page for the new team (`/acme/x` → `/beta/x`); each team carries its
   route `key`.
+- Truncated list → the menu opens on a labelled search box (debounced, aborts
+  the previous request, announces the result count, ArrowDown into the list,
+  typed keys never reach the menu's type-ahead). Not truncated → the plain
+  list, unchanged. `useKinetixTeamSearch({ url, currentId })` → `{ query,
+  results, moreResults, searching, error, reset }` for a custom switcher.
+  i18n `teams_search`, `teams_search_empty`, `teams_search_results`,
+  `teams_showing`.
 - `#trigger="{ current }"` replaces the button (e.g. a sidebar menu button);
   `#create` replaces "New team" (e.g. an item opening your modal);
   `side` / `align` place the menu.

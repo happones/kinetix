@@ -1,7 +1,13 @@
 import { usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixMailTemplate, KinetixSharedProps } from '@/types/kinetix';
+import type {
+    KinetixMailTemplate,
+    KinetixMailTestMeta,
+    KinetixSharedProps,
+} from '@/types/kinetix';
+
+export type { KinetixMailTestMeta };
 
 /**
  * Manage editable mail templates: list, create/update, delete, live-preview
@@ -13,6 +19,11 @@ export function useKinetixMailTemplates() {
 
     const templates = ref<KinetixMailTemplate[]>([]);
     const loading = ref(false);
+    // A server without the `test` meta accepts any address.
+    const testMeta = ref<KinetixMailTestMeta>({
+        recipients: 'any',
+        email: null,
+    });
 
     async function load(): Promise<void> {
         loading.value = true;
@@ -20,8 +31,16 @@ export function useKinetixMailTemplates() {
         try {
             const res = await kinetixFetch<{
                 templates: KinetixMailTemplate[];
+                test?: Partial<KinetixMailTestMeta>;
             }>(base());
             templates.value = res?.templates ?? [];
+
+            if (res?.test) {
+                testMeta.value = {
+                    recipients: res.test.recipients === 'self' ? 'self' : 'any',
+                    email: res.test.email ?? null,
+                };
+            }
         } finally {
             loading.value = false;
         }
@@ -58,6 +77,7 @@ export function useKinetixMailTemplates() {
         });
     }
 
+    /** Throws the server's message on a refusal (wrong address, throttled). */
     async function sendTest(id: number | string, email: string): Promise<void> {
         await kinetixFetch(`${base()}/${id}/test`, {
             method: 'POST',
@@ -65,5 +85,14 @@ export function useKinetixMailTemplates() {
         });
     }
 
-    return { templates, loading, load, save, remove, preview, sendTest };
+    return {
+        templates,
+        loading,
+        testMeta,
+        load,
+        save,
+        remove,
+        preview,
+        sendTest,
+    };
 }

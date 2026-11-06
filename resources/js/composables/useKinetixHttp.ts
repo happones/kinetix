@@ -26,6 +26,30 @@ export interface KinetixFetchOptions {
 }
 
 /**
+ * What `kinetixFetch` throws for a non-2xx response. `message` is the server's
+ * own (localized) message when it sent one.
+ */
+export interface KinetixFetchError extends Error {
+    status: number;
+    /** The per-field validation bag (422, and the password throttle). */
+    errors?: Record<string, string[]>;
+    /** A machine code from the payload: `throttled`, `descriptor_expired`, … */
+    code?: string;
+    /** Seconds until a throttled request may be retried (429). */
+    retryAfter?: number;
+}
+
+/** Whether a rejection is a `kinetixFetch` HTTP error (not a network/abort one). */
+export function isKinetixFetchError(
+    error: unknown,
+): error is KinetixFetchError {
+    return (
+        error instanceof Error &&
+        typeof (error as Partial<KinetixFetchError>).status === 'number'
+    );
+}
+
+/**
  * Whether a rejection came from an aborted request rather than a real failure.
  * A superseded search is not an error and must not surface as one.
  */
@@ -79,6 +103,8 @@ export async function kinetixFetch<T = unknown>(
         // inline errors instead of just a toast.
         let message = `HTTP error! status: ${response.status}`;
         let errors: Record<string, string[]> | undefined;
+        let code: string | undefined;
+        let retryAfter: number | undefined;
 
         try {
             const payload = await response.clone().json();
@@ -94,14 +120,47 @@ export async function kinetixFetch<T = unknown>(
             if (payload && typeof payload.errors === 'object') {
                 errors = payload.errors;
             }
+
+            if (payload && typeof payload.code === 'string' && payload.code) {
+                code = payload.code;
+            }
+
+            if (
+                payload &&
+                typeof payload.retry_after === 'number' &&
+                Number.isFinite(payload.retry_after)
+            ) {
+                retryAfter = payload.retry_after;
+            }
         } catch {
             // non-JSON error body — keep the status message
         }
 
-        throw Object.assign(new Error(message), {
+        if (retryAfter === undefined) {
+            const header = Number.parseInt(
+                response.headers?.get?.('Retry-After') ?? '',
+                10,
+            );
+
+            if (Number.isFinite(header)) {
+                retryAfter = header;
+            }
+        }
+
+        const error: KinetixFetchError = Object.assign(new Error(message), {
             status: response.status,
             errors,
         });
+
+        if (code !== undefined) {
+            error.code = code;
+        }
+
+        if (retryAfter !== undefined) {
+            error.retryAfter = retryAfter;
+        }
+
+        throw error;
     }
 
     if (response.status === 204) {

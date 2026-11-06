@@ -13,6 +13,146 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.278.0] - 2026-11-06
+
+Closes the remaining follow-ups from the 2026-11-05 audit: rate limits on
+password confirmations and on endpoints that queue jobs or send mail,
+encrypted webhook secrets, confidential values bound to their row, redacted
+activity history and API logs, server-side enforcement of disabled fields in
+repeater rows, clearer expired-page errors, accessible editor toolbars, Echo
+on demand in Inbox and Channels, and a team switcher that scales to long team
+lists. Several items change behaviour; read the upgrade notes.
+
+### Security
+
+- **Password confirmations are rate-limited** (5 attempts a minute per user,
+  `password_confirmation.throttle`). The budget is shared by the confidential
+  unlock, GDPR account deletion, logging out other devices, the
+  connected-accounts password and the password change, so moving between them
+  doesn't multiply attempts.
+- **Endpoints that queue jobs or send mail are rate-limited per user**:
+  export start (`exports.start_throttle`, 10/min), GDPR export
+  (`gdpr.export_throttle`, 3/hour), report launch, retry and run-now
+  (`reports_center.launch_throttle`, 10/min), the mail-template test
+  (`mail_templates.test_throttle`, 5/min), member invitation resend
+  (`membership.resend_throttle`, 6/min) and channel link/test
+  (`channels.action_throttle`, 10/min). Every attempt counts. `false` turns a
+  limit off. A 429 answers `{message, code: "throttled", retry_after}` with a
+  `Retry-After` header, and the published components show its message.
+- The mail-template test is sent only to the acting user's own address by
+  default (`mail_templates.test_recipients`, `'self'`); `'any'` restores the
+  old behaviour.
+- Export start acts in the team the export was rendered for (the token's team
+  claim), with a membership check, instead of the user's stored current team.
+  A user browsing team B could export team A's data.
+- Member activation validates the password with `Password::defaults()`
+  instead of `min:8`.
+- The channel link endpoint changes state, so it is now `POST
+  {prefix}/channels/{channel}/link` with a JSON `{phone}` body; the `GET`
+  answers 405.
+- Activity `per_page` is clamped to `activity.max_per_page` (100) over HTTP.
+- API logs redact secrets recursively, in request bodies and JSON response
+  bodies, by key substring and segment (`password`, `secret`, `token`, `key`,
+  `authorization`, `cookie`, `passphrase`, and whole `pwd`, `bearer`, `jwt`
+  and `auth` segments, plus your configured keys), before truncation.
+- Webhook endpoint secrets are encrypted at rest. Existing plaintext secrets
+  keep working until they are encrypted, and an unmigrated `varchar(255)`
+  column keeps receiving plaintext instead of failing.
+- Confidential values use envelope v2: AES-GCM with the table, column and row
+  as associated data, a required 16-byte tag and 12-byte IV. A ciphertext
+  copied into another row no longer reveals. v1 envelopes still read while
+  `confidential.legacy_envelopes` is true (the default). Keyed reads reject
+  a value copied from another row. Keyless reads (`pluck()`, `value()`, a
+  select without the key) and rows written without model events
+  (`createQuietly`, `saveQuietly` on a new model, `withoutEvents`) are bound
+  to their column only; `kinetix:confidential:encrypt-existing` binds them,
+  `kinetix:doctor` counts them, and with `legacy_envelopes => false` keyed
+  reads refuse column-bound values (except the value the same model instance
+  just sealed, so `created` observers can still read it).
+- Activity history is redacted when read: hidden, encrypted and confidential
+  attributes and passwords show as `[redacted]`, including rows written
+  before 0.275.0. `kinetix:activity:redact` rewrites them at rest.
+- `disabled()` fields inside Repeater and TableRepeater rows are enforced on
+  the server. Each stored row carries a signed `__kinetix_row` key; a row
+  without a valid key is treated as new and gets the field defaults for its
+  disabled sub-fields. One nesting level is enforced.
+
+### Changed
+
+- **(published)** Calendar moves, kanban moves and form recomputation show a
+  single "this page is out of date" message with a Reload button when their
+  token expires (`code: descriptor_expired`). Recomputation stops posting the
+  expired token. `DescriptorRejection::code()` returns `descriptor_expired` or
+  `descriptor_forbidden`.
+- **(published)** The basic and Tiptap rich-editor toolbars are ARIA toolbars:
+  one tab stop, arrow/Home/End navigation, Enter/Space activation,
+  localized labels and `aria-pressed` on toggles. Buttons act on click, so
+  they work from the keyboard.
+- **(published)** Inbox and Channels load `@laravel/echo-vue` only when a line
+  broadcasts, and their polls pause while the tab is hidden. A bundle guard
+  keeps echo-vue out of static imports.
+- The team switcher shares at most `team_switcher.max_teams` (20) teams,
+  always including the current one, and adds a search box backed by
+  `GET {prefix}/team-switcher/teams?q=` when the list is cut.
+- **(published)** A throttled request shows the server's message in the GDPR
+  export, the report launcher and the mail-template test; the mail test also
+  confirms success.
+
+### Added
+
+- **(published)** A "Remove saved value" control on write-only fields (such
+  as encrypted settings) that can be cleared, with Undo
+  (`FormFieldData::$isClearable`, `Form::CLEAR_SENTINEL`).
+- `kinetix:webhooks:encrypt-secrets`, `kinetix:activity:redact`, and doctor
+  checks for webhook secret storage and legacy confidential envelopes.
+- Migration `000051` (in `kinetix-webhooks-migrations`) widens the webhook
+  secret column to hold ciphertext.
+- Frontend: `KinetixFetchError` / `isKinetixFetchError`
+  (`useKinetixHttp`), `isKinetixThrottled` / `kinetixFailureMessage`
+  (`kinetixThrottle`), `isKinetixDescriptorExpired` /
+  `toastKinetixDescriptorExpired`, `listenOnKinetixChannel` (`kinetixEcho`),
+  `useKinetixTeamSearch`, `KINETIX_CLEAR_VALUE`, `KINETIX_ROW_KEY`; TS
+  `KinetixTeamsState.{total,truncated,searchUrl}`, `KinetixTeamSearchResult`,
+  `KinetixMailTestMeta`.
+
+### Upgrade notes
+
+- Publish the webhooks migrations and migrate (`000051`), then run
+  `php artisan kinetix:webhooks:encrypt-secrets` once. Code that reads the
+  secret column raw (SQL, `getRawOriginal`) sees ciphertext afterwards.
+- Run `php artisan kinetix:confidential:encrypt-existing <Model>` for each
+  confidential model to re-wrap v1 envelopes, then set
+  `confidential.legacy_envelopes => false`. Changing a row's primary key,
+  renaming the table or column, or copying ciphertext at the database level
+  makes a value unreadable through keyed reads, by design (see the binding
+  limits above). Creating a confidential row costs one extra UPDATE.
+- Optionally run `php artisan kinetix:activity:redact` to redact old activity
+  rows at rest.
+- Re-publish the components (`kinetix:upgrade`). Code that calls
+  `GET …/channels/{channel}/link?phone=` must switch to `POST` with a JSON
+  `{phone}` body.
+- Expect 429s where there were none; tune or disable each limit with the keys
+  above.
+- Set `mail_templates.test_recipients => 'any'` to keep sending tests to any
+  address.
+- Exporters whose `context()` reads `$request->user()->currentTeam` should use
+  `KinetixTeams::currentTeamKey($request)`.
+- Member activation passwords now follow `Password::defaults()`.
+- Code that reads `$request->input('items')` of a repeater with disabled
+  sub-fields directly sees the `__kinetix_row` key; `Form::getState()` strips
+  it. A FormRequest that whitelists item keys (`'items.*' => 'array:name,price'`)
+  must allow `__kinetix_row`. A form hook that rebuilds repeater rows from
+  scratch must carry `Repeater::ROW_KEY` across, or the rebuilt rows count as
+  new.
+- Restart queue workers and Octane (`queue:restart`, `octane:reload`) after
+  migrating `000051`, so long-running processes start encrypting webhook
+  secrets.
+- Set `team_switcher.max_teams => null` to share every team again. Search
+  needs `team_switcher.search_column` (the name attribute by default) to be a
+  real column.
+- Some non-secret API-log keys containing a `token` or `key` segment are now
+  redacted too.
+
 ## [0.277.0] - 2026-11-05
 
 Server performance, plus translations on demand as an option. With every

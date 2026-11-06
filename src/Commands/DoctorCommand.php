@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Commands;
 
+use Happones\Kinetix\Confidential\Casts\ConfidentialCast;
+use Happones\Kinetix\Confidential\Concerns\HasConfidentialAttributes;
 use Happones\Kinetix\Credentials\IdentityResolver;
 use Happones\Kinetix\Credentials\PasswordPolicy;
 use Happones\Kinetix\Entitlements\Entitlement;
@@ -21,16 +23,21 @@ use Happones\Kinetix\ReportsCenter\ReportRegistry as ReportsCenterRegistry;
 use Happones\Kinetix\Resources\Resource;
 use Happones\Kinetix\Spotlight\SpotlightRegistry;
 use Happones\Kinetix\Spotlight\SpotlightSource;
+use Happones\Kinetix\Support\Casts\EncryptedWithPlaintextFallback;
 use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\DiscoveryManifest;
 use Happones\Kinetix\Support\HostKeyColumns;
 use Happones\Kinetix\Support\KinetixSharedProps;
 use Happones\Kinetix\Support\KinetixTeams;
+use Happones\Kinetix\Support\KinetixThrottle;
 use Happones\Kinetix\Support\PublishedFiles;
 use Happones\Kinetix\Support\TailwindSourceExclusions;
+use Happones\Kinetix\Webhooks\WebhookEndpoint;
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
@@ -93,6 +100,9 @@ class DoctorCommand extends Command
         $this->checkConfigKeys();
         $this->checkTenantColumns();
         $this->checkIndexes();
+        $this->checkWebhookSecrets();
+        $this->checkConfidentialEnvelopes();
+        $this->checkThrottles();
         $this->checkSharedProps();
         $this->checkDiscoveryManifest();
         $this->checkHostKeyColumns();
@@ -1358,6 +1368,181 @@ class DoctorCommand extends Command
         $this->warn_('Indexes', count($missing).' table(s) lack the index their listing query uses',
             'Each page of the feed sorts every row of the tenant without it. Publish the tag, then run migrate '
             .'(idempotent; on a very large table, in a maintenance window).', $missing);
+    }
+
+    /**
+     * Webhook signing secrets: whether the column can hold them encrypted,
+     * how many are still stored as plaintext, and whether every encrypted
+     * one decrypts with the current app key (else deliveries fail).
+     */
+    protected function checkWebhookSecrets(): void
+    {
+        if (! config('kinetix.webhooks.enabled', false)) {
+            return;
+        }
+
+        $endpoint = new WebhookEndpoint;
+
+        try {
+            if (! Schema::hasTable($endpoint->getTable())) {
+                return;
+            }
+
+            $wide = EncryptedWithPlaintextFallback::columnHoldsCiphertext($endpoint->getConnectionName(), $endpoint->getTable(), 'secret');
+
+            $plaintext     = 0;
+            $undecryptable = 0;
+
+            foreach ($endpoint->newQuery()->toBase()->select([$endpoint->getKeyName(), 'secret'])->lazyById(200, $endpoint->getKeyName()) as $row) {
+                $raw = $row->secret ?? null;
+
+                if (! is_string($raw) || $raw === '') {
+                    continue;
+                }
+
+                if (! EncryptedWithPlaintextFallback::isEncryptedPayload($raw)) {
+                    $plaintext++;
+
+                    continue;
+                }
+
+                try {
+                    Crypt::decryptString($raw);
+                } catch (DecryptException) {
+                    $undecryptable++;
+                }
+            }
+        } catch (QueryException) {
+            return;
+        }
+
+        if (! $wide) {
+            $this->warn_('Webhooks', 'the secret column is too small for encrypted secrets, so they are stored in plaintext',
+                'php artisan vendor:publish --tag=kinetix-webhooks-migrations && php artisan migrate');
+        }
+
+        if ($plaintext > 0) {
+            $this->warn_('Webhooks', "{$plaintext} endpoint secret(s) stored in plaintext",
+                $wide ? 'php artisan kinetix:webhooks:encrypt-secrets' : 'Widen the column first (see above), then run php artisan kinetix:webhooks:encrypt-secrets');
+        }
+
+        if ($undecryptable > 0) {
+            $this->error_('Webhooks', "{$undecryptable} secret(s) can't be decrypted with the current APP_KEY",
+                'Deliveries to those endpoints fail. Restore the previous key (APP_PREVIOUS_KEYS), or rotate those endpoints\' secrets.');
+        }
+
+        if ($wide && $plaintext === 0 && $undecryptable === 0) {
+            $this->ok('Webhooks', 'endpoint secrets are encrypted at rest');
+        }
+    }
+
+    /**
+     * Confidential values not sealed to their row: v1 envelopes (written
+     * before row binding) and v2 ones bound to their column only (rows
+     * written without model events: `createQuietly()`, `saveQuietly()`,
+     * `withoutEvents()`). Either can be copied to another row unnoticed.
+     * Looks at the models that use `HasConfidentialAttributes` (those under
+     * app/Models are loaded first).
+     */
+    protected function checkConfidentialEnvelopes(): void
+    {
+        if (! config('kinetix.confidential.enabled', false)) {
+            return;
+        }
+
+        $unbound = [];
+
+        foreach ($this->confidentialModels() as $class) {
+            try {
+                $model   = new $class;
+                $columns = array_values(array_filter(
+                    array_keys($model->getCasts()),
+                    static fn (string $column): bool => ConfidentialCast::appliesTo($model, $column),
+                ));
+
+                if ($columns === [] || ! Schema::connection($model->getConnectionName())->hasTable($model->getTable())) {
+                    continue;
+                }
+
+                foreach ($columns as $column) {
+                    $legacy = $model->newQueryWithoutScopes()->toBase()->where($column, 'like', '{"v":1,%')->count();
+                    $loose  = $model->newQueryWithoutScopes()->toBase()
+                        ->where($column, 'like', '{"v":2,%')
+                        ->where($column, 'like', '%"r":null}')
+                        ->count();
+
+                    if ($legacy + $loose > 0) {
+                        $unbound[] = "{$class}::{$column} — {$legacy} v1, {$loose} column-bound";
+                    }
+                }
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+
+        if ($unbound === []) {
+            return;
+        }
+
+        $this->warn_('Confidential', count($unbound).' confidential column(s) hold values not sealed to their row',
+            'A value copied from another row would still read. Run php artisan kinetix:confidential:encrypt-existing <Model> '
+            .'for each, then set confidential.legacy_envelopes to false.', $unbound);
+    }
+
+    /**
+     * The loaded model classes that use `HasConfidentialAttributes`, after
+     * loading the app's own `app/Models`.
+     *
+     * @return list<class-string<Model>>
+     */
+    protected function confidentialModels(): array
+    {
+        $directory = app_path('Models');
+
+        if (File::isDirectory($directory)) {
+            foreach (File::allFiles($directory) as $file) {
+                $relative = str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
+                class_exists($this->laravel->getNamespace().'Models\\'.$relative);
+            }
+        }
+
+        $models = [];
+
+        foreach (get_declared_classes() as $class) {
+            if (is_subclass_of($class, Model::class) && in_array(HasConfidentialAttributes::class, class_uses_recursive($class), true) && ! (new \ReflectionClass($class))->isAbstract()) {
+                $models[] = $class;
+            }
+        }
+
+        return $models;
+    }
+
+    /**
+     * The rate limits of the sensitive endpoints ({@see KinetixThrottle}): a
+     * value that isn't `attempts,minutes` (or off) falls back to the default.
+     */
+    protected function checkThrottles(): void
+    {
+        $malformed = [];
+
+        foreach (KinetixThrottle::LIMITERS as [$key, $default]) {
+            $value = config("kinetix.{$key}", $default);
+
+            if ($value === false || $value === null || $value === '') {
+                continue;
+            }
+
+            if (KinetixThrottle::strictParse($value) === null) {
+                $malformed[] = "kinetix.{$key} = ".(is_scalar($value) ? var_export($value, true) : get_debug_type($value))." (using {$default})";
+            }
+        }
+
+        if ($malformed === []) {
+            return;
+        }
+
+        $this->warn_('Throttles', count($malformed).' rate limit(s) are not "attempts,minutes"',
+            'Each falls back to its default. Use a string like "5,1", or false to turn the limit off.', $malformed);
     }
 
     /**

@@ -73,3 +73,14 @@ see the setup; morph ids follow `kinetix.key_types.morph` (default bigint) —
 set it when the referenced models use UUIDs/ULIDs. Apps migrated on an older
 Kinetix have bigint columns on disk and need their own ALTER migration. Full
 recipe: the `kinetix-boost` skill, section "UUID / ULID Host Models".
+
+## Test emails
+
+`mail_templates.test_recipients` = `'self'` (default: only the acting user's
+own address; another one is a 422 `mail_test_self_only`) or `'any'`. The
+index returns `test: {recipients, email}` (TS `KinetixMailTestMeta`).
+
+## Rate limit
+
+`mail_templates.test_throttle` (default `'5,1'`, `false` = off) limits test emails per user. Over
+it: `429` `{message, code: "throttled", retry_after}` + `Retry-After`.

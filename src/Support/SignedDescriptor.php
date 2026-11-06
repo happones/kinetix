@@ -28,8 +28,9 @@ use Throwable;
  *    payload looks.
  *
  * The team claim is checked against the team the request is ROUTED to, so it
- * applies to every `{current_team}`-prefixed endpoint; the few endpoints that
- * are deliberately not team-prefixed (exports) still check user and expiry.
+ * applies to every `{current_team}`-prefixed endpoint; the export start
+ * endpoint, deliberately not team-prefixed, binds the request to its token's
+ * team claim (with a membership check) before anything resolves a team.
  * A payload missing any claim predates them and is refused as expired, so the
  * page just reloads.
  *

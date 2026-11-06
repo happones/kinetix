@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Exports;
 
+use Happones\Kinetix\Permissions\PermissionTeam;
 use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\EloquentRelation;
+use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class ExportController
@@ -24,17 +28,81 @@ class ExportController
      * Dispatch a queued export from an `ExportAction` (the exporter travels as a
      * signed token; optional `ids` scope a bulk export). The user is notified
      * with a download link when the export finishes.
+     *
+     * The route is not team-prefixed, so the team comes from the token: the
+     * request is bound to the team the export button was rendered in (its
+     * `team` claim), the user's membership in it is checked, and the
+     * authorization, the relation scope and the captured queue context all
+     * run in that team, never in the user's stored `currentTeam`.
      */
     public function start(Request $request): JsonResponse
     {
+        $token = (string) $request->input('exporter', '');
+
+        $this->bindTokenTeam($request, SignedDescriptor::open($token));
+
         try {
-            $exporter = Exporter::fromToken(
-                (string) $request->input('exporter', ''),
-            );
+            $team = config('kinetix.teams', false) ? KinetixTeams::currentTeamKey($request) : null;
+        } catch (HttpExceptionInterface) {
+            return response()->json(['message' => __('kinetix.export_forbidden')], 403);
+        }
+
+        try {
+            $exporter = Exporter::fromToken($token);
         } catch (Throwable $e) {
             return response()->json(['message' => __('kinetix.export_invalid')], 422);
         }
 
+        // No team resolved (teams off, or no team context): leave spatie's
+        // team id as the host's own middleware set it.
+        if ($team === null) {
+            return $this->dispatchExport($request, $exporter);
+        }
+
+        $user = $request->user();
+
+        return PermissionTeam::run(
+            $team,
+            fn (): JsonResponse => $this->dispatchExport($request, $exporter),
+            $user instanceof Model ? $user : null,
+        );
+    }
+
+    /**
+     * Bind the request to the team claim of the exporter token, so every
+     * team resolution below ({@see KinetixTeams::currentTeam()}, the
+     * descriptor team checks, `keyFor()`) reads the team the token was
+     * minted in. A token minted with no team context leaves the request as
+     * it is (the stored team applies, as before).
+     *
+     * @param array<string, mixed>|null $payload
+     */
+    protected function bindTokenTeam(Request $request, ?array $payload): void
+    {
+        if (! config('kinetix.teams', false) || $payload === null) {
+            return;
+        }
+
+        $claim = $payload['team'] ?? null;
+
+        if (! (is_string($claim) && $claim !== '') && ! is_int($claim)) {
+            return;
+        }
+
+        $route = $request->route();
+
+        if (! $route instanceof Route || ($route->parameter('current_team') ?? $route->parameter('team')) !== null) {
+            return;
+        }
+
+        $route->setParameter('current_team', (string) $claim);
+    }
+
+    /**
+     * Authorize and queue the export, inside the request's team.
+     */
+    protected function dispatchExport(Request $request, Exporter $exporter): JsonResponse
+    {
         if (! $exporter->authorize($request->user())) {
             return response()->json(['message' => __('kinetix.export_forbidden')], 403);
         }
@@ -97,8 +165,8 @@ class ExportController
             return $invalid();
         }
 
-        // Bound to the user it was minted for, and expiring. The export routes
-        // aren't team-prefixed, so the team claim has nothing to compare to.
+        // Bound to the user it was minted for, and expiring; and to the team
+        // the exporter token was minted in, which start() bound the request to.
         if (SignedDescriptor::rejection($payload, $request, DescriptorAudience::RelationManager) !== null) {
             return response()->json(['message' => __('kinetix.export_forbidden')], 403);
         }

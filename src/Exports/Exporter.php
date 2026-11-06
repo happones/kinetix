@@ -487,6 +487,10 @@ abstract class Exporter
      * Dispatch the queued export. The recipient receives a download notification.
      * `$parameters` (e.g. `['ids' => [...]]`) reach the exporter inside the job.
      *
+     * The notification team and {@see context()} are read from the current
+     * request: from the export endpoint, that request is bound to the team
+     * the export token was minted in.
+     *
      * @param array<string, mixed> $parameters
      */
     public function export(?Model $recipient = null, array $parameters = []): void

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import { Check, ChevronsUpDown, Plus } from '@lucide/vue';
+import { Check, ChevronsUpDown, Plus, Search } from '@lucide/vue';
 import {
     DropdownMenuContent,
     DropdownMenuItem,
@@ -10,10 +10,17 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from 'reka-ui';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
-import { useKinetixTeams } from '@/composables/useKinetixTeams';
+import { useKinetixAnnounce } from '@/composables/useKinetixAnnounce';
+import {
+    buttonVariants,
+    inputClass,
+} from '@/composables/useKinetixShadcnVariants';
+import {
+    useKinetixTeams,
+    useKinetixTeamSearch,
+} from '@/composables/useKinetixTeams';
 import KinetixTeamAvatar from './KinetixTeamAvatar.vue';
 import KinetixTeamIndicator from './KinetixTeamIndicator.vue';
 import { cn } from './primitives/cn';
@@ -32,6 +39,10 @@ import { cn } from './primitives/cn';
  * Its words come from `kinetix.team_switcher.labels`, so it can say "account"
  * where your app does.
  *
+ * When the shared list is capped (`team_switcher.max_teams`), the menu opens
+ * on a search box that finds the rest of the user's teams; otherwise the
+ * menu is the plain list.
+ *
  * Slots: `trigger` (`{ current }`) replaces the button; `create` replaces the
  * create item, e.g. with one opening your own modal.
  */
@@ -47,7 +58,91 @@ const props = withDefaults(
 );
 
 const { t } = useI18n();
-const { teams, current, createUrl, labels, switchTeam } = useKinetixTeams();
+const { teams, current, createUrl, labels, total, searchUrl, switchTeam } =
+    useKinetixTeams();
+
+// --- Search (only while the shared list is truncated) -----------------------
+const { announce } = useKinetixAnnounce();
+const searchable = computed<boolean>(() => !!searchUrl.value);
+const searchInput = ref<HTMLInputElement | null>(null);
+const search = useKinetixTeamSearch({
+    url: () => searchUrl.value,
+    currentId: () => current.value?.id ?? null,
+    onResults: (count) =>
+        announce(t('kinetix.teams_search_results', { count })),
+    onError: (message) => announce(message),
+});
+const { query, results, moreResults, error: searchError } = search;
+
+/** The rows the menu lists: the search's matches while there is a query. */
+const listed = computed(() => results.value ?? teams.value);
+
+const showingLine = computed<string | null>(() =>
+    searchable.value && (results.value === null || moreResults.value)
+        ? t('kinetix.teams_showing', {
+              shown: listed.value.length,
+              total: total.value,
+          })
+        : null,
+);
+
+/**
+ * With search on, the menu opens on the search box. The menu focuses itself
+ * once its content mounts (after the open render's microtasks), so the box
+ * takes focus on the next task.
+ */
+function onOpenChange(open: boolean): void {
+    if (!open) {
+        search.reset();
+
+        return;
+    }
+
+    if (searchable.value) {
+        setTimeout(() => searchInput.value?.focus(), 0);
+    }
+}
+
+function firstItem(): HTMLElement | null {
+    return (
+        searchInput.value
+            ?.closest('[role="menu"]')
+            ?.querySelector<HTMLElement>(
+                '[role="menuitem"]:not([data-disabled])',
+            ) ?? null
+    );
+}
+
+/**
+ * The menu's own key handling (typeahead, Tab, arrows) must not see what is
+ * typed in the box. Escape still closes the menu; ArrowDown moves into the
+ * list.
+ */
+function onSearchKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+        return;
+    }
+
+    event.stopPropagation();
+
+    if (event.key === 'ArrowDown') {
+        const item = firstItem();
+
+        if (item) {
+            event.preventDefault();
+            item.focus();
+        }
+    }
+}
+
+/** ArrowUp on the first row goes back to the search box. */
+function onItemKeydown(event: KeyboardEvent, index: number): void {
+    if (searchable.value && index === 0 && event.key === 'ArrowUp') {
+        event.preventDefault();
+        event.stopPropagation();
+        searchInput.value?.focus();
+    }
+}
 
 const choose = (team: (typeof teams.value)[number]): void =>
     switchTeam(team, { keepPage: props.keepPage });
@@ -82,7 +177,7 @@ function createTeam(): void {
 </script>
 
 <template>
-    <DropdownMenuRoot>
+    <DropdownMenuRoot @update:open="onOpenChange">
         <DropdownMenuTrigger v-if="$slots.trigger" as-child>
             <slot name="trigger" :current="current" />
         </DropdownMenuTrigger>
@@ -149,8 +244,27 @@ function createTeam(): void {
                     {{ words.switch }}
                 </DropdownMenuLabel>
 
+                <div v-if="searchable" class="px-1 pb-1 relative">
+                    <Search
+                        class="left-3 size-4 pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                    <input
+                        ref="searchInput"
+                        v-model="query"
+                        type="search"
+                        data-test="team-switcher-search"
+                        :class="cn(inputClass, 'h-8 pl-8')"
+                        :aria-label="t('kinetix.teams_search')"
+                        :placeholder="t('kinetix.teams_search')"
+                        autocomplete="off"
+                        maxlength="100"
+                        @keydown="onSearchKeydown"
+                    />
+                </div>
+
                 <DropdownMenuItem
-                    v-for="team in teams"
+                    v-for="(team, index) in listed"
                     :key="team.id"
                     :aria-current="team.current ? 'true' : undefined"
                     class="gap-2 px-2 py-1.5 text-sm flex w-full cursor-default items-center rounded-md text-left transition-colors outline-none select-none hover:bg-accent focus:bg-accent focus:text-accent-foreground"
@@ -160,6 +274,7 @@ function createTeam(): void {
                             : 'text-muted-foreground'
                     "
                     @click="choose(team)"
+                    @keydown="onItemKeydown($event, index)"
                 >
                     <KinetixTeamAvatar :team="team" size="sm" />
                     <span class="min-w-0 flex-1 truncate">{{ team.name }}</span>
@@ -171,6 +286,21 @@ function createTeam(): void {
                         aria-hidden="true"
                     />
                 </DropdownMenuItem>
+
+                <p
+                    v-if="searchable && results !== null && listed.length === 0"
+                    data-test="team-switcher-search-empty"
+                    class="px-2 py-1.5 text-sm text-muted-foreground"
+                >
+                    {{ searchError ?? t('kinetix.teams_search_empty') }}
+                </p>
+                <p
+                    v-if="showingLine"
+                    data-test="team-switcher-showing"
+                    class="px-2 py-1 text-xs text-muted-foreground"
+                >
+                    {{ showingLine }}
+                </p>
 
                 <template v-if="$slots.create">
                     <DropdownMenuSeparator class="my-1 h-px bg-border" />

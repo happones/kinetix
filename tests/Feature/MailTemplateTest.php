@@ -206,6 +206,7 @@ class MailTemplateTest extends TestCase
 
     public function test_test_endpoint_sends_with_sample_data(): void
     {
+        config()->set('kinetix.mail_templates.test_recipients', 'any');
         Mail::fake();
         Gate::define('viewKinetixMail', fn () => true);
         $template = $this->template();

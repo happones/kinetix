@@ -143,3 +143,10 @@ see the setup; morph ids follow `kinetix.key_types.morph` (default bigint) —
 set it when the referenced models use UUIDs/ULIDs. Apps migrated on an older
 Kinetix have bigint columns on disk and need their own ALTER migration. Full
 recipe: the `kinetix-boost` skill, section "UUID / ULID Host Models".
+
+## Removing a secret
+
+An encrypted field the scope sets itself and that isn't required is
+`isClearable`: the UI's "Remove saved value" submits `Form::CLEAR_SENTINEL`
+and `save()` forgets the key (a team then inherits the global value). Never
+for required or inherited secrets.

@@ -54,7 +54,8 @@ class ActivityLogger
      */
     public function query(array $filters = []): array
     {
-        $perPage = (int) ($filters['per_page'] ?? config('kinetix.activity.per_page', 15));
+        $perPage = (int) ($filters['per_page'] ?? 0);
+        $perPage = $perPage >= 1 ? $perPage : max(1, (int) config('kinetix.activity.per_page', 15));
         $page    = (int) ($filters['page'] ?? 1);
 
         $paginator = $this->usesSpatie()
@@ -212,6 +213,17 @@ class ActivityLogger
             ->when(! empty($filters['subject_type']), fn ($q) => $q->where('subject_type', $filters['subject_type']))
             ->when(isset($filters['subject_id']) && $filters['subject_id'] !== '', fn ($q) => $q->where('subject_id', $filters['subject_id']))
             ->when(! empty($filters['event']), fn ($q) => $q->where('event', $filters['event']));
+    }
+
+    /**
+     * The model class activity is stored with: spatie's configured model, or
+     * the native one.
+     *
+     * @return class-string<Model>
+     */
+    public function activityModel(): string
+    {
+        return $this->usesSpatie() ? $this->spatieModel() : Activity::class;
     }
 
     /**

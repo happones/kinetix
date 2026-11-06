@@ -115,3 +115,11 @@ see the setup; morph ids follow `kinetix.key_types.morph` (default bigint) —
 set it when the referenced models use UUIDs/ULIDs. Apps migrated on an older
 Kinetix have bigint columns on disk and need their own ALTER migration. Full
 recipe: the `kinetix-boost` skill, section "UUID / ULID Host Models".
+
+## Secrets at rest
+
+`WebhookEndpoint::$secret` is encrypted (`EncryptedWithPlaintextFallback`;
+plaintext rows still read). Upgrade: publish `kinetix-webhooks-migrations`,
+migrate (000051 widens the column), then
+`php artisan kinetix:webhooks:encrypt-secrets`. `kinetix:doctor` reports
+plaintext, narrow-column and undecryptable secrets.

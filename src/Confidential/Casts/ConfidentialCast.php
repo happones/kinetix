@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Confidential\Casts;
 
 use Happones\Kinetix\Confidential\Confidential;
+use Happones\Kinetix\Confidential\ConfidentialBinding;
 use Happones\Kinetix\Confidential\ConfidentialCipher;
+use Happones\Kinetix\Confidential\ConfidentialContext;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Database\Eloquent\Model;
 use RuntimeException;
@@ -16,6 +18,10 @@ use RuntimeException;
  * Enforcement lives here, not in any UI layer — every consumer (Table,
  * Infolist, a Blade view, an API Resource, an Exporter column, tinker) sees
  * the already-masked-or-real value transparently.
+ *
+ * Values are sealed to their table, column and row ({@see ConfidentialContext}):
+ * a value written before the row has a key is bound to its column, then to
+ * the row as soon as it is created ({@see ConfidentialBinding}).
  *
  * Per-field overrides via Laravel's colon-argument cast syntax:
  *
@@ -47,7 +53,7 @@ class ConfidentialCast implements CastsAttributes
             return null;
         }
 
-        $plaintext = app(ConfidentialCipher::class)->decrypt((string) $value);
+        $plaintext = app(ConfidentialCipher::class)->decrypt((string) $value, ConfidentialContext::for($model, $key, (string) $value));
 
         if (Confidential::isUnlocked()) {
             return $plaintext;
@@ -73,21 +79,31 @@ class ConfidentialCast implements CastsAttributes
 
         $cipher = app(ConfidentialCipher::class);
 
-        if ($stored !== null && str_contains($value, '•') && $value === $this->storedMask($cipher, (string) $stored)) {
+        $context = ConfidentialContext::for($model, $key);
+
+        if ($stored !== null && str_contains($value, '•') && $value === $this->storedMask($cipher, (string) $stored, ConfidentialContext::for($model, $key, (string) $stored))) {
             return (string) $stored;
         }
 
-        return $cipher->encrypt($value);
+        $envelope = $cipher->encrypt($value, $context);
+
+        // Sealed before the row has a key: remember it for this instance,
+        // so its own `created` listeners can read it in strict mode.
+        if ($context->rowKey === null) {
+            ConfidentialBinding::rememberSealedBeforeKey($model, $key, $envelope);
+        }
+
+        return $envelope;
     }
 
     /**
      * The mask of the stored value, or null when it can't be decrypted (its
      * key is gone): then nothing matches and the new value is encrypted.
      */
-    protected function storedMask(ConfidentialCipher $cipher, string $stored): ?string
+    protected function storedMask(ConfidentialCipher $cipher, string $stored, ?ConfidentialContext $context = null): ?string
     {
         try {
-            return Confidential::mask($cipher->decrypt($stored), $this->visible, $this->position);
+            return Confidential::mask($cipher->decrypt($stored, $context), $this->visible, $this->position);
         } catch (RuntimeException) {
             return null;
         }

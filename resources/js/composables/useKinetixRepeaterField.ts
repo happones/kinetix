@@ -1,4 +1,13 @@
 /**
+ * The server-issued key on each stored repeater row (mirrors
+ * `Repeater::ROW_KEY`). It ties a submitted row to the stored row it came
+ * from, so the server can restore that row's disabled sub-fields. Row
+ * operations keep it on the row it belongs to (update, move, remove) and a
+ * new row never carries one.
+ */
+export const KINETIX_ROW_KEY = '__kinetix_row';
+
+/**
  * Build a blank repeater item from a sub-schema's field defaults, recursing
  * through layout nodes (grid/section/…) that only carry a nested `schema`.
  */
@@ -12,7 +21,7 @@ export function buildBlankItem(schema: any[]): Record<string, any> {
                 continue;
             }
 
-            if (node.name) {
+            if (node.name && node.name !== KINETIX_ROW_KEY) {
                 item[node.name] = node.defaultValue ?? null;
             }
         }

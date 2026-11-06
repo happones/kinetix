@@ -117,6 +117,10 @@ return [
     */
     'exports' => [
         'download_ttl' => env('KINETIX_EXPORT_DOWNLOAD_TTL', 1440),
+
+        // Rate limit of starting an export, as "attempts,minutes" per user;
+        // false turns it off.
+        'start_throttle' => '10,1',
     ],
 
     /*
@@ -415,6 +419,18 @@ return [
             'enum_icons'    => false,
             'icon_resolver' => null,
         ],
+
+        // How many teams the switcher shares on every page (the current team
+        // is always included). A user in more gets a search box that queries
+        // the rest; null shares them all.
+        'max_teams' => 20,
+
+        // The column the search matches (case-insensitively); null = the
+        // `name_attribute`. It must be a real column on the teams table.
+        'search_column' => null,
+
+        // Rate limit of the search, as "attempts,minutes" per user.
+        'search_throttle' => '60,1',
     ],
 
     /*
@@ -477,7 +493,8 @@ return [
     | authenticated routes, keyed by the module's config name — the place to
     | gate a module on a plan, a feature flag or your own check on the
     | server, e.g. 'webhooks' => ['kinetix.entitled:webhooks.manage']. The core
-    | route groups use the keys tables, forms, uploads, imports and exports.
+    | route groups use the keys tables, forms, uploads, imports and exports;
+    | the team switcher's search uses team_switcher.
     | Guest and signed routes (activation links, inbound channel webhooks,
     | public docs, social login) are never given these. Empty by default.
     |
@@ -621,6 +638,23 @@ return [
     | app then cannot be deployed with a cached config.
     |
     */
+    /*
+    |--------------------------------------------------------------------------
+    | Password Confirmation
+    |--------------------------------------------------------------------------
+    |
+    | Every Kinetix endpoint that checks the user's current password — the
+    | confidential unlock, deleting the account, logging out other devices,
+    | the connected-accounts password and the password change — shares ONE
+    | per-user budget, so a hijacked session can't guess the password by
+    | rotating endpoints. Every attempt counts. "attempts,minutes"; false
+    | turns it off.
+    |
+    */
+    'password_confirmation' => [
+        'throttle' => '5,1',
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Credentials (optional)
@@ -778,6 +812,10 @@ return [
         // by someone who doesn't hold them too (and team owners from
         // non-owners). Super-admins are always protected.
         'protected_permissions' => ['roles.manage'],
+
+        // Rate limit of re-sending an activation link, as "attempts,minutes"
+        // per user; false turns it off.
+        'resend_throttle' => '6,1',
     ],
 
     /*
@@ -904,6 +942,11 @@ return [
         // `kinetix.channels.{team}` (needs Laravel Echo); the linker polls
         // either way.
         'broadcast' => env('KINETIX_CHANNELS_BROADCAST', false),
+
+        // Rate limit of asking a provider for a link code and of sending a
+        // test message (one shared counter), as "attempts,minutes" per user;
+        // false turns it off.
+        'action_throttle' => '10,1',
 
         'providers' => [
             'whatsapp' => [
@@ -1077,7 +1120,10 @@ return [
         'log_response_body' => env('KINETIX_API_LOGS_RESPONSE_BODY', false),
         'body_limit'        => env('KINETIX_API_LOGS_BODY_LIMIT', 10240),
         'retention_days'    => env('KINETIX_API_LOGS_RETENTION_DAYS', 30),
-        'redact'            => ['password', 'password_confirmation', 'secret', 'token', 'authorization'],
+        // Added to the built-in rule (password, secret, token, cookie,
+        // api_key and the like, at any depth of the request and of a JSON
+        // response); matched as substrings, case-insensitive.
+        'redact' => ['password', 'password_confirmation', 'secret', 'token', 'authorization'],
     ],
 
     /*
@@ -1264,6 +1310,10 @@ return [
 
         // Where the SPA navigates after the account is deleted.
         'redirect' => env('KINETIX_GDPR_REDIRECT', '/'),
+
+        // Rate limit of requesting a data export, as "attempts,minutes" per
+        // user; false turns it off.
+        'export_throttle' => '3,60',
     ],
 
     /*
@@ -2045,6 +2095,9 @@ return [
         'teams'          => env('KINETIX_ACTIVITY_TEAMS'), // null = inherit kinetix.teams
         'per_page'       => env('KINETIX_ACTIVITY_PER_PAGE', 15),
         'retention_days' => env('KINETIX_ACTIVITY_RETENTION_DAYS', 365),
+
+        // The largest `per_page` the activity feed endpoint accepts.
+        'max_per_page' => 100,
     ],
 
     /*
@@ -2229,6 +2282,14 @@ return [
     'mail_templates' => [
         'enabled' => env('KINETIX_MAIL_TEMPLATES_ENABLED', false),
         'teams'   => env('KINETIX_MAIL_TEMPLATES_TEAMS'), // null = inherit kinetix.teams
+
+        // Who a test email may go to: 'self' (default) only the acting user's
+        // own address; 'any' any address they type.
+        'test_recipients' => env('KINETIX_MAIL_TEMPLATES_TEST_RECIPIENTS', 'self'),
+
+        // Rate limit of sending a test email, as "attempts,minutes" per user;
+        // false turns it off.
+        'test_throttle' => '5,1',
     ],
 
     /*
@@ -2305,6 +2366,10 @@ return [
         // `kinetix:report-runs:prune` removes them. Also used to compute
         // each run's `expires_at` (completed_at + retention_days).
         'retention_days' => env('KINETIX_REPORTS_CENTER_RETENTION_DAYS', 7),
+
+        // Rate limit of launching, retrying and running a schedule now (one
+        // shared counter), as "attempts,minutes" per user; false turns it off.
+        'launch_throttle' => '10,1',
     ],
 
     /*
@@ -2343,6 +2408,13 @@ return [
         'mask_visible' => env('KINETIX_CONFIDENTIAL_MASK_VISIBLE', 4),
 
         'key_cache_ttl_minutes' => env('KINETIX_CONFIDENTIAL_KEY_CACHE_TTL', 10),
+
+        // Values are sealed to their table, column and row. Envelopes written
+        // before that (v1), and values bound to their column only (rows
+        // written without model events), still read while this is true. Set
+        // it to false (strict) once `kinetix:confidential:encrypt-existing`
+        // has re-wrapped every model's values and kinetix:doctor shows none.
+        'legacy_envelopes' => env('KINETIX_CONFIDENTIAL_LEGACY_ENVELOPES', true),
     ],
 
 ];

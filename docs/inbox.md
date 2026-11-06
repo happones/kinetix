@@ -202,12 +202,19 @@ Kinetix authorizes it for whoever sees that line.
 The event carries **ids only**. The inbox fetches what changed through its
 authorized endpoints, so no message content travels over the socket.
 
-Without broadcasting, the inbox polls instead:
+Laravel Echo (and its socket client) is downloaded on demand: only when the
+server says a line broadcasts. An app without broadcasting never loads it on
+the Inbox or Channels pages. Two inboxes on one page share one subscription
+per line, and the line's channel is left when the last one closes.
+
+Without broadcasting, or when Echo isn't configured, the inbox polls instead:
 
 - the list every `poll.list` seconds;
 - the open conversation every `poll.thread` seconds.
 
-A hidden tab doesn't poll.
+A hidden tab doesn't poll, and catches up as soon as it is visible again. A
+poll never overlaps the previous one: the next one is counted from the end of
+the last request.
 
 ---
 

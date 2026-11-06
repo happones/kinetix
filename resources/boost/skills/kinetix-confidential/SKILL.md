@@ -134,3 +134,27 @@ the stored one (`$m->ssn = $m->ssn` while locked).
   `Confidential::revealed(fn () => ...)` only from an explicitly-authorized,
   synchronous backend action, never ambiently in a queue worker.
 - One global keyring in v1, not per-team.
+
+## Rate limit (password confirmation)
+
+The password check shares ONE per-user budget (`password_confirmation.throttle`,
+default `'5,1'`, `false` = off) with every Kinetix endpoint that confirms the
+current password. Over it: `429` `{message, code: "throttled", retry_after,
+errors.password}`; an Inertia request goes back with a `password` error.
+Every attempt counts.
+
+## Envelope v2 (sealed to table, column and row)
+
+The cast writes v2 envelopes sealed (GCM AAD) to `table|column|rowKey`. On a
+keyed read, a ciphertext moved to another row/column or with an edited `r`
+throws. Created rows are re-sealed to their key (1 extra UPDATE);
+`replicate()` re-seals. Limits: keyless reads (`pluck`, `value`, selects
+without the key) check table + column only; rows written without model
+events (`createQuietly`, `saveQuietly` on a new model, `withoutEvents`,
+query-builder inserts) stay column-bound (`r: null`) and read on any row of
+the column. `kinetix:confidential:encrypt-existing` binds them and re-wraps
+v1; `kinetix:doctor` counts both. Then set
+`confidential.legacy_envelopes => false` (strict: v1 throws, keyed reads
+refuse column-bound, except the envelope the same instance sealed before
+it had a key, so `created` observers can read it). Never copy ciphertext
+between rows at the DB level.
