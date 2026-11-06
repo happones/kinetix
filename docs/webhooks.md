@@ -144,7 +144,9 @@ The body is `{"event": "...", "data": { ... }}`.
   `301`/`302`/`303` continue as a `GET`. A refused hop is logged as blocked and
   not retried.
 - **On-demand deliveries are throttled**: "send test" and "redeliver" share
-  `test_throttle` (6 a minute per user by default; `429` beyond it).
+  `test_throttle` (6 a minute per user by default; `false` turns it off). Beyond
+  it they answer a translated `429` (`{message, code: "throttled",
+  retry_after}` and `Retry-After`).
 - **Behind an HTTP(S) proxy** (`HTTP_PROXY`/`HTTPS_PROXY`) the proxy makes the
   connection, so the pin doesn't apply: filtering egress is the proxy's job.
 - **Retries**: failed deliveries (non-2xx or transport error) retry on the queue
@@ -259,7 +261,8 @@ installs upgrade without breaking:
    long-lived workers after migrating anyway (`php artisan queue:restart`,
    `php artisan octane:reload`), so no process keeps an older answer.
 3. Encrypt the existing ones once: `php artisan kinetix:webhooks:encrypt-secrets`
-   (idempotent).
+   (idempotent; it also encrypts channel lines' webhook secrets, see
+   [Channels](/channels#webhook-secrets-at-rest)).
 
 Signatures are identical throughout. Code that reads the column raw (SQL,
 `getRawOriginal()`) sees the ciphertext afterwards. A secret encrypted under

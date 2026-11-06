@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
+import { kinetixFailureMessage } from '@/composables/kinetixThrottle';
 import {
     buttonVariants,
     inputClass,
@@ -132,8 +133,13 @@ async function onRotate(endpoint: KinetixWebhookEndpoint): Promise<void> {
 }
 
 async function onTest(endpoint: KinetixWebhookEndpoint): Promise<void> {
-    await test(endpoint);
-    toast.success(t('kinetix.webhook_test_queued'));
+    try {
+        await test(endpoint);
+        toast.success(t('kinetix.webhook_test_queued'));
+    } catch (error) {
+        // A throttle says when to try again; anything else stays generic.
+        toast.error(kinetixFailureMessage(error, t('kinetix.action_failed')));
+    }
 }
 
 async function viewLogs(endpoint: KinetixWebhookEndpoint): Promise<void> {

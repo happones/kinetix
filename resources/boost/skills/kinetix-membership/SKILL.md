@@ -358,7 +358,7 @@ recipe: the `kinetix-boost` skill, section "UUID / ULID Host Models".
 
 ## Rate limit
 
-`membership.resend_throttle` (default `'6,1'`, `false` = off) limits re-sending an activation link per user. Over
+`membership.invite_throttle` (default `'10,1'`) limits inviting members and `membership.resend_throttle` (default `'6,1'`) re-sending an activation link, per user (`false` = off). Over
 it: `429` `{message, code: "throttled", retry_after}` + `Retry-After`.
 
 Activation passwords follow `Password::defaults()`.

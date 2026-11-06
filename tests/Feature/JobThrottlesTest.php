@@ -11,6 +11,7 @@ use Happones\Kinetix\Gdpr\Jobs\GdprExportJob;
 use Happones\Kinetix\Gdpr\KinetixGdpr;
 use Happones\Kinetix\Support\KinetixThrottle;
 use Happones\Kinetix\Tests\TestCase;
+use Illuminate\Cache\RateLimiting\Unlimited;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
@@ -139,6 +140,7 @@ class JobThrottlesTest extends TestCase
             'kinetix.report-runs.retry'        => 'kinetix-report-runs',
             'kinetix.report-schedules.run-now' => 'kinetix-report-runs',
             'kinetix.members.resend'           => 'kinetix-member-resend',
+            'kinetix.members.store'            => 'kinetix-member-invite',
             'kinetix.channels.link'            => 'kinetix-channels',
             'kinetix.channels.test'            => 'kinetix-channels',
         ] as $route => $limiter) {
@@ -148,6 +150,69 @@ class JobThrottlesTest extends TestCase
                 "{$route} is not throttled by {$limiter}.",
             );
         }
+    }
+
+    public function test_older_inline_limits_moved_to_named_limiters(): void
+    {
+        foreach ([
+            'kinetix-spotlight'     => ['spotlight.throttle', [60, 1]],
+            'kinetix-webhook-test'  => ['webhooks.test_throttle', [6, 1]],
+            'kinetix-flow-simulate' => ['flows.simulate_throttle', [10, 1]],
+            'kinetix-recompute'     => ['forms.recompute_throttle', [120, 1]],
+        ] as $limiter => [$key, $default]) {
+            $this->assertSame($key, KinetixThrottle::LIMITERS[$limiter][0]);
+            $this->assertSame($default, KinetixThrottle::parse(config("kinetix.{$key}"), KinetixThrottle::LIMITERS[$limiter][1]));
+        }
+
+        // The older `attempts,minutes,prefix` form still parses; the prefix
+        // is moot (each family counts on its own limiter).
+        $this->assertSame([30, 2], KinetixThrottle::parse('30,2,my-prefix', '9,9'));
+        $this->assertSame([30, 2], KinetixThrottle::strictParse('30,2,my-prefix'));
+    }
+
+    public function test_a_throttled_recompute_answers_the_localized_shape(): void
+    {
+        config()->set('kinetix.forms.recompute_throttle', '1,1');
+        $user = JtUser::create(['name' => 'Ada']);
+
+        $this->actingAs($user)->postJson(route('kinetix.forms.recompute'), ['descriptor' => 'x']);
+
+        $response = $this->actingAs($user)->postJson(route('kinetix.forms.recompute'), ['descriptor' => 'x'])
+            ->assertStatus(429)
+            ->assertJsonPath('code', 'throttled')
+            ->assertHeader('Retry-After');
+
+        $this->assertStringStartsWith('Too many attempts.', (string) $response->json('message'));
+        $this->assertGreaterThan(0, $response->json('retry_after'));
+    }
+
+    public function test_families_count_separately(): void
+    {
+        Queue::fake();
+        config()->set('kinetix.forms.recompute_throttle', '1,1');
+        config()->set('kinetix.gdpr.export_throttle', '1,1');
+        $user = JtUser::create(['name' => 'Ada']);
+
+        // Exhaust the recompute budget...
+        $this->actingAs($user)->postJson(route('kinetix.forms.recompute'), ['descriptor' => 'x']);
+        $this->actingAs($user)->postJson(route('kinetix.forms.recompute'), ['descriptor' => 'x'])->assertStatus(429);
+
+        // ...the export budget is untouched, and has its own limit.
+        $this->actingAs($user)->postJson(route('kinetix.gdpr.export'))->assertOk();
+        $this->actingAs($user)->postJson(route('kinetix.gdpr.export'))->assertStatus(429);
+        $this->actingAs($user)->postJson(route('kinetix.forms.recompute'), ['descriptor' => 'x'])->assertStatus(429);
+    }
+
+    public function test_a_disabled_limit_is_unlimited(): void
+    {
+        config()->set('kinetix.forms.recompute_throttle', false);
+        $user = JtUser::create(['name' => 'Ada']);
+
+        for ($attempt = 1; $attempt <= 130; $attempt++) {
+            $this->assertNotSame(429, $this->actingAs($user)->postJson(route('kinetix.forms.recompute'), ['descriptor' => 'x'])->status());
+        }
+
+        $this->assertSame(Unlimited::class, KinetixThrottle::limitFor('kinetix-recompute', request())::class);
     }
 
     public function test_every_limiter_is_registered(): void

@@ -13,6 +13,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.278.1] - 2026-11-06
+
+The last leftovers from the 2026-11-05 audit.
+
+### Security
+
+- Channel lines' webhook secrets are encrypted at rest, like webhook endpoint
+  secrets in 0.278.0. Plaintext secrets keep authenticating, and an
+  unmigrated `varchar(64)` column keeps receiving plaintext instead of
+  failing. Migration `000052` (in `kinetix-channels-migrations`) widens the
+  column; `kinetix:webhooks:encrypt-secrets` now also encrypts channel
+  secrets; `kinetix:doctor` reports plaintext, narrow-column and
+  undecryptable line secrets.
+- Inviting members (`kinetix.members.store`) is rate-limited per user by
+  `membership.invite_throttle` (`'10,1'`, `false` turns it off).
+
+### Fixed
+
+- Spotlight search, webhook test/redeliver, the flow simulator and form
+  recomputation answered an untranslated 429. They now go through named
+  limiters and answer the localized `{message, code: "throttled",
+  retry_after}` with `Retry-After`, and the published webhook manager,
+  integration logs and Spotlight show that message instead of failing
+  silently.
+- A channel line whose webhook secret can't be decrypted (for example after
+  rotating `APP_KEY` without `APP_PREVIOUS_KEYS`) answers 401 to provider
+  calls instead of 500. Their config keys and defaults are
+  unchanged; the old `'N,M,prefix'` form still parses, and the prefix is
+  ignored because each family has its own counter.
+
+### Upgrade notes
+
+- Publish the channels migrations and migrate (`000052`), then run
+  `php artisan kinetix:webhooks:encrypt-secrets` once. Until then nothing
+  breaks. Code that reads `kinetix_channels.webhook_secret` raw sees
+  ciphertext afterwards; read it through the model.
+- When rotating `APP_KEY`, keep the previous key in `APP_PREVIOUS_KEYS`, or
+  those lines' provider calls stop authenticating (`kinetix:doctor` lists
+  them). The same applies to webhook endpoint secrets.
+- If you provision members by scripting `POST …/members`, raise
+  `membership.invite_throttle` or set it to `false`.
+- Tests that asserted `throttle:60,1,kinetix-spotlight` or
+  `throttle:120,1,kinetix-recompute` on the routes now see
+  `throttle:kinetix-spotlight` and `throttle:kinetix-recompute`.
+
 ## [0.278.0] - 2026-11-06
 
 Closes the remaining follow-ups from the 2026-11-05 audit: rate limits on

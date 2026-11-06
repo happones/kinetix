@@ -98,3 +98,11 @@ is 405). `status` stays GET.
 
 `channels.action_throttle` (default `'10,1'`, `false` = off) limits link requests and test messages (shared) per user. Over
 it: `429` `{message, code: "throttled", retry_after}` + `Retry-After`.
+
+## Webhook secret at rest
+
+`Channel::$webhook_secret` is encrypted (`EncryptedWithPlaintextFallback`;
+plaintext rows still authenticate). Look a line up by `public_id`, then
+`hash_equals` the decrypted secret; never `where('webhook_secret', …)`.
+Upgrade: publish `kinetix-channels-migrations`, migrate (000052 widens the
+column), then `php artisan kinetix:webhooks:encrypt-secrets`.

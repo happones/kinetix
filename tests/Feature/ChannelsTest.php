@@ -16,15 +16,20 @@ use Happones\Kinetix\Channels\Evolution\EvolutionClientGateway;
 use Happones\Kinetix\Channels\Evolution\EvolutionGateway;
 use Happones\Kinetix\Channels\Evolution\WhatsAppBot;
 use Happones\Kinetix\Channels\KinetixChannels;
+use Happones\Kinetix\KinetixServiceProvider;
 use Happones\Kinetix\Permissions\KinetixPermissions;
+use Happones\Kinetix\Support\Casts\EncryptedWithPlaintextFallback;
 use Happones\Kinetix\Tests\Fakes\FakeEvolutionGateway;
 use Happones\Kinetix\Tests\TestCase;
+use Illuminate\Encryption\Encrypter;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\ServiceProvider;
 use Illuminate\Testing\TestResponse;
 use InvalidArgumentException;
 use Spatie\Permission\Models\Permission;
@@ -393,6 +398,87 @@ class ChannelsTest extends TestCase
         $this->postJson('/_kinetix/channels/webhook/01JUNKNOWN', ['event' => 'connection.update'])->assertUnauthorized();
 
         $this->assertSame(ChannelStatus::Connecting, $channel->fresh()?->status);
+    }
+
+    public function test_a_lines_webhook_secret_is_encrypted_at_rest_and_still_authenticates(): void
+    {
+        EncryptedWithPlaintextFallback::flush();
+        $channel = $this->line();
+        $secret  = $channel->webhook_secret;
+        $raw     = (string) DB::table('kinetix_channels')->where('id', $channel->id)->value('webhook_secret');
+
+        $this->assertSame(48, strlen($secret));
+        $this->assertNotSame($secret, $raw);
+        $this->assertStringNotContainsString($secret, $raw);
+        $this->assertTrue(EncryptedWithPlaintextFallback::isEncryptedPayload($raw));
+
+        $this->hook($channel, ['event' => 'connection.update', 'data' => ['state' => 'open']], $secret)->assertOk();
+        $this->hook($channel, ['event' => 'connection.update', 'data' => ['state' => 'open']], $raw)->assertUnauthorized();
+    }
+
+    public function test_a_legacy_plaintext_secret_still_authenticates_until_the_command_encrypts_it(): void
+    {
+        EncryptedWithPlaintextFallback::flush();
+        $channel = $this->line();
+        DB::table('kinetix_channels')->where('id', $channel->id)->update(['webhook_secret' => 'legacy-plaintext-secret']);
+
+        $this->hook($channel, ['event' => 'connection.update', 'data' => ['state' => 'open']], 'legacy-plaintext-secret')->assertOk();
+
+        $this->artisan('kinetix:webhooks:encrypt-secrets')
+            ->expectsOutputToContain('Encrypted 1 channel webhook secret(s).')
+            ->assertSuccessful();
+
+        $raw = (string) DB::table('kinetix_channels')->where('id', $channel->id)->value('webhook_secret');
+        $this->assertTrue(EncryptedWithPlaintextFallback::isEncryptedPayload($raw));
+        $this->hook($channel, ['event' => 'connection.update', 'data' => ['state' => 'open']], 'legacy-plaintext-secret')->assertOk();
+
+        $this->artisan('kinetix:webhooks:encrypt-secrets')
+            ->expectsOutputToContain('Encrypted 0 channel webhook secret(s).')
+            ->assertSuccessful();
+        $this->assertSame($raw, DB::table('kinetix_channels')->where('id', $channel->id)->value('webhook_secret'));
+    }
+
+    public function test_a_secret_that_no_longer_decrypts_refuses_the_call_with_401(): void
+    {
+        $foreign = (new Encrypter(random_bytes(32), 'AES-256-CBC'))->encryptString('old-key-secret');
+
+        foreach (['whatsapp', 'telegram'] as $provider) {
+            $channel = $this->line(['provider' => $provider, 'external_id' => "kinetix_{$provider}"]);
+            DB::table('kinetix_channels')->where('id', $channel->id)->update(['webhook_secret' => $foreign]);
+            $channel = $channel->fresh();
+
+            $this->hook($channel, ['event' => 'connection.update'], 'old-key-secret')->assertUnauthorized();
+            $this->hook($channel, ['event' => 'connection.update'], 'old-key-secret')->assertUnauthorized();
+        }
+    }
+
+    public function test_the_channels_migration_widens_the_secret_and_is_published(): void
+    {
+        Schema::drop('kinetix_channels');
+        DB::statement('create table "kinetix_channels" ("id" integer primary key autoincrement not null, "webhook_secret" varchar(64) not null)');
+        DB::table('kinetix_channels')->insert(['webhook_secret' => 'kept']);
+
+        $migration = require __DIR__.'/../../database/migrations/2026_01_01_000052_widen_webhook_secret_on_kinetix_channels_table.php';
+        $migration->up();
+        $migration->up();
+
+        $column = collect(Schema::getColumns('kinetix_channels'))->firstWhere('name', 'webhook_secret');
+        $this->assertSame('text', strtolower((string) $column['type_name']));
+        $this->assertSame('kept', DB::table('kinetix_channels')->value('webhook_secret'));
+
+        $paths = array_keys(ServiceProvider::pathsToPublish(KinetixServiceProvider::class, 'kinetix-channels-migrations'));
+        $this->assertNotEmpty(array_filter($paths, static fn (string $path): bool => str_ends_with($path, '000052_widen_webhook_secret_on_kinetix_channels_table.php')));
+    }
+
+    public function test_doctor_reports_plaintext_line_secrets(): void
+    {
+        $channel = $this->line();
+        DB::table('kinetix_channels')->where('id', $channel->id)->update(['webhook_secret' => 'legacy-plaintext-secret']);
+
+        Artisan::call('kinetix:doctor', ['--json' => true]);
+        $messages = array_column((array) json_decode(Artisan::output(), true)['findings'], 'message', 'message');
+
+        $this->assertArrayHasKey('1 line webhook secret(s) stored in plaintext', $messages);
     }
 
     public function test_whatsapp_webhooks_update_the_line_and_announce_qrs_and_messages(): void

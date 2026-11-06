@@ -651,7 +651,8 @@ class KinetixServiceProvider extends ServiceProvider
 
             // Publish the optional Channels module's migration (linked lines).
             $this->publishes([
-                __DIR__.'/../database/migrations/2026_01_01_000041_create_kinetix_channels_table.php' => database_path('migrations/2026_01_01_000041_create_kinetix_channels_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000041_create_kinetix_channels_table.php'                  => database_path('migrations/2026_01_01_000041_create_kinetix_channels_table.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000052_widen_webhook_secret_on_kinetix_channels_table.php' => database_path('migrations/2026_01_01_000052_widen_webhook_secret_on_kinetix_channels_table.php'),
             ], 'kinetix-channels-migrations');
 
             // Publish the optional Inbox module's migration (conversations).
@@ -1230,6 +1231,7 @@ class KinetixServiceProvider extends ServiceProvider
                 Route::get('/', [MembershipController::class, 'index'])
                     ->name('kinetix.members.index');
                 Route::post('/', [MembershipController::class, 'store'])
+                    ->middleware(KinetixThrottle::middleware('kinetix-member-invite'))
                     ->name('kinetix.members.store');
                 Route::post('{provision}/resend', [MembershipController::class, 'resend'])
                     ->middleware(KinetixThrottle::middleware('kinetix-member-resend'))
@@ -1545,11 +1547,7 @@ class KinetixServiceProvider extends ServiceProvider
             // One request fans out to every authorized source, so a held-down key
             // is an unbounded multiplier on database load — and the endpoint is
             // reachable by any authenticated user.
-            $throttle = self::throttleMiddleware(config('kinetix.spotlight.throttle', '60,1'), 'kinetix-spotlight');
-
-            if ($throttle !== null) {
-                $middleware[] = $throttle;
-            }
+            $middleware[] = KinetixThrottle::middleware('kinetix-spotlight');
 
             KinetixTeams::routes($middleware)
                 ->prefix("{$prefix}/spotlight")
@@ -1592,7 +1590,7 @@ class KinetixServiceProvider extends ServiceProvider
             }
 
             // Sending a test or a redelivery fires a request on demand: throttled.
-            $throttle = array_filter([self::throttleMiddleware(config('kinetix.webhooks.test_throttle', '6,1'), 'kinetix-webhook-test')]);
+            $throttle = KinetixThrottle::middleware('kinetix-webhook-test');
 
             KinetixTeams::routes($middleware)
                 ->prefix("{$prefix}/webhooks")
@@ -1772,7 +1770,7 @@ class KinetixServiceProvider extends ServiceProvider
             }
 
             // The simulator runs HTTP nodes for real (simulate_http): throttled.
-            $throttle = array_filter([self::throttleMiddleware(config('kinetix.flows.simulate_throttle', '10,1'), 'kinetix-flow-simulate')]);
+            $throttle = KinetixThrottle::middleware('kinetix-flow-simulate');
 
             KinetixTeams::routes($middleware)
                 ->prefix("{$prefix}/flows")
@@ -3388,13 +3386,9 @@ class KinetixServiceProvider extends ServiceProvider
                 // against the in-flight state.
                 // Throttled like Spotlight: every debounced keystroke in a
                 // live field is a request that rebuilds the whole form.
-                $recompute = Route::post('recompute', FormRecomputeController::class)
+                Route::post('recompute', FormRecomputeController::class)
+                    ->middleware(KinetixThrottle::middleware('kinetix-recompute'))
                     ->name('kinetix.forms.recompute');
-                $throttle = self::throttleMiddleware(config('kinetix.forms.recompute_throttle', '120,1'), 'kinetix-recompute');
-
-                if ($throttle !== null) {
-                    $recompute->middleware($throttle);
-                }
             });
     }
 
@@ -3458,25 +3452,6 @@ class KinetixServiceProvider extends ServiceProvider
         }
 
         $register();
-    }
-
-    /**
-     * The `throttle` middleware for a configured `attempts,minutes` limit,
-     * counted on its own: without a prefix every plain `throttle:N,M` route
-     * shares one counter per user, so live-form typing ate into the host's
-     * own limits (Fortify's verification resend) and theirs into Kinetix's.
-     * A limit that already names its own prefix keeps it. Null when the limit
-     * is turned off.
-     */
-    private static function throttleMiddleware(mixed $limit, string $prefix): ?string
-    {
-        if (! is_scalar($limit) || $limit === '' || $limit === false) {
-            return null;
-        }
-
-        $limit = (string) $limit;
-
-        return 'throttle:'.(substr_count($limit, ',') >= 2 ? $limit : $limit.','.$prefix);
     }
 
     /**

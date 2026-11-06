@@ -405,6 +405,29 @@ Content-Type: application/json
 old `GET …/link?phone=` must switch to this. `status` stays a `GET`: its
 provider check is a read.
 
+## Webhook secrets at rest
+
+Each line's `webhook_secret` (what authenticates the provider's calls) is
+encrypted with the app key. A provider call is matched by the line's
+`public_id` and its secret compared with `hash_equals` on the decrypted
+value, so nothing queries the column. Existing installs upgrade without
+breaking:
+
+1. Without migrating, plaintext secrets keep authenticating, and new lines
+   keep plaintext secrets (the original `varchar(64)` can't hold a
+   ciphertext; SQLite enforces no length, so there new lines get an
+   encrypted secret right away). `kinetix:doctor` says what to do.
+2. Publish and run the migration that widens the column:
+   `php artisan vendor:publish --tag=kinetix-channels-migrations && php artisan migrate`
+   (000052). New lines then get an encrypted secret.
+3. Encrypt the existing ones once: `php artisan kinetix:webhooks:encrypt-secrets`
+   (idempotent; it covers webhook endpoints and channel lines).
+
+The provider keeps the same secret throughout. A secret encrypted under
+another `APP_KEY` fails to decrypt: that line's provider calls are refused
+with `401` (reported once per line and process; the doctor lists them), so
+keep the old key in `APP_PREVIOUS_KEYS` when rotating.
+
 ## Rate limit
 
 `channels.action_throttle` limits link requests and test messages (one shared counter) per user, as `"attempts,minutes"` (default

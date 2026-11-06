@@ -34,9 +34,11 @@ wait.
 
 `throttle` matters because one request fans out to **every** authorized source:
 without it a held-down key is an unbounded multiplier on database load, from any
-authenticated user. The limit has its own counter, so it doesn't share one with
-your app's `throttle` routes. A third segment (`60,1,my-prefix`) names that
-counter yourself.
+authenticated user. It is a named limiter with its own counter (per user), so
+it doesn't share one with your app's `throttle` routes; an older
+`60,1,my-prefix` value still parses (the prefix is no longer needed). Over it the endpoint answers `429` with
+`{"message": "<translated>", "code": "throttled", "retry_after": N}` and the
+`Retry-After` header.
 
 ---
 

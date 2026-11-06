@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Commands;
 
+use Happones\Kinetix\Channels\Channel;
 use Happones\Kinetix\Confidential\Casts\ConfidentialCast;
 use Happones\Kinetix\Confidential\Concerns\HasConfidentialAttributes;
 use Happones\Kinetix\Credentials\IdentityResolver;
@@ -1371,30 +1372,53 @@ class DoctorCommand extends Command
     }
 
     /**
-     * Webhook signing secrets: whether the column can hold them encrypted,
-     * how many are still stored as plaintext, and whether every encrypted
-     * one decrypts with the current app key (else deliveries fail).
+     * Webhook secrets at rest: the outgoing endpoints' signing secrets and
+     * the channel lines' provider secrets.
      */
     protected function checkWebhookSecrets(): void
     {
-        if (! config('kinetix.webhooks.enabled', false)) {
-            return;
+        if (config('kinetix.webhooks.enabled', false)) {
+            $this->checkSecretsAtRest(new WebhookEndpoint, 'secret', 'Webhooks', [
+                'narrow'        => 'the secret column is too small for encrypted secrets, so they are stored in plaintext',
+                'tag'           => 'kinetix-webhooks-migrations',
+                'plaintext'     => 'endpoint secret(s) stored in plaintext',
+                'undecryptable' => 'Deliveries to those endpoints fail. Restore the previous key (APP_PREVIOUS_KEYS), or rotate those endpoints\' secrets.',
+                'ok'            => 'endpoint secrets are encrypted at rest',
+            ]);
         }
 
-        $endpoint = new WebhookEndpoint;
+        if (config('kinetix.channels.enabled', false)) {
+            $this->checkSecretsAtRest(new Channel, 'webhook_secret', 'Channels', [
+                'narrow'        => 'the webhook_secret column is too small for encrypted secrets, so they are stored in plaintext',
+                'tag'           => 'kinetix-channels-migrations',
+                'plaintext'     => 'line webhook secret(s) stored in plaintext',
+                'undecryptable' => 'Those lines\' provider calls fail to authenticate. Restore the previous key (APP_PREVIOUS_KEYS), or re-create those lines.',
+                'ok'            => 'line webhook secrets are encrypted at rest',
+            ]);
+        }
+    }
 
+    /**
+     * One table's secrets at rest: whether the column can hold them
+     * encrypted, how many are still plaintext, and whether every encrypted
+     * one decrypts with the current app key.
+     *
+     * @param array{narrow: string, tag: string, plaintext: string, undecryptable: string, ok: string} $say
+     */
+    protected function checkSecretsAtRest(Model $model, string $column, string $section, array $say): void
+    {
         try {
-            if (! Schema::hasTable($endpoint->getTable())) {
+            if (! Schema::hasTable($model->getTable())) {
                 return;
             }
 
-            $wide = EncryptedWithPlaintextFallback::columnHoldsCiphertext($endpoint->getConnectionName(), $endpoint->getTable(), 'secret');
+            $wide = EncryptedWithPlaintextFallback::columnHoldsCiphertext($model->getConnectionName(), $model->getTable(), $column);
 
             $plaintext     = 0;
             $undecryptable = 0;
 
-            foreach ($endpoint->newQuery()->toBase()->select([$endpoint->getKeyName(), 'secret'])->lazyById(200, $endpoint->getKeyName()) as $row) {
-                $raw = $row->secret ?? null;
+            foreach ($model->newQueryWithoutScopes()->toBase()->select([$model->getKeyName(), $column])->lazyById(200, $model->getKeyName()) as $row) {
+                $raw = $row->{$column} ?? null;
 
                 if (! is_string($raw) || $raw === '') {
                     continue;
@@ -1417,22 +1441,20 @@ class DoctorCommand extends Command
         }
 
         if (! $wide) {
-            $this->warn_('Webhooks', 'the secret column is too small for encrypted secrets, so they are stored in plaintext',
-                'php artisan vendor:publish --tag=kinetix-webhooks-migrations && php artisan migrate');
+            $this->warn_($section, $say['narrow'], "php artisan vendor:publish --tag={$say['tag']} && php artisan migrate");
         }
 
         if ($plaintext > 0) {
-            $this->warn_('Webhooks', "{$plaintext} endpoint secret(s) stored in plaintext",
+            $this->warn_($section, "{$plaintext} {$say['plaintext']}",
                 $wide ? 'php artisan kinetix:webhooks:encrypt-secrets' : 'Widen the column first (see above), then run php artisan kinetix:webhooks:encrypt-secrets');
         }
 
         if ($undecryptable > 0) {
-            $this->error_('Webhooks', "{$undecryptable} secret(s) can't be decrypted with the current APP_KEY",
-                'Deliveries to those endpoints fail. Restore the previous key (APP_PREVIOUS_KEYS), or rotate those endpoints\' secrets.');
+            $this->error_($section, "{$undecryptable} secret(s) can't be decrypted with the current APP_KEY", $say['undecryptable']);
         }
 
         if ($wide && $plaintext === 0 && $undecryptable === 0) {
-            $this->ok('Webhooks', 'endpoint secrets are encrypted at rest');
+            $this->ok($section, $say['ok']);
         }
     }
 

@@ -243,7 +243,9 @@ that test, never an accident.
    answers every request 429. Config is read inside the limiter, so never
    build a `throttle:N,M` string from config at registration. Every password
    confirmation shares `kinetix-password`. `RouteCacheBootTest` checks every
-   limiter on a cached boot.
+   limiter on a cached boot. There are no inline `throttle:N,M` routes left
+   (since 0.278.1): every Kinetix limit is a named limiter with the
+   localized `{message, code: 'throttled', retry_after}` 429.
 2. **An endpoint that does not carry the team segment but acts for a team
    binds the request to the token's team claim** (the export pattern in
    `ExportController::start`): set the route's `current_team` parameter to

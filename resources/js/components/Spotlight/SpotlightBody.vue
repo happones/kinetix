@@ -17,6 +17,7 @@ import {
 } from 'reka-ui';
 import { onBeforeUnmount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { kinetixFailureMessage } from '@/composables/kinetixThrottle';
 import { useKinetixSpotlight } from '@/composables/useKinetixSpotlight';
 import type {
     KinetixSpotlightGroup,
@@ -36,6 +37,8 @@ const { loading, minChars, search } = useKinetixSpotlight();
 const open = defineModel<boolean>('open', { default: false });
 const query = ref('');
 const groups = ref<KinetixSpotlightGroup[]>([]);
+/** Why the last search failed (the server's message for a throttle), or null. */
+const failure = ref<string | null>(null);
 
 let debounce: ReturnType<typeof setTimeout> | undefined;
 
@@ -47,12 +50,14 @@ function onOpenChange(value: boolean): void {
     if (!value) {
         query.value = '';
         groups.value = [];
+        failure.value = null;
     }
 }
 
 function onInput(event: Event): void {
     query.value = (event.target as HTMLInputElement).value;
     clearTimeout(debounce);
+    failure.value = null;
 
     // Below the threshold there is nothing worth fanning out for: `%a%` matches
     // nearly every row of every source. The endpoint enforces the same floor.
@@ -62,15 +67,32 @@ function onInput(event: Event): void {
         return;
     }
 
-    debounce = setTimeout(async () => {
-        const result = await search(query.value);
+    debounce = setTimeout(() => void runSearch(query.value), 200);
+}
+
+async function runSearch(term: string): Promise<void> {
+    try {
+        const result = await search(term);
 
         // `null` = this search was superseded by a newer keystroke. Painting it
         // would show results for a query the reader already replaced.
         if (result !== null) {
             groups.value = result;
         }
-    }, 200);
+    } catch (error) {
+        // A newer keystroke owns the palette now: its own search decides.
+        if (term !== query.value) {
+            return;
+        }
+
+        // The results on screen answer an older query: drop them, and say why
+        // (a throttle says when to try again).
+        groups.value = [];
+        failure.value = kinetixFailureMessage(
+            error,
+            t('kinetix.action_failed'),
+        );
+    }
 }
 
 function onSelect(item: unknown): void {
@@ -132,6 +154,14 @@ function onSelect(item: unknown): void {
                             aria-live="polite"
                         >
                             {{ t('kinetix.spotlight_searching') }}
+                        </div>
+                        <div
+                            v-else-if="failure"
+                            data-test="spotlight-failure"
+                            class="px-2 py-6 text-sm text-center text-destructive"
+                            role="alert"
+                        >
+                            {{ failure }}
                         </div>
                         <div
                             v-else-if="query.length < minChars"

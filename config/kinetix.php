@@ -816,6 +816,10 @@ return [
         // Rate limit of re-sending an activation link, as "attempts,minutes"
         // per user; false turns it off.
         'resend_throttle' => '6,1',
+
+        // Rate limit of inviting (provisioning) members, which sends the
+        // activation link, as "attempts,minutes" per user; false turns it off.
+        'invite_throttle' => '10,1',
     ],
 
     /*
@@ -889,7 +893,7 @@ return [
         'follow_redirects' => 0,
 
         // Rate limit of the "send test" and "redeliver" endpoints (one shared
-        // counter), as "attempts,minutes" per user.
+        // counter), as "attempts,minutes" per user; false turns it off.
         'test_throttle' => '6,1',
     ],
 
@@ -1090,7 +1094,8 @@ return [
         // above 0 every hop is re-checked against the SSRF guard.
         'follow_redirects' => 0,
 
-        // Rate limit of the simulator, as "attempts,minutes" per user.
+        // Rate limit of the simulator, as "attempts,minutes" per user; false
+        // turns it off.
         'simulate_throttle' => '10,1',
     ],
 
@@ -1174,8 +1179,9 @@ return [
         // user types — enforced on the endpoint AND in the palette.
         'min_chars' => env('KINETIX_SPOTLIGHT_MIN_CHARS', 2),
 
-        // Rate limit for the search endpoint ('requests,minutes'), since one
-        // request fans out across every authorized source. Null removes it.
+        // Rate limit for the search endpoint ('requests,minutes' per user),
+        // since one request fans out across every authorized source. Null or
+        // false removes it.
         'throttle' => env('KINETIX_SPOTLIGHT_THROTTLE', '60,1'),
 
         // Directory (+ namespace) auto-scanned for `SpotlightSource` classes,
@@ -1804,7 +1810,7 @@ return [
 
         // Rate limit of the live-field recompute endpoint (`attempts,minutes`,
         // per user). Each debounced change of a `live()` field rebuilds the
-        // form server-side. Null disables it.
+        // form server-side. Null or false disables it.
         'recompute_throttle' => env('KINETIX_FORMS_RECOMPUTE_THROTTLE', '120,1'),
 
         // Keep the open tab (form AND infolist Tabs) and the current wizard

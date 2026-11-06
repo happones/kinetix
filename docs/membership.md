@@ -819,11 +819,13 @@ admin, never a stray personal team.
   change their role, issue a credential or remove them from their row instead.
   Re-provisioning used to reset the row to pending and drop its user, so a
   later revoke left their role in place.
-- **Rate-limit** the activation and resend endpoints in your app — the route
-  names are `kinetix.membership.activate.show` / `kinetix.membership.activate`
-  (public, signed) and `kinetix.membership.resend`; e.g. a
+- **Rate limits** — Kinetix throttles inviting (`kinetix.members.store`,
+  `membership.invite_throttle`) and re-sending (`kinetix.members.resend`,
+  `membership.resend_throttle`) per user; see [Rate limit](#rate-limit). The
+  public, signed activation routes (`kinetix.membership.activate.show` /
+  `kinetix.membership.activate`) are left to your app: e.g. a
   `RateLimiter::for()` keyed by IP applied via `->middleware('throttle:...')`
-  in a route group that wraps them, or globally with `kinetix.middleware`.
+  in a route group that wraps them.
 - **State machine is enforced** — a revoked provision rejects role changes and
   resends (422; re-provision deliberately instead), and resend on an active
   member is a 422 too (an activation link for an existing user would try to
@@ -838,8 +840,10 @@ admin, never a stray personal team.
 
 ## Rate limit
 
-`membership.resend_throttle` limits re-sending an activation link per user, as `"attempts,minutes"` (default
-`'6,1'`); `false` turns it off. Over the limit the endpoint answers
+`membership.invite_throttle` limits inviting (provisioning) members, which
+sends the activation link (default `'10,1'`), and `membership.resend_throttle`
+re-sending one (default `'6,1'`), per user, as `"attempts,minutes"`; `false`
+turns either off. The members list shows the server's message. Over the limit the endpoint answers
 `429` with `{"message": "<translated>", "code": "throttled", "retry_after": N}`
 and the `Retry-After` header. The limit is read on every request, so it
 also applies to cached routes.

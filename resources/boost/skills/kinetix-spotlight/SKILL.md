@@ -67,8 +67,9 @@ KinetixSpotlight::register([
 - **`min_chars` (default 2)** is enforced in `SpotlightResource` (the expensive
   sources) and in the palette, which reads it from `kinetix_config.spotlight`.
   `SpotlightLink` still answers short/empty queries — it is in-memory.
-- **The endpoint is throttled** (`spotlight.throttle`, default `60,1`): one
-  request fans out to every authorized source.
+- **The endpoint is throttled** (`spotlight.throttle`, default `60,1`, a named
+  per-user limiter; translated `429` with `code: "throttled"`): one request
+  fans out to every authorized source.
 - **Group order** = source `->priority()` desc, then registration order. Only
   the database driver re-ranks within a group (prefix matches first); Scout
   results keep the engine's relevance order.

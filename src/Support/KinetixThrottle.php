@@ -44,6 +44,11 @@ final class KinetixThrottle
         'kinetix-member-resend' => ['membership.resend_throttle', '6,1', null],
         'kinetix-channels'      => ['channels.action_throttle', '10,1', null],
         'kinetix-team-search'   => ['team_switcher.search_throttle', '60,1', null],
+        'kinetix-member-invite' => ['membership.invite_throttle', '10,1', null],
+        'kinetix-spotlight'     => ['spotlight.throttle', '60,1', null],
+        'kinetix-webhook-test'  => ['webhooks.test_throttle', '6,1', null],
+        'kinetix-flow-simulate' => ['flows.simulate_throttle', '10,1', null],
+        'kinetix-recompute'     => ['forms.recompute_throttle', '120,1', null],
     ];
 
     /**
@@ -83,7 +88,9 @@ final class KinetixThrottle
 
     /**
      * The `[attempts, minutes]` of a well-formed value, or null when it isn't
-     * one (doctor reports those).
+     * one (doctor reports those). The `'attempts,minutes,prefix'` form older
+     * configs used is accepted: the prefix kept route counters apart, which
+     * every named limiter now does on its own, so it is ignored.
      *
      * @return array{0: int, 1: int}|null
      */
@@ -93,7 +100,7 @@ final class KinetixThrottle
             $value = (string) $value;
         }
 
-        if (! is_string($value) || preg_match('/^\s*(\d+)\s*(?:,\s*(\d+)\s*)?$/', $value, $matches) !== 1) {
+        if (! is_string($value) || preg_match('/^\s*(\d+)\s*(?:,\s*(\d+)\s*(?:,\s*[\w.:-]+\s*)?)?$/', $value, $matches) !== 1) {
             return null;
         }
 

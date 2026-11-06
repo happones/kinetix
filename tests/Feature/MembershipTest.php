@@ -126,6 +126,25 @@ class MembershipTest extends TestCase
         Notification::assertSentOnDemand(MemberActivationNotification::class);
     }
 
+    public function test_invites_are_throttled_per_user(): void
+    {
+        Notification::fake();
+        config()->set('kinetix.membership.invite_throttle', '2,1');
+        $manager = $this->actingAsManager();
+
+        $this->actingAs($manager)->postJson('/_kinetix/members', ['email' => 'one@example.com', 'role' => 'editor'])->assertCreated();
+        $this->actingAs($manager)->postJson('/_kinetix/members', ['email' => 'two@example.com', 'role' => 'editor'])->assertCreated();
+
+        $this->actingAs($manager)->postJson('/_kinetix/members', ['email' => 'three@example.com', 'role' => 'editor'])
+            ->assertStatus(429)
+            ->assertJsonPath('code', 'throttled')
+            ->assertHeader('Retry-After');
+
+        $this->assertStringStartsWith('Too many attempts.', (string) $this->actingAs($manager)->postJson('/_kinetix/members', ['email' => 'three@example.com', 'role' => 'editor'])->json('message'));
+        $this->assertDatabaseMissing('kinetix_member_provisions', ['email' => 'three@example.com']);
+        Notification::assertSentOnDemandTimes(MemberActivationNotification::class, 2);
+    }
+
     public function test_a_non_assignable_role_is_rejected(): void
     {
         $this->actingAs($this->actingAsManager())

@@ -268,4 +268,6 @@ with one output.
   at once, with an error.
 - The test chat runs your real API requests (`simulate_http`). Turn that off
   to skip them while testing. It is rate limited per user
-  (`simulate_throttle`, 10 a minute by default; `429` beyond it).
+  (`simulate_throttle`, 10 a minute by default; `false` turns it off). Beyond
+  it the simulator answers a translated `429` (`{message, code: "throttled",
+  retry_after}` and `Retry-After`).

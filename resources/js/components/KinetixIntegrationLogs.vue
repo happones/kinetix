@@ -3,6 +3,8 @@ import { ChevronLeft, ChevronRight } from '@lucide/vue';
 import { computed } from 'vue';
 import type { Component } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { toast } from 'vue-sonner';
+import { kinetixFailureMessage } from '@/composables/kinetixThrottle';
 import { useKinetixIntegrationLogs } from '@/composables/useKinetixIntegrationLogs';
 import { buttonVariants } from '@/composables/useKinetixShadcnVariants';
 import ApiLogsTable from './IntegrationLogs/ApiLogsTable.vue';
@@ -47,6 +49,31 @@ const {
     load,
     redeliver,
 } = useKinetixIntegrationLogs({ only: () => props.only });
+
+let redelivering = false;
+
+/**
+ * Redeliver from the detail modal. A refusal (a throttle says when to try
+ * again) is a toast, never an unhandled rejection; a second click while one
+ * is in flight is ignored.
+ */
+async function onRedeliver(
+    log: Parameters<typeof redeliver>[0],
+): Promise<void> {
+    if (redelivering) {
+        return;
+    }
+
+    redelivering = true;
+
+    try {
+        await redeliver(log);
+    } catch (error) {
+        toast.error(kinetixFailureMessage(error, t('kinetix.action_failed')));
+    } finally {
+        redelivering = false;
+    }
+}
 
 // tab → table component. Two feeds today; a lookup keeps adding a third to a
 // single map entry rather than another template branch.
@@ -131,7 +158,7 @@ const onSelect = (log: any): void => {
             :webhook="detailWebhook"
             :api="detailApi"
             @update:open="detailOpen = $event"
-            @redeliver="redeliver"
+            @redeliver="onRedeliver"
         />
     </div>
 </template>

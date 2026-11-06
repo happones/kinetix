@@ -284,9 +284,7 @@ class WhatsAppDriver implements ChannelDriver, DownloadsMedia, HostsBots, Report
 
     public function verifyWebhook(Channel $channel, Request $request): bool
     {
-        $secret = $request->header(self::SECRET_HEADER);
-
-        return is_string($secret) && hash_equals($channel->webhook_secret, $secret);
+        return $channel->matchesWebhookSecret($request->header(self::SECRET_HEADER));
     }
 
     public function parseWebhook(Channel $channel, Request $request): WebhookResult

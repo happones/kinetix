@@ -182,13 +182,13 @@ class FormRecomputeEndpointTest extends TestCase
 
     /**
      * Every debounced keystroke in a live field rebuilds the form. The limit
-     * counts on its own: unprefixed, it shared one counter with every plain
-     * `throttle:N,M` route of the host.
+     * is its own named limiter, so it never shares a counter with the host's
+     * `throttle:N,M` routes.
      */
     public function test_the_endpoint_is_rate_limited(): void
     {
         $middleware = Route::getRoutes()->getByName('kinetix.forms.recompute')->gatherMiddleware();
 
-        $this->assertContains('throttle:120,1,kinetix-recompute', $middleware);
+        $this->assertContains('throttle:kinetix-recompute', $middleware);
     }
 }
