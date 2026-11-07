@@ -13,6 +13,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.280.1] - 2026-11-07
+
+`composer install` no longer leaves a clean checkout dirty.
+
+### Fixed
+
+- `kinetix:upgrade` (the `post-autoload-dump` hook) and Laravel Boost's
+  `boost:update` both wrote the agent skills, in different formatting. On
+  every machine that only ran `composer install`, seven skills flipped back
+  to Kinetix's copy, and the next pull conflicted. Both causes are fixed:
+  - Every shipped skill is already in the exact form Boost writes, so the
+    two writers produce the same bytes. A test keeps it that way
+    (`php scripts/format-skills.php` reformats the sources).
+  - When Boost writes the skills directory (`kinetix.skills_path`) and lists
+    every Kinetix skill already there, `kinetix:upgrade` leaves the skills to
+    Boost and no longer tracks them for local edits. Otherwise (Boost writes
+    another directory, or skips a skill you have) Kinetix keeps publishing.
+    Override with the new `kinetix.skills_publish_on_upgrade` (`true` always
+    publishes, `false` never; `null`, the default, detects Boost).
+- **(published)** `TextInputField` ignored `extraInputAttributes()`
+  (`autocomplete`, `inputmode`, `data-*`…). They now reach the text and
+  password inputs, as they already did on the textarea (the copyable and
+  revealable variants still don't take them). Rule attributes come first,
+  then the field's own, then the caller's attributes, which still win. An
+  `id` or `value` in them is ignored, since those wire the label, errors and
+  model.
+
+### Upgrade notes
+
+- On an app where Boost owns the skills, new skill content now arrives with
+  `php artisan boost:update` instead of `composer install`. Boost's installer
+  already runs it from `post-update-cmd`; add it there if your app doesn't.
+
+### Docs
+
+- Installation: the compiled vue-i18n bundle is regenerated on every
+  `composer install` and isn't byte-identical across machines yet, so
+  `.gitignore` it instead of committing it.
+
 ## [0.280.0] - 2026-11-06
 
 Members can carry data of your own: a checkbox, a few inputs, or a relation

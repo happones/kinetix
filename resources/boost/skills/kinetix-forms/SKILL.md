@@ -23,7 +23,6 @@ Activate this skill when:
 - Deep-linking a tab: the open tab is in the URL by default (`?tab=security`, the label's slug; nested groups share the param). `Tab::make(__('Security'))->key('security')` for translated labels, `->persistInQueryString('section'|false)` per group, config `kinetix.forms.query_string.tabs` (also covers infolist tabs). Never inside a modal.
 - Using lifecycle hooks (`afterStateHydrated()`, `dehydrateStateUsing()`).
 
-
 ## UI reuse (DRY — REQUIRED)
 
 Never re-write a component's classes to imitate an existing Kinetix component:

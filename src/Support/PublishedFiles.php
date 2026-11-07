@@ -31,13 +31,134 @@ class PublishedFiles
     {
         $root = dirname(__DIR__, 2);
 
-        return [
+        $map = [
             [$root.'/resources/js/components', resource_path('js/components/kinetix')],
             [$root.'/resources/js/composables', resource_path('js/composables')],
             [$root.'/resources/js/stores', resource_path('js/stores')],
             [$root.'/resources/js/types/kinetix.ts', resource_path('js/types/kinetix.ts')],
-            [$root.'/resources/boost/skills', base_path((string) config('kinetix.skills_path', '.claude/skills'))],
         ];
+
+        // Skills another tool writes aren't Kinetix's copies to track.
+        if (static::upgradePublishesSkills()) {
+            $map[] = [$root.'/resources/boost/skills', base_path((string) config('kinetix.skills_path', '.claude/skills'))];
+        }
+
+        return $map;
+    }
+
+    /**
+     * Whether `kinetix:upgrade` owns the skills copy. Laravel Boost writes the
+     * skills listed in `boost.json` on `boost:update`; publishing them again on
+     * every `composer install` makes two writers of one committed file. Auto
+     * (`kinetix.skills_publish_on_upgrade` null) defers to Boost when it lists
+     * any Kinetix skill.
+     */
+    public static function upgradePublishesSkills(): bool
+    {
+        $setting = config('kinetix.skills_publish_on_upgrade');
+
+        if (is_bool($setting)) {
+            return $setting;
+        }
+
+        return ! static::boostManagesSkills();
+    }
+
+    /**
+     * Boost writes the skills directory Kinetix publishes to, with every
+     * Kinetix skill already there. Both have to hold: an agent whose folder
+     * is elsewhere (`junie` → `.junie/skills`) never refreshes `skills_path`,
+     * and a skill Boost doesn't list would go stale if Kinetix stopped
+     * publishing it. When in doubt Kinetix keeps publishing: its sources are
+     * in Boost's format, so the two writers agree byte for byte anyway.
+     */
+    public static function boostManagesSkills(): bool
+    {
+        $path = base_path('boost.json');
+
+        if (! File::exists($path)) {
+            return false;
+        }
+
+        $boost = json_decode((string) File::get($path), true);
+
+        if (! is_array($boost) || ! is_array($boost['skills'] ?? null) || ! is_array($boost['agents'] ?? null)) {
+            return false;
+        }
+
+        $skillsPath = static::normalizedPath((string) config('kinetix.skills_path', '.claude/skills'));
+        $writesHere = false;
+
+        foreach ($boost['agents'] as $agent) {
+            if (! is_string($agent) || ! isset(static::BOOST_SKILLS_PATHS[$agent])) {
+                continue;
+            }
+
+            $agentPath = (string) config("boost.agents.{$agent}.skills_path", static::BOOST_SKILLS_PATHS[$agent]);
+
+            if (static::normalizedPath($agentPath) === $skillsPath) {
+                $writesHere = true;
+
+                break;
+            }
+        }
+
+        if (! $writesHere) {
+            return false;
+        }
+
+        $listed  = array_filter($boost['skills'], static fn (mixed $skill): bool => is_string($skill));
+        $shipped = File::directories(dirname(__DIR__, 2).'/resources/boost/skills');
+        $any     = false;
+
+        foreach ($shipped as $directory) {
+            $skill = basename($directory);
+
+            if (in_array($skill, $listed, true)) {
+                $any = true;
+
+                continue;
+            }
+
+            // Published here before, and Boost doesn't write it: keep it fresh.
+            if (File::isDirectory(base_path($skillsPath.'/'.$skill))) {
+                return false;
+            }
+        }
+
+        return $any;
+    }
+
+    /**
+     * Where each Boost agent writes skills by default (Boost 2.x), overridable
+     * with `boost.agents.<agent>.skills_path`.
+     */
+    protected const BOOST_SKILLS_PATHS = [
+        'amp'         => '.agents/skills',
+        'antigravity' => '.agents/skills',
+        'claude_code' => '.claude/skills',
+        'codex'       => '.agents/skills',
+        'copilot'     => '.github/skills',
+        'cursor'      => '.cursor/skills',
+        'factory'     => '.factory/skills',
+        'grok_build'  => '.grok/skills',
+        'junie'       => '.junie/skills',
+        'kiro'        => '.kiro/skills',
+        'opencode'    => '.agents/skills',
+        'pi'          => '.pi/skills',
+        'zed'         => '.agents/skills',
+    ];
+
+    protected static function normalizedPath(string $path): string
+    {
+        $base = rtrim(str_replace('\\', '/', base_path()), '/').'/';
+        $path = str_replace('\\', '/', $path);
+
+        if (str_starts_with($path, $base)) {
+            $path = substr($path, strlen($base));
+        }
+
+        return trim(preg_replace('#^\./#', '', $path) ?? $path, '/');
     }
 
     /**

@@ -67,6 +67,20 @@ const ruleAttrs = computed(() =>
 );
 
 /**
+ * `extraInputAttributes()` (autocomplete, inputmode, data-*…) on the input
+ * itself, as the textarea does. After the rule attributes so the field's own
+ * choice wins, and before `$attrs` so a caller can still override. Never the
+ * id or value: those wire the label, the errors and the model.
+ */
+const inputAttrs = computed(() =>
+    Object.fromEntries(
+        Object.entries(props.comp.extraInputAttributes ?? {}).filter(
+            ([name]) => name !== 'id' && name !== 'value',
+        ),
+    ),
+);
+
+/**
  * `lowercase`/`uppercase` applied as the user types, keeping the caret where
  * it was (rewriting the value would otherwise jump it to the end).
  */
@@ -106,8 +120,11 @@ const onInput = (event: Event): void => {
         :placeholder="comp.placeholder"
         :disabled="comp.isDisabled"
         :requirements="passwordRequirements"
-        :autocomplete="passwordAutocomplete"
-        v-bind="attrs"
+        v-bind="{
+            ...inputAttrs,
+            autocomplete: passwordAutocomplete,
+            ...attrs,
+        }"
         @update:value="emit('update', $event)"
     />
 
@@ -126,7 +143,7 @@ const onInput = (event: Event): void => {
                 :type="comp.inputType || 'text'"
                 :placeholder="comp.placeholder"
                 :disabled="comp.isDisabled"
-                v-bind="{ ...ruleAttrs, ...attrs }"
+                v-bind="{ ...ruleAttrs, ...inputAttrs, ...attrs }"
                 :class="[
                     inputClass,
                     isCode ? 'pr-9 font-mono' : '',

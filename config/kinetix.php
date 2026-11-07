@@ -464,6 +464,15 @@ return [
     'skills_path' => env('KINETIX_SKILLS_PATH', '.claude/skills'),
 
     /*
+    | Whether `kinetix:upgrade` (run on every `composer install`) re-publishes
+    | the skills. `null` (auto) leaves them to Laravel Boost only when one of
+    | its agents writes to `skills_path` and Boost covers every Kinetix skill
+    | already there; it writes them on `boost:update`. `true` always
+    | publishes, `false` never.
+    */
+    'skills_publish_on_upgrade' => null,
+
+    /*
     |--------------------------------------------------------------------------
     | Tailwind
     |--------------------------------------------------------------------------

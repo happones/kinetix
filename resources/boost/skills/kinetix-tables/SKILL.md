@@ -23,7 +23,6 @@ Activate this skill when:
 - **Sorting by relationship columns**: `TextColumn::make('author.name')->sortable()` sorts via a correlated subquery (BelongsTo/HasOne). The sort key is allowlisted to defined sortable columns. Custom/multi-column sort: `->sortable(using: fn (Builder $q, string $dir) => $q->orderBy(...))`.
 - **Client-side (TanStack) mode**: `Table::make(...)->clientSide()` ships the full (capped, default 500) row set once and a TanStack engine does search/sort/pagination in-browser — no round-trip. Same PHP API; `<KinetixTable>` lazy-loads the renderer only when `clientSide` is set. Needs the optional peer `@tanstack/vue-table`. Best for small datasets; omits server-only features (interactive filters, saved views, polling, reorder, bulk actions) — keep the default server-driven mode for those or for large data.
 
-
 ## Choosing a column (decision table)
 
 Pick by the DATA and whether it should be editable inline — do not default everything to `TextColumn`:
@@ -151,7 +150,6 @@ simple resources — NOT inside relation managers; `width: '3xl'` sizes the form
 `<KinetixEmptyState>`; actions behave like toolbar actions incl. `->modal()`, unauthorized ones
 dropped).
 
-
 ## UI reuse (DRY — REQUIRED)
 
 Never re-write a component's classes to imitate an existing Kinetix component:
@@ -188,6 +186,7 @@ no explicit `->label()` are auto-humanized (no wrapping needed). See the
 ## Usage Guide
 
 ### 1. Backend Schema Definition
+
 Set up the Model query, define the columns, add active filters, and configure actions:
 
 ```php
@@ -233,6 +232,7 @@ $table = Table::make(Product::query())
 ```
 
 ### 2. Frontend Rendering
+
 Include `<KinetixTable />` in your template and bind the table data structure:
 
 ```vue
@@ -287,4 +287,3 @@ full-width search / wrapping control row; wide tables inline everything with
 right-aligned controls. Pin `inline` or `stacked` only when a host needs one
 arrangement at every width. Do not hand-roll toolbar arrangements in host
 code — the toolbar already adapts.
-

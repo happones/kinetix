@@ -59,7 +59,6 @@ Activate this skill when:
 - **Register permissions.** Override `permissionFeature()` (return the slug) so the
   resource's CRUD abilities appear in the role matrix; sync with `kinetix:permissions:sync`.
 
-
 ## UI reuse (DRY — REQUIRED)
 
 Never re-write a component's classes to imitate an existing Kinetix component:

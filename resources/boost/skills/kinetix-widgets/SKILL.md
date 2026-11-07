@@ -27,6 +27,7 @@ For full details, reference the [Kinetix Widgets Documentation](https://happones
 ## Usage Guide
 
 ### 1. Backend Definition
+
 Instantiate a layout grid, define the responsive columns per breakpoint, and chain the child widgets:
 
 ```php
@@ -71,6 +72,7 @@ $grid = WidgetsGrid::make()
 ```
 
 ### 2. Frontend Rendering
+
 In your Inertia page, mount the grid and supply slots for any custom widgets if needed:
 
 ```vue

@@ -30,6 +30,7 @@ For full details, reference the [Kinetix Notifications Documentation](https://ha
 Configure the active driver inside `config/kinetix.php`.
 
 #### 1. Local Driver (Session-based)
+
 Ideal for standard redirects and instant single-session flash alerts:
 
 ```php
@@ -43,6 +44,7 @@ Notification::make()
 ```
 
 #### 2. Database and Broadcast Drivers
+
 Persistent or real-time alerts. Requires a recipient user (defaults to `auth()->user()` if omitted):
 
 ```php
@@ -101,11 +103,13 @@ Kinetix is fully internationalized. Never hardcode text inside components.
 ## Artisan Commands
 
 ### Custom Class Generation
+
 ```bash
 php artisan kinetix:make-notification BackupSuccessNotification
 ```
 
 ### Testing UI Delivery
+
 ```bash
 php artisan kinetix:send-notification "Alert Title" "Alert description message" --status=success --duration=4000
 ```
@@ -180,6 +184,7 @@ php artisan vendor:publish --tag=kinetix-components --force
 ```
 
 #### Option A: App Header Layout (`resources/js/components/AppHeader.vue`)
+
 ```vue
 <template>
     <div class="ml-auto flex items-center space-x-2">
@@ -189,6 +194,7 @@ php artisan vendor:publish --tag=kinetix-components --force
 ```
 
 #### Option B: App Sidebar Header Layout (`resources/js/components/AppSidebarHeader.vue`)
+
 ```vue
 <template>
     <header class="flex h-16 shrink-0 items-center border-b px-6">

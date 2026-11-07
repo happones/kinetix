@@ -67,6 +67,17 @@ tooling? Point it elsewhere:
 // config/kinetix.php
 'skills_path' => '.agents/skills',   // or KINETIX_SKILLS_PATH
 ```
+
+**Using Laravel Boost?** Boost writes the skills `boost.json` lists to its
+agents' directories on `boost:update`. When one of those agents writes to
+`skills_path` and Boost lists every Kinetix skill already there,
+`kinetix:upgrade` leaves them to Boost: one writer per file. New skill content
+then arrives with `php artisan boost:update` (Boost's installer adds it to
+`post-update-cmd`). Otherwise Kinetix keeps publishing. Either way the shipped
+skills are already in Boost's format, so both writers produce the same bytes
+and a clean checkout stays clean after `composer install`. Set
+`'skills_publish_on_upgrade' => true` (or `false`) in `config/kinetix.php` to
+override the detection.
 :::
 
 ::: tip Upgrading — automatic
@@ -75,8 +86,9 @@ tooling? Point it elsewhere:
 `composer install`/`update` re-publishes the volatile published assets —
 **components** (+ composables, stores, TS types), **translations** (recompiling
 the Vue i18n bundle when `laravel-vue-i18n-generator` is installed) and the
-**agent skills**. It only refreshes targets you have already published, and skips
-apps that never adopted them.
+**agent skills** (unless Laravel Boost writes them, see above). It only
+refreshes targets you have already published, and skips apps that never
+adopted them.
 
 Because the hook **overwrites** the published copies, treat them as
 vendor-managed: customize via wrappers, slots, props and config — not by editing
@@ -136,6 +148,14 @@ php artisan vue-i18n:generate
 > `kinetix` namespace strings end up where your Vue i18n setup loads them.
 
 Run this again whenever you publish translations or add a locale.
+
+**Commit or ignore the compiled bundle?** Ignore it. `kinetix:upgrade`
+regenerates it on every `composer install`, and the generator's output isn't
+byte-identical across machines yet, so a committed bundle shows up as modified
+on machines where nothing changed. Add its path (the generator's `jsFile`, for
+example `resources/js/vue-i18n-locales.ts`, or `resources/js/locales/` with
+`--multi-locales`) to `.gitignore`, and make sure your build runs
+`vue-i18n:generate` (the composer hook already does on install).
 
 **Compiling with flags?** `kinetix:upgrade` re-runs `vue-i18n:generate` after
 every translation re-publish — with the options from

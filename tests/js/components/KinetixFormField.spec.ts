@@ -153,3 +153,72 @@ describe('KinetixFormField withheld values', () => {
         expect(wrapper.text()).not.toContain('A value is saved');
     });
 });
+
+describe('TextInputField extraInputAttributes', () => {
+    const mountInput = (comp: any, attrs: Record<string, unknown> = {}) =>
+        mount(TextInputField, {
+            props: { comp, value: '' },
+            attrs,
+            global: { plugins: [kinetixI18n] },
+        });
+
+    it('puts the PHP extraInputAttributes on the input itself', () => {
+        const input = mountInput({
+            type: 'text-input',
+            name: 'zip',
+            extraInputAttributes: {
+                autocomplete: 'postal-code',
+                inputmode: 'numeric',
+                'data-test': 'zip',
+            },
+        }).get('input');
+
+        expect(input.attributes('autocomplete')).toBe('postal-code');
+        expect(input.attributes('inputmode')).toBe('numeric');
+        expect(input.attributes('data-test')).toBe('zip');
+    });
+
+    it('lets the field override its rule attributes and a caller override both', () => {
+        const input = mountInput(
+            {
+                type: 'text-input',
+                name: 'code',
+                constraints: { format: 'uuid' },
+                extraInputAttributes: { spellcheck: 'true', 'data-a': 'field' },
+            },
+            { 'data-a': 'caller' },
+        ).get('input');
+
+        expect(input.attributes('spellcheck')).toBe('true');
+        expect(input.attributes('data-a')).toBe('caller');
+    });
+
+    it('never lets extra attributes replace the id or the value', () => {
+        const input = mount(TextInputField, {
+            props: {
+                comp: {
+                    type: 'text-input',
+                    name: 'zip',
+                    extraInputAttributes: { id: 'hijack', value: 'x' },
+                },
+                value: 'kept',
+            },
+            global: { plugins: [kinetixI18n] },
+        }).get('input');
+
+        expect(input.attributes('id')).toBe('zip');
+        expect((input.element as HTMLInputElement).value).toBe('kept');
+    });
+
+    it('reaches the password input too, keeping its autocomplete default', () => {
+        const withExtra = mountInput({
+            type: 'text-input',
+            name: 'password',
+            inputType: 'password',
+            extraInputAttributes: { 'data-test': 'pw' },
+        }).get('input');
+
+        expect(withExtra.attributes('data-test')).toBe('pw');
+        expect(withExtra.attributes('autocomplete')).toBe('new-password');
+    });
+});

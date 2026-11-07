@@ -40,7 +40,8 @@ class UpgradeCommand extends Command
         $hadBaseline = PublishedFiles::recordedHashes() !== null;
         $drifted     = PublishedFiles::drifted();
 
-        $refreshed = [];
+        $refreshed     = [];
+        $skillsToBoost = false;
 
         // Vue components (+ composables, stores, TS types).
         if (File::isDirectory(resource_path('js/components/kinetix'))) {
@@ -70,8 +71,15 @@ class UpgradeCommand extends Command
         $skillsPath = base_path((string) config('kinetix.skills_path', '.claude/skills'));
 
         if (File::isDirectory($skillsPath.'/kinetix-permissions')) {
-            $this->callSilently('vendor:publish', ['--tag' => 'kinetix-skills', '--force' => true]);
-            $refreshed[] = 'agent skills';
+            if (PublishedFiles::upgradePublishesSkills()) {
+                $this->callSilently('vendor:publish', ['--tag' => 'kinetix-skills', '--force' => true]);
+                $refreshed[] = 'agent skills';
+            } else {
+                // Boost writes them on `boost:update`; a second writer here
+                // would flip the committed copy on every `composer install`.
+                $skillsToBoost = true;
+                $this->line('  <fg=gray>Agent skills left to Laravel Boost: `php artisan boost:update` refreshes them.</>');
+            }
         }
 
         // A skills directory that appeared since the install (another agent's
@@ -86,7 +94,9 @@ class UpgradeCommand extends Command
         $this->reportNewMigrations();
 
         if ($refreshed === []) {
-            $this->info('Kinetix: nothing to upgrade — no published components/translations/skills found.');
+            $this->info($skillsToBoost
+                ? 'Kinetix: nothing else to upgrade.'
+                : 'Kinetix: nothing to upgrade — no published components/translations/skills found.');
 
             return self::SUCCESS;
         }

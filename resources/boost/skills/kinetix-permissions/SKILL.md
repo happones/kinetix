@@ -342,6 +342,7 @@ honor it, so a super-admin is **not** shown a permission-gated UI as denied.
 ## Backend Usage
 
 ### 1. Resource CRUD Permissions
+
 Enable CRUD permissions on a Kinetix Resource by returning the feature name:
 
 ```php
@@ -368,6 +369,7 @@ class PostResource extends Resource
 ```
 
 ### 2. Custom Explicit Feature Permissions
+
 For standalone modules or custom sections, register them in your `AppServiceProvider` via the facade:
 
 ```php
@@ -390,6 +392,7 @@ cancel and resume — checked in the BILLED team's context by
 `BillingManager::allows()` (see the `kinetix-billing` skill).
 
 ### 3. Syncing Permissions to Spatie
+
 Run the sync command to persist permissions to your database:
 
 ```bash
