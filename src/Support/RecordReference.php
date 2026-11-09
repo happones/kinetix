@@ -70,6 +70,26 @@ final class RecordReference
     }
 
     /**
+     * The allowlisted class a reference names, without loading the record:
+     * null when it is unreadable, not usable by this request, or its type is
+     * no longer allowlisted. Lets host middleware gate by type before the
+     * endpoint opens the reference itself.
+     *
+     * @param  callable(string): (class-string<Model>|null) $allowlist
+     * @return class-string<Model>|null
+     */
+    public static function type(string $token, Request $request, DescriptorAudience $audience, callable $allowlist): ?string
+    {
+        $payload = SignedDescriptor::open($token);
+
+        if ($payload === null || SignedDescriptor::rejection($payload, $request, $audience) !== null) {
+            return null;
+        }
+
+        return is_string($payload['type'] ?? null) ? $allowlist($payload['type']) : null;
+    }
+
+    /**
      * Whether a module's endpoints insist on a reference
      * (`kinetix.{module}.require_reference`): null follows `kinetix.teams`.
      */

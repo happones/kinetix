@@ -79,6 +79,10 @@ The legacy `taggable-type` + `:taggable-id` props still work while
 `tags.require_reference` allows a raw type + id (see [Endpoints](#endpoints)).
 Under teams they are refused by default.
 
+Middleware of yours that gates tagging per type reads the type with
+`KinetixTags::taggableType($request)`: the allowlisted class the reference or
+the legacy `taggable_type` names, or `null` (suggestions name no record).
+
 It shows the current tags as removable chips, autocompletes from existing tags as
 you type, and creates a new tag on **Enter**. Every change is synced to the
 server, which returns the canonical set. `useKinetixTags(null, null, reference)`

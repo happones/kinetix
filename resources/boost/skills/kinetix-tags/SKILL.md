@@ -59,7 +59,9 @@ Tags are deduped by slug and team-scoped automatically when `kinetix.teams` is o
   sync 403; a comments reference → 403), allowlisted via `TagRegistry`; host
   `view`/`update` policy honored. Legacy `taggable_type` + `taggable_id`:
   `tags.require_reference` null = refused under teams, true = always refused,
-  false = accepted but under teams the model MUST have a policy.
+  false = accepted but under teams the model MUST have a policy. Host
+  middleware gating tags per type reads `KinetixTags::taggableType($request)`,
+  never `$request->input('taggable_type')`.
 - `TagFilter` (table): multi-select of existing tags → `whereHas('tags')`.
 
 ---

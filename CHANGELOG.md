@@ -13,6 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.282.0] - 2026-11-09
+
+### Added
+
+- `KinetixComments::commentableType($request)` and
+  `KinetixTags::taggableType($request)`: the allowlisted model class a comments
+  or tags request names, read from its signed reference, the legacy raw type,
+  or (comments) the comment being edited. Null when it names none or its
+  reference can't be used by that request.
+
+### Fixed
+
+- Host middleware that gated comments or tags per type (an entitlement, a
+  plan) read `commentable_type` / `taggable_type` from the request. Since
+  0.274.0 the components send a signed `reference` instead, so that check saw
+  no type and let every request through. Read the type with the new helpers.
+
+### Upgrade notes
+
+- If your app gates comments or tags by `$request->input('commentable_type')`
+  or `taggable_type`, switch to `KinetixComments::commentableType($request)` /
+  `KinetixTags::taggableType($request)` (docs/comments.md → Authorization).
+
 ## [0.281.0] - 2026-11-09
 
 ### Added

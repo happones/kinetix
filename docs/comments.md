@@ -98,6 +98,24 @@ are localized (`comment_*`, en/es/fr/pt).
   without.
 - **Signed reference**: a reference minted for another user or another team, an
   expired one, or a tags reference answers 403; an unreadable one 400.
+- **Gating a type yourself** (an entitlement, a plan): the request body no
+  longer names the type once it carries a reference, so read it with
+  `KinetixComments::commentableType($request)`. It returns the allowlisted class
+  the reference, the legacy `commentable_type` or the edited comment names, and
+  `null` when the request names none or its reference isn't usable here:
+
+  ```php
+  // app/Http/Middleware/EnsureEntitledToComment.php (appended to `web`)
+  public function handle(Request $request, Closure $next): Response
+  {
+      if ($request->routeIs('kinetix.comments.*')
+          && KinetixComments::commentableType($request) === Product::class) {
+          KinetixEntitlements::authorize('products.review');
+      }
+
+      return $next($request);
+  }
+  ```
 - **Raw type + id** (`commentable_type` + `commentable_id`) names *any* record
   of an allowlisted class, so `comments.require_reference` decides when it is
   accepted:

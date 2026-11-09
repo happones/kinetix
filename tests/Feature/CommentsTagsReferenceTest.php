@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tests\Feature;
 
+use Happones\Kinetix\Comments\Comment;
 use Happones\Kinetix\Comments\KinetixComments;
 use Happones\Kinetix\Tags\HasKinetixTags;
 use Happones\Kinetix\Tags\KinetixTags;
@@ -15,7 +16,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\PermissionServiceProvider;
 
@@ -355,6 +358,66 @@ class CommentsTagsReferenceTest extends TestCase
     {
         $this->postJson('/team-a/_kinetix/comments', ['reference' => 'not-a-token', 'body' => 'x'])
             ->assertStatus(400);
+    }
+
+    /**
+     * A host route that reports which allowlisted type the request names, the
+     * way an entitlement middleware would read it.
+     */
+    private function registerTypeProbe(): void
+    {
+        $probe = fn (Request $request): array => [
+            'comment' => KinetixComments::commentableType($request),
+            'tag'     => KinetixTags::taggableType($request),
+        ];
+
+        Route::middleware('web')->post('{current_team}/_probe/type', $probe);
+        Route::middleware('web')->put('{current_team}/_probe/comments/{comment}', $probe);
+        Route::getRoutes()->refreshNameLookups();
+    }
+
+    public function test_host_middleware_can_read_the_type_a_reference_names(): void
+    {
+        $this->registerTypeProbe();
+        $post = CtrPost::create(['team_id' => $this->teamA->id]);
+
+        $this->postJson('/team-a/_probe/type', ['reference' => $this->commentReference($post)])
+            ->assertExactJson(['comment' => CtrPost::class, 'tag' => null]);
+
+        $this->postJson('/team-a/_probe/type', ['reference' => $this->tagReference($post)])
+            ->assertExactJson(['comment' => null, 'tag' => CtrPost::class]);
+    }
+
+    public function test_an_unusable_reference_names_no_type(): void
+    {
+        $this->registerTypeProbe();
+        $post = CtrPost::create(['team_id' => $this->teamA->id]);
+
+        // Minted on team A, replayed on team B; and one that never decrypts.
+        $this->postJson('/team-b/_probe/type', ['reference' => $this->commentReference($post)])
+            ->assertExactJson(['comment' => null, 'tag' => null]);
+
+        $this->postJson('/team-a/_probe/type', ['reference' => 'not-a-reference'])
+            ->assertExactJson(['comment' => null, 'tag' => null]);
+    }
+
+    public function test_the_type_comes_from_a_raw_type_or_the_edited_comment_when_allowlisted(): void
+    {
+        $this->registerTypeProbe();
+        $post = CtrPost::create(['team_id' => $this->teamA->id]);
+
+        $this->postJson('/team-a/_probe/type', ['commentable_type' => CtrPost::class, 'taggable_type' => CtrPost::class])
+            ->assertExactJson(['comment' => CtrPost::class, 'tag' => CtrPost::class]);
+
+        $this->postJson('/team-a/_probe/type', ['commentable_type' => CtrUser::class])
+            ->assertExactJson(['comment' => null, 'tag' => null]);
+
+        $comment = Comment::query()->create([
+            'user_id' => $this->user->id, 'commentable_type' => CtrPost::class, 'commentable_id' => $post->id, 'body' => 'Hi',
+        ]);
+
+        $this->putJson("/team-a/_probe/comments/{$comment->id}")
+            ->assertJsonPath('comment', CtrPost::class);
     }
 }
 

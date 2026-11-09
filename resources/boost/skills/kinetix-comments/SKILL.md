@@ -55,6 +55,11 @@ Only allowlisted models can be commented on (unregistered types 404).
   refused, false = accepted but under teams the model MUST have a policy. Teams
   off = unchanged (policy if any, else allowed); `update`/`destroy {comment}` are restricted to the
   author (403). Replies must target a top-level comment of the same commentable.
+- **Gating comments per type in host middleware** (entitlement, plan): NEVER read
+  `$request->input('commentable_type')` (a referenced request has none, so the
+  gate silently passes). Use `KinetixComments::commentableType($request)`: the
+  allowlisted class from the reference, legacy type or edited `{comment}`; null
+  when none or the reference isn't usable.
 - `Comment` model: `morphTo commentable`, `hasMany replies`, `belongsTo author`.
 
 ---
