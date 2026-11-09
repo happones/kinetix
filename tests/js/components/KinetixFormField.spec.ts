@@ -221,4 +221,29 @@ describe('TextInputField extraInputAttributes', () => {
         expect(withExtra.attributes('data-test')).toBe('pw');
         expect(withExtra.attributes('autocomplete')).toBe('new-password');
     });
+
+    it('reaches the copyable/revealable input, with the field aria wiring', () => {
+        const input = mountInput(
+            {
+                type: 'text-input',
+                name: 'api_key',
+                isCopyable: true,
+                isRevealable: true,
+                extraInputAttributes: {
+                    autocomplete: 'off',
+                    'data-test': 'key',
+                    id: 'hijack',
+                    type: 'text',
+                },
+            },
+            { 'aria-describedby': 'api_key-help', 'aria-invalid': 'true' },
+        ).get('input');
+
+        expect(input.attributes('autocomplete')).toBe('off');
+        expect(input.attributes('data-test')).toBe('key');
+        expect(input.attributes('aria-describedby')).toBe('api_key-help');
+        expect(input.attributes('aria-invalid')).toBe('true');
+        expect(input.attributes('id')).toBe('api_key');
+        expect(input.attributes('type')).toBe('password');
+    });
 });

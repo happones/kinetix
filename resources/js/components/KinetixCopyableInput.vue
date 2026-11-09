@@ -35,6 +35,9 @@ const emit = defineEmits<{
     (e: 'update:value', value: string): void;
 }>();
 
+// Attributes (aria wiring, autocomplete, data-*…) belong on the input itself.
+defineOptions({ inheritAttrs: false });
+
 const { t } = useI18n();
 
 const revealed = ref(false);
@@ -49,7 +52,9 @@ const copy = (): Promise<boolean> => copyToClipboard(String(props.value ?? ''));
 
 <template>
     <div class="relative">
+        <!-- $attrs first: the id, value and the reveal's type always win. -->
         <input
+            v-bind="$attrs"
             :id="id"
             :value="value"
             :type="resolvedType"

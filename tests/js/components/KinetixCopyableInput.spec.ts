@@ -62,6 +62,28 @@ describe('KinetixCopyableInput', () => {
         vi.useRealTimers();
     });
 
+    it('puts its attributes on the input, never over id, value or the mask', () => {
+        const w = mount(KinetixCopyableInput, {
+            props: { id: 'token', value: 'secret', revealable: true },
+            attrs: {
+                'aria-describedby': 'token-help',
+                autocomplete: 'off',
+                id: 'other',
+                type: 'text',
+                value: 'x',
+            },
+            global: { plugins: [i18n] },
+        });
+        const input = w.get('input');
+
+        expect(input.attributes('aria-describedby')).toBe('token-help');
+        expect(input.attributes('autocomplete')).toBe('off');
+        expect(input.attributes('id')).toBe('token');
+        expect(input.attributes('type')).toBe('password');
+        expect((input.element as HTMLInputElement).value).toBe('secret');
+        expect(w.find('div').attributes('aria-describedby')).toBeUndefined();
+    });
+
     it('renders no buttons when neither copyable nor revealable', () => {
         const w = mountIt({ value: 'x' });
         expect(w.findAll('button')).toHaveLength(0);

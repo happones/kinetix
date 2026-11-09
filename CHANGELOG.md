@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.280.2] - 2026-11-09
+
+### Fixed
+
+- **(published)** The copyable and revealable `TextInput` variants
+  (`copyable()`/`revealable()`) now take `extraInputAttributes()` and the rule
+  attributes too, in the same order as the plain input (rules, then the
+  field's own, then the caller's). `KinetixCopyableInput` also put the
+  attributes it received, including the field's `aria-describedby` and
+  `aria-invalid`, on its wrapper `<div>`: they now land on the `<input>`, so
+  screen readers announce the help text and errors. Its own id, value and the
+  reveal's masked `type` can't be overridden.
+
 ## [0.280.1] - 2026-11-07
 
 `composer install` no longer leaves a clean checkout dirty.

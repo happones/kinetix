@@ -109,7 +109,7 @@ const onInput = (event: Event): void => {
         :disabled="comp.isDisabled"
         :copyable="comp.isCopyable"
         :revealable="comp.isRevealable"
-        v-bind="attrs"
+        v-bind="{ ...ruleAttrs, ...inputAttrs, ...attrs }"
         @update:value="emit('update', $event)"
     />
 
