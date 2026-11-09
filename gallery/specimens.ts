@@ -2938,6 +2938,12 @@ export const specimens: Specimen[] = [
         width: 1100,
         props: {
             infolist,
+            recordReference: {
+                visible: '6PZW',
+                position: 'end',
+                label: 'Post',
+                copy: 'Post: 01JD8XKQ4M7T2R9VBN3C5H6PZW',
+            },
             actions: [
                 {
                     name: 'edit',
@@ -4655,6 +4661,88 @@ export const specimens: Specimen[] = [
         // Captured OPEN: the panel is bounded, the header and footer pinned,
         // the body scrolling — the claim the docs make about long forms.
         openSelector: '[data-testid="open-pinned"]',
+    },
+    {
+        // Simple resource whose View/Edit modals show the record reference
+        // (the /tables/record/resolve fixture returns one).
+        name: 'table-record-reference',
+        title: 'Table — record modals with a discreet record reference',
+        component: KinetixTable,
+        width: 960,
+        height: 520,
+        openSelector: '#specimen [data-action="view"]',
+        props: {
+            table: rmTable(
+                'orders_',
+                ['code', 'customer'],
+                [
+                    { code: 'A-0007', customer: 'Acme Inc.' },
+                    { code: 'A-0008', customer: 'Globex' },
+                ],
+                {
+                    heading: 'Orders',
+                    recordActions: [
+                        rmAction({
+                            type: 'action',
+                            name: 'view',
+                            label: 'View',
+                            modal: 'view',
+                        }),
+                        rmAction({
+                            type: 'action',
+                            name: 'edit',
+                            label: 'Edit',
+                            modal: 'edit',
+                        }),
+                    ],
+                    records: [
+                        { code: 'A-0007', customer: 'Acme Inc.' },
+                        { code: 'A-0008', customer: 'Globex' },
+                    ].map((values, i) => ({
+                        id: i + 1,
+                        values,
+                        icons: {},
+                        iconColors: {},
+                        badgeColors: {},
+                        descriptions: {},
+                        recordUrl: null,
+                        actions: [
+                            rmAction({
+                                type: 'action',
+                                name: 'view',
+                                label: 'View',
+                                modal: 'view',
+                            }),
+                            rmAction({
+                                type: 'action',
+                                name: 'edit',
+                                label: 'Edit',
+                                modal: 'edit',
+                            }),
+                        ],
+                    })),
+                    recordModals: {
+                        enabled: true,
+                        token: 'demo-orders-descriptor',
+                        source: 'server',
+                        hasForm: true,
+                        hasInfolist: true,
+                        createForm: {
+                            schema: [
+                                {
+                                    type: 'text-input',
+                                    name: 'customer',
+                                    label: 'Customer',
+                                },
+                            ],
+                            data: { customer: '' },
+                            rules: {},
+                            operation: 'create',
+                        },
+                    },
+                },
+            ),
+        },
     },
     {
         name: 'relation-managers',

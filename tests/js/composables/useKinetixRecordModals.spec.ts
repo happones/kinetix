@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 
@@ -133,6 +133,85 @@ describe('useKinetixRecordModals', () => {
             { token: 'signed-token', id: 5, data: { name: 'Renamed' } },
             expect.anything(),
         );
+    });
+
+    it('drops a resolve that lands after the modal moved on to another record', async () => {
+        let resolveA!: (value: unknown) => void;
+        fetchMock
+            .mockImplementationOnce(
+                () => new Promise((resolve) => (resolveA = resolve)),
+            )
+            .mockResolvedValueOnce({
+                form: { ...blueprint, data: { name: 'B' } },
+                reference: {
+                    visible: 'BBBB',
+                    position: 'end',
+                    label: 'Order',
+                    copy: 'Order: B',
+                },
+            });
+        const api = setup();
+
+        api.handleModalAction({ modal: 'view' } as any, { id: 1 } as any);
+        api.closeInfolist();
+        api.handleModalAction({ modal: 'edit' } as any, { id: 2 } as any);
+        await flushPromises();
+
+        resolveA({
+            infolist: { schema: [] },
+            form: { ...blueprint, data: { name: 'A' } },
+            reference: {
+                visible: 'AAAA',
+                position: 'end',
+                label: 'Order',
+                copy: 'Order: A',
+            },
+        });
+        await flushPromises();
+
+        expect(api.activeReference.value?.copy).toBe('Order: B');
+        expect(api.activeForm.value.data.name).toBe('B');
+        expect(api.activeInfolist.value).toBeNull();
+        expect(api.isLoading.value).toBe(false);
+    });
+
+    it('does not leave the create modal on a skeleton after closing a loading view', () => {
+        fetchMock.mockImplementationOnce(() => new Promise(() => {}));
+        const api = setup();
+
+        api.handleModalAction({ modal: 'view' } as any, { id: 1 } as any);
+        expect(api.isLoading.value).toBe(true);
+        api.closeInfolist();
+        api.handleModalAction({ modal: 'create' } as any);
+
+        expect(api.isLoading.value).toBe(false);
+        expect(api.activeForm.value).not.toBeNull();
+    });
+
+    it('keeps the record reference from view/edit and drops it for create', async () => {
+        const reference = {
+            visible: '6PZW',
+            position: 'end',
+            label: 'Order',
+            copy: 'Order: 01JD8XKQ4M7T2R9VBN3C5H6PZW',
+        };
+        fetchMock.mockResolvedValueOnce({
+            infolist: { schema: [] },
+            reference,
+        });
+        const api = setup();
+
+        api.handleModalAction({ modal: 'view' } as any, { id: 3 } as any);
+        await flushPromises();
+        expect(api.activeReference.value).toEqual(reference);
+
+        fetchMock.mockResolvedValueOnce({ form: blueprint });
+        api.handleModalAction({ modal: 'edit' } as any, { id: 4 } as any);
+        await flushPromises();
+        expect(api.activeReference.value).toBeNull();
+
+        api.handleModalAction({ modal: 'create' } as any);
+        expect(api.activeReference.value).toBeNull();
     });
 
     it('fetches a fresh form for edit in server mode', async () => {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { KinetixAction } from '@/types/kinetix';
+import { defineAsyncComponent } from 'vue';
+import type { KinetixAction, KinetixRecordReference } from '@/types/kinetix';
 import KinetixActionBar from './KinetixActionBar.vue';
 
 /**
@@ -13,6 +14,9 @@ import KinetixActionBar from './KinetixActionBar.vue';
  * dropdown groups, keyboard shortcuts and pending state behave identically in
  * both.
  *
+ * `recordReference` adds the record's discreet, copyable id under the heading
+ * (`Resource::getRecordReference()`).
+ *
  * Slots: `before-actions` (left of the action row) and the default slot (right
  * of it).
  */
@@ -21,12 +25,19 @@ withDefaults(
         heading?: string | null;
         description?: string | null;
         actions?: KinetixAction[];
+        recordReference?: KinetixRecordReference | null;
     }>(),
     {
         heading: null,
         description: null,
         actions: () => [],
+        recordReference: null,
     },
+);
+
+// Only pages that show a record reference download its copy button.
+const KinetixRecordReferenceChip = defineAsyncComponent(
+    () => import('./KinetixRecordReference.vue'),
 );
 </script>
 
@@ -34,7 +45,7 @@ withDefaults(
     <div
         class="gap-3 sm:flex-row sm:items-center sm:justify-between mb-6 flex flex-col"
     >
-        <div v-if="heading || description" class="min-w-0">
+        <div v-if="heading || description || recordReference" class="min-w-0">
             <h1
                 v-if="heading"
                 class="text-xl font-semibold tracking-tight text-foreground"
@@ -44,6 +55,9 @@ withDefaults(
             <p v-if="description" class="mt-1 text-sm text-muted-foreground">
                 {{ description }}
             </p>
+            <div v-if="recordReference" class="mt-1.5 flex">
+                <KinetixRecordReferenceChip :reference="recordReference" />
+            </div>
         </div>
 
         <KinetixActionBar :actions="actions">

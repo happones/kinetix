@@ -808,6 +808,12 @@ return [
     'breadcrumb_create' => 'Create',
     'breadcrumb_edit'   => 'Edit',
 
+    // Record reference (Resource::recordReference())
+    'record_reference_record' => 'Record',
+    'record_reference_end'    => '{label} reference ending in {part}',
+    'record_reference_start'  => '{label} reference starting with {part}',
+    'record_reference_full'   => '{label} reference {part}',
+
     // Presence / online indicators
     'presence_online' => '{count} online',
 

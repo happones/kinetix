@@ -13,6 +13,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.281.0] - 2026-11-09
+
+### Added
+
+- **Record reference**: a discreet, copyable global id for a record (ULID, UUID,
+  slug) under its page heading, e.g. `Order · …7KQZ`. One click copies the full
+  value with the kind of record (`Order: 01JD…`), so support can find the exact
+  record when the number customers see is only unique inside their account.
+  Set `protected static ?string $recordReferenceAttribute = 'ulid';` on a
+  resource, or override `recordReference(): ?RecordReference` for the shown
+  part (`last()`, `first()`, `full()`), the label (`label()`, defaulting to the
+  new `getModelLabel()`, never the table name) and the copied text
+  (`copyWithLabel()`, `copyUsing()`). `Resource::getRecordReference($record)`
+  serializes it; `KinetixPageHeader` takes it as `recordReference`, and the
+  simple-resource View/Edit modals show it in their footer.
+  New component `KinetixRecordReference` **(published)**, new
+  `Resource::$modelLabel`, and 4 translation keys in every locale.
+- `kinetix:make-resource` passes `recordReference` to the generated Show and
+  Edit pages and leaves a commented `$recordReferenceAttribute` on the
+  resource.
+
+### Changed
+
+- Generated resource pages hand `breadcrumbs` to the app layout explicitly, as
+  a layout prop (`defineOptions({ layout: (props) => ({ breadcrumbs: props.breadcrumbs ?? [] }) })`),
+  the way the starter kit's own pages do. Earlier pages keep working: the
+  layout already receives every page prop.
+
+### Fixed
+
+- **(published)** The in-table View/Edit modals dropped a server response that
+  lands after the modal moved on (closed, or reopened on another record).
+  Before, a slow response could fill the open Edit modal with another record's
+  form, so Save wrote those values into the record being edited.
+- The breadcrumbs guide showed wrapping each page in `<AppLayout>`, which
+  renders the layout twice under the starter kit's default layout. It now
+  documents the layout prop.
+
+### Upgrade notes
+
+- To show a record reference on existing Show/Edit pages, pass
+  `'recordReference' => fn () => YourResource::getRecordReference($record)` from
+  the controller, declare `recordReference?: KinetixRecordReference | null` and
+  add `:record-reference="recordReference"` to `KinetixPageHeader`.
+- `Resource` gains `$modelLabel`, `$recordReferenceAttribute`,
+  `getModelLabel()`, `recordReference()` and `getRecordReference()`. A resource
+  of yours that already declares one of them with another type or signature
+  must match the new one.
+- Re-publish the components (`kinetix:upgrade`) for `KinetixRecordReference`,
+  `KinetixPageHeader`, `KinetixTable` and the types.
+
 ## [0.280.2] - 2026-11-09
 
 ### Fixed

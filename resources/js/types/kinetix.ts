@@ -521,6 +521,18 @@ export interface KinetixBreadcrumb {
     href: string;
 }
 
+/**
+ * A record's discreet, copyable reference (`Resource::recordReference()`):
+ * `visible` is the part shown (`position` says which), `copy` the text the
+ * copy button writes.
+ */
+export interface KinetixRecordReference {
+    visible: string;
+    position: 'start' | 'end' | 'full';
+    label: string | null;
+    copy: string;
+}
+
 /** A selectable locale: its code and native label. */
 export interface KinetixLocaleOption {
     code: string;

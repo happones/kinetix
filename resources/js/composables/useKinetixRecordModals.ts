@@ -6,6 +6,7 @@ import type {
     KinetixAction,
     KinetixInfolistData,
     KinetixRecordModals,
+    KinetixRecordReference,
     KinetixTableRecord,
 } from '@/types/kinetix';
 
@@ -49,6 +50,15 @@ export function useKinetixRecordModals(options: RecordModalOptions) {
     const activeInfolist = ref<KinetixInfolistData | null>(null);
     const activeRecordId = ref<string | number | null>(null);
     const activeLabel = ref<string>('');
+    /** The open record's discreet reference (server-fetched view/edit only). */
+    const activeReference = ref<KinetixRecordReference | null>(null);
+
+    /**
+     * Bumped by every open and close: a resolve that lands after the user
+     * moved on (closed, or opened another record) is dropped, so a modal never
+     * shows, saves over or copies the id of a record it isn't editing.
+     */
+    let currentRequest = 0;
     const pendingDelete = ref<KinetixAction | null>(null);
 
     const enabled = computed(() => !!options.config()?.enabled);
@@ -65,12 +75,18 @@ export function useKinetixRecordModals(options: RecordModalOptions) {
 
     const token = () => options.config()?.token ?? '';
 
-    /** Fetch a fresh { form } / { infolist } for a record from the server. */
+    type ResolvedRecord = {
+        form?: any;
+        infolist?: any;
+        reference?: KinetixRecordReference | null;
+    };
+
+    /** Fetch a fresh { form } / { infolist } (+ reference) for a record. */
     const fetchRecord = async (
         mode: 'edit' | 'view',
         id: string | number,
-    ): Promise<{ form?: any; infolist?: any } | null> => {
-        return kinetixFetch<{ form?: any; infolist?: any }>(resolveUrl(), {
+    ): Promise<ResolvedRecord | null> => {
+        return kinetixFetch<ResolvedRecord>(resolveUrl(), {
             method: 'POST',
             body: { token: token(), mode, id },
         });
@@ -102,8 +118,11 @@ export function useKinetixRecordModals(options: RecordModalOptions) {
         }
 
         clearStaleErrors();
+        currentRequest++;
+        isLoading.value = false;
         isEditing.value = false;
         activeRecordId.value = null;
+        activeReference.value = null;
         activeLabel.value = action?.label ?? '';
         // Clone so the blueprint (and its default data) is never mutated.
         activeForm.value = {
@@ -118,14 +137,17 @@ export function useKinetixRecordModals(options: RecordModalOptions) {
         action?: KinetixAction,
     ) => {
         clearStaleErrors();
+        const request = ++currentRequest;
         isEditing.value = true;
         activeRecordId.value = record.id;
         activeLabel.value = action?.label ?? '';
+        activeReference.value = null;
 
         // 'row' mode: prefill from the already-loaded row (no round-trip). The
         // row carries displayed values, so heavily formatted columns may need
         // the resource's form/table aligned — server mode avoids that entirely.
         if (options.config()?.source === 'row') {
+            isLoading.value = false;
             const blueprint = options.config()?.createForm ?? { data: {} };
             activeForm.value = {
                 ...blueprint,
@@ -142,14 +164,26 @@ export function useKinetixRecordModals(options: RecordModalOptions) {
         try {
             const data = await fetchRecord('edit', record.id);
 
+            if (request !== currentRequest) {
+                return;
+            }
+
             if (data?.form) {
                 activeForm.value = data.form;
             }
+
+            activeReference.value = data?.reference ?? null;
         } catch (e) {
+            if (request !== currentRequest) {
+                return;
+            }
+
             isFormOpen.value = false;
             toast.error(e instanceof Error ? e.message : String(e));
         } finally {
-            isLoading.value = false;
+            if (request === currentRequest) {
+                isLoading.value = false;
+            }
         }
     };
 
@@ -157,22 +191,36 @@ export function useKinetixRecordModals(options: RecordModalOptions) {
         record: KinetixTableRecord,
         action?: KinetixAction,
     ) => {
+        const request = ++currentRequest;
         activeRecordId.value = record.id;
         activeLabel.value = action?.label ?? '';
+        activeReference.value = null;
         isLoading.value = true;
         isInfolistOpen.value = true;
 
         try {
             const data = await fetchRecord('view', record.id);
 
+            if (request !== currentRequest) {
+                return;
+            }
+
             if (data?.infolist) {
                 activeInfolist.value = data.infolist;
             }
+
+            activeReference.value = data?.reference ?? null;
         } catch (e) {
+            if (request !== currentRequest) {
+                return;
+            }
+
             isInfolistOpen.value = false;
             toast.error(e instanceof Error ? e.message : String(e));
         } finally {
-            isLoading.value = false;
+            if (request === currentRequest) {
+                isLoading.value = false;
+            }
         }
     };
 
@@ -257,13 +305,19 @@ export function useKinetixRecordModals(options: RecordModalOptions) {
             return;
         }
 
+        currentRequest++;
+        isLoading.value = false;
         isFormOpen.value = false;
         activeForm.value = null;
+        activeReference.value = null;
     };
 
     const closeInfolist = () => {
+        currentRequest++;
+        isLoading.value = false;
         isInfolistOpen.value = false;
         activeInfolist.value = null;
+        activeReference.value = null;
     };
 
     /**
@@ -318,6 +372,7 @@ export function useKinetixRecordModals(options: RecordModalOptions) {
         activeForm,
         activeInfolist,
         activeLabel,
+        activeReference,
         pendingDelete,
         handleModalAction,
         submitForm,

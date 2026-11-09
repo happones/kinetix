@@ -18,6 +18,12 @@ export const i18n = createI18n({
                 close: 'Close',
                 copied: 'Copied!',
                 copy_failed: "Couldn't copy",
+                // record reference
+                record_reference_record: 'Record',
+                record_reference_end: '{label} reference ending in {part}',
+                record_reference_start:
+                    '{label} reference starting with {part}',
+                record_reference_full: '{label} reference {part}',
                 // pickers & preview
                 pick_date: 'Pick a date',
                 datetime_placeholder: 'MM/DD/YYYY hh:mm',

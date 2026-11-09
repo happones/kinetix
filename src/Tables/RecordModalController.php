@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tables;
 
+use Happones\Kinetix\Data\RecordReferenceData;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Resources\CrudEvent;
@@ -58,7 +59,8 @@ class RecordModalController
             $this->authorize($modelClass, 'view', $record);
 
             return response()->json([
-                'infolist' => $resource::infolist(Infolist::make($record))->toArray(),
+                'infolist'  => $resource::infolist(Infolist::make($record))->toArray(),
+                'reference' => $this->reference($resource, $record),
             ]);
         }
 
@@ -69,7 +71,22 @@ class RecordModalController
             ->reactiveVia($resource)
             ->fill($record);
 
-        return response()->json(['form' => $form->toArray()]);
+        return response()->json([
+            'form'      => $form->toArray(),
+            'reference' => $this->reference($resource, $record),
+        ]);
+    }
+
+    /**
+     * The record's discreet reference, when the descriptor names a Resource
+     * that declares one (`Table::recordModals()` accepts any class with the
+     * resource hooks, and only a Resource has `getRecordReference()`).
+     *
+     * @param class-string $resource
+     */
+    protected function reference(string $resource, Model $record): ?RecordReferenceData
+    {
+        return is_subclass_of($resource, Resource::class) ? $resource::getRecordReference($record) : null;
     }
 
     /**

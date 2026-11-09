@@ -2145,6 +2145,37 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
         },
     },
     {
+        // A simple resource's View/Edit modal, with the record reference.
+        match: /\/_kinetix\/tables\/record\/resolve$/,
+        data: {
+            form: {
+                schema: [
+                    { type: 'text-input', name: 'customer', label: 'Customer' },
+                ],
+                data: { customer: 'Acme Inc.' },
+                rules: {},
+                operation: 'edit',
+            },
+            infolist: {
+                columns: 1,
+                schema: [
+                    {
+                        type: 'text',
+                        name: 'customer',
+                        label: 'Customer',
+                        state: 'Acme Inc.',
+                    },
+                ],
+            },
+            reference: {
+                visible: '6PZW',
+                position: 'end',
+                label: 'Order',
+                copy: 'Order: 01JD8XKQ4M7T2R9VBN3C5H6PZW',
+            },
+        },
+    },
+    {
         match: /\/tables\/relations\/record\/resolve$/,
         data: {
             form: {

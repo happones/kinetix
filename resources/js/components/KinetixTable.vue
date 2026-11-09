@@ -87,6 +87,12 @@ const KinetixDataTable = defineAsyncComponent(
     () => import('./KinetixDataTable.vue'),
 );
 
+// A record modal's discreet reference (Resource::recordReference()) — only
+// fetched once a resource that declares one opens a view/edit modal.
+const KinetixRecordReference = defineAsyncComponent(
+    () => import('./KinetixRecordReference.vue'),
+);
+
 // The modal bodies (form, infolist) download when a modal first opens: a
 // table nobody edits from never fetches them. Read once per instance — the
 // wrapper renders the real body as soon as it arrives, and swapping it for
@@ -265,6 +271,7 @@ const {
     activeForm: recordForm,
     activeInfolist: recordInfolist,
     activeLabel: recordLabel,
+    activeReference: recordReference,
     pendingDelete: recordPendingDelete,
     handleModalAction,
     submitForm: submitRecordForm,
@@ -1233,6 +1240,13 @@ const totalColumnSpan = computed(
                      modal's pinned footer, so a long schema never scrolls Save
                      out of reach. -->
                 <template #footer>
+                    <!-- The record's discreet, copyable id, away from the
+                         buttons (Resource::recordReference()). -->
+                    <KinetixRecordReference
+                        v-if="isRecordEditing && recordReference"
+                        :reference="recordReference"
+                        class="sm:mr-auto self-center"
+                    />
                     <KinetixButton
                         variant="outline"
                         size="sm"
@@ -1342,6 +1356,13 @@ const totalColumnSpan = computed(
                     :surface="false"
                     flat
                 />
+
+                <template v-if="recordReference && !isRecordLoading" #footer>
+                    <KinetixRecordReference
+                        :reference="recordReference"
+                        class="sm:mr-auto self-center"
+                    />
+                </template>
             </KinetixModal>
 
             <!-- Simple-resource delete confirmation. -->

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Resources;
 
+use Happones\Kinetix\Data\RecordReferenceData;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Notifications\Notification;
@@ -47,6 +48,19 @@ abstract class Resource
      * back to `name`, then `title`, then the model key.
      */
     protected static ?string $recordTitleAttribute = null;
+
+    /**
+     * The singular label for one record ("Invoice"). Defaults to the headline
+     * of the model's class name, translated when a key exists.
+     */
+    protected static ?string $modelLabel = null;
+
+    /**
+     * The attribute shown as the record's discreet, copyable reference on its
+     * pages (`ulid`, `uuid`, `slug`…). Null (the default) shows none; override
+     * {@see recordReference()} to configure more than the attribute.
+     */
+    protected static ?string $recordReferenceAttribute = null;
 
     /**
      * Get the associated model class name.
@@ -353,6 +367,46 @@ abstract class Resource
         }
 
         return '#'.$record->getKey();
+    }
+
+    /**
+     * The singular label for one record ("Invoice").
+     */
+    public static function getModelLabel(): string
+    {
+        if (static::$modelLabel !== null) {
+            return (string) __(static::$modelLabel);
+        }
+
+        return AutoLabel::translate((string) str(class_basename(static::getModel()))->headline());
+    }
+
+    /**
+     * The record's discreet, copyable reference (e.g. "Order · …7KQZ"), shown
+     * on the show/edit pages and the in-table view/edit modals. Null shows
+     * none. Set `$recordReferenceAttribute` for the defaults (last 4
+     * characters, the model label, copied as "Order: <value>"), or override:
+     *
+     *     public static function recordReference(): ?RecordReference
+     *     {
+     *         return RecordReference::make('ulid')->first(8)->label('Order');
+     *     }
+     */
+    public static function recordReference(): ?RecordReference
+    {
+        return static::$recordReferenceAttribute === null
+            ? null
+            : RecordReference::make(static::$recordReferenceAttribute);
+    }
+
+    /**
+     * The serialized reference for one record, ready for the page's
+     * `recordReference` prop. Null when the resource shows none or the record
+     * has no value for it.
+     */
+    public static function getRecordReference(Model $record): ?RecordReferenceData
+    {
+        return static::recordReference()?->resolve($record, static::getModelLabel());
     }
 
     /**

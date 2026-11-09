@@ -93,6 +93,10 @@ class MakeResourceCommandTest extends TestCase
         // props never builds the table.
         $this->assertStringContainsString("'table' => fn () => PostResource::table(Table::make(\$query))->toArray(),", $controller);
         $this->assertStringContainsString("'breadcrumbs' => fn () => PostResource::breadcrumbs('index'),", $controller);
+        $this->assertStringContainsString(
+            'breadcrumbs: props.breadcrumbs ?? [],',
+            File::get(resource_path('js/pages/Kinetix/Posts/Index.vue')),
+        );
         $this->assertStringNotContainsString('public function store(', $controller);
         $this->assertStringNotContainsString('public function update(', $controller);
         $this->assertStringNotContainsString('public function destroy(', $controller);
@@ -305,7 +309,27 @@ class MakeResourceCommandTest extends TestCase
         $this->assertStringContainsString("'actions' => fn () => Action::toArrayMany([", $controller);
         $this->assertStringContainsString("'relations' => fn () => collect(PostResource::relationManagersFor('view', \$record))", $controller);
         $this->assertStringContainsString("'breadcrumbs' => fn () => PostResource::breadcrumbs('show', \$record),", $controller);
-        $this->assertDoesNotMatchRegularExpression("/^\\s+'(table|form|infolist|breadcrumbs|actions|relations)' => (?!fn \\(\\) =>)/m", $controller);
+        $this->assertStringContainsString("'recordReference' => fn () => PostResource::getRecordReference(\$record),", $controller);
+        $this->assertDoesNotMatchRegularExpression("/^\\s+'(table|form|infolist|breadcrumbs|actions|relations|recordReference)' => (?!fn \\(\\) =>)/m", $controller);
+
+        // Every page hands the resource's breadcrumbs to the app layout, and
+        // show/edit pass the record's discreet reference to the page header.
+        foreach (['Index', 'Create', 'Edit', 'Show'] as $page) {
+            $vue = File::get(resource_path("js/pages/Kinetix/Posts/{$page}.vue"));
+            $this->assertStringContainsString('layout: (props: { breadcrumbs?: KinetixBreadcrumb[] }) => ({', $vue, $page);
+            $this->assertStringContainsString('breadcrumbs: props.breadcrumbs ?? [],', $vue, $page);
+        }
+
+        foreach (['Edit', 'Show'] as $page) {
+            $vue = File::get(resource_path("js/pages/Kinetix/Posts/{$page}.vue"));
+            $this->assertStringContainsString('recordReference?: KinetixRecordReference | null;', $vue, $page);
+            $this->assertStringContainsString(':record-reference="recordReference"', $vue, $page);
+        }
+
+        $this->assertStringContainsString(
+            "// protected static ?string \$recordReferenceAttribute = 'ulid';",
+            File::get(app_path('Kinetix/Resources/PostResource.php')),
+        );
 
         exec('php -l '.escapeshellarg($controllerPath).' 2>&1', $out, $code);
         $this->assertSame(0, $code, "Generated full controller has a syntax error:\n".implode("\n", $out));

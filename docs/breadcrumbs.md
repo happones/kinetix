@@ -26,7 +26,8 @@ return inertia('Kinetix/Products/Edit', [
 ]);
 ```
 
-The generated Vue pages already declare the typed prop:
+The generated Vue pages declare the typed prop and hand it to the app layout
+([below](#feeding-the-starter-kit-s-layout)):
 
 ```ts
 import type { KinetixBreadcrumb } from '@/types/kinetix';
@@ -72,30 +73,41 @@ The `Create` / `Edit` labels are translated (`kinetix.breadcrumb_create`,
 
 ## Feeding the starter kit's layout
 
-The starter kit renders breadcrumbs from a layout prop. Pass the server-provided
-trail to it:
+The starter kit picks the layout for every page in `createInertiaApp({ layout })`
+(`AppLayout` by default) and reads its breadcrumbs from **layout props**. A
+page hands them over with `defineOptions({ layout })`, a function of the page's
+props, which is exactly what the generated pages do:
 
 ```vue
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
-import type { KinetixBreadcrumb } from '@/types/kinetix';
+import type { KinetixBreadcrumb, KinetixTableData } from '@/types/kinetix';
 
-const props = defineProps<{
+defineProps<{
     table: KinetixTableData;
     breadcrumbs?: KinetixBreadcrumb[];
 }>();
-</script>
 
-<template>
-    <AppLayout :breadcrumbs="breadcrumbs ?? []">
-        <KinetixTable :table="table" />
-    </AppLayout>
-</template>
+defineOptions({
+    layout: (props: { breadcrumbs?: KinetixBreadcrumb[] }) => ({
+        breadcrumbs: props.breadcrumbs ?? [],
+    }),
+});
+</script>
 ```
 
-Adjust `AppLayout` / the prop name to match your starter kit. Because the data is
-already in the page props, wiring is a one-liner — and changing a resource's
-label or route base updates every breadcrumb automatically.
+Don't wrap the page in `<AppLayout>` as well: the default layout already wraps
+it, so the sidebar would render twice. Because the trail comes from the page
+props, changing a resource's label or route base updates every breadcrumb, and
+a team-scoped URL keeps its `{current_team}` segment.
+
+> The layout also receives every page prop on its own, so a page that only
+> declares the `breadcrumbs` prop (pages generated before 0.281.0) already shows
+> the trail. The `defineOptions` block makes the hand-off explicit and lets you
+> rename or reshape it for your layout.
+
+If your layout takes a different prop, rename the key in the returned object.
+An app that still renders its layout inside each page can pass the prop
+directly: `<AppLayout :breadcrumbs="breadcrumbs ?? []">`.
 
 ---
 

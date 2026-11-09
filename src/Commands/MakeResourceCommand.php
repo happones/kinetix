@@ -492,6 +492,10 @@ class {$resourceClass} extends Resource
 {
     protected static ?string \$model = {$modelName}::class;
 
+    // A discreet, copyable reference on the record's pages ("{$modelName} · …7KQZ"),
+    // e.g. a global ULID support can search by. Override recordReference() for more.
+    // protected static ?string \$recordReferenceAttribute = 'ulid';
+
     public static function table(Table \$table): Table
     {
         // The index page's title: its table heading is the page's <h1>.
@@ -773,6 +777,7 @@ class {$modelName}Controller extends Controller
             'relations' => fn () => collect({$resourceClass}::relationManagersFor('view', \$record))
                 ->map(fn (string \$manager) => \$manager::make(\$record)->toData())
                 ->values(),
+            'recordReference' => fn () => {$resourceClass}::getRecordReference(\$record),
             'breadcrumbs' => fn () => {$resourceClass}::breadcrumbs('show', \$record),
         ]);
     }
@@ -791,6 +796,7 @@ class {$modelName}Controller extends Controller
             'relations' => fn () => collect({$resourceClass}::relationManagersFor('edit', \$record))
                 ->map(fn (string \$manager) => \$manager::make(\$record)->toData())
                 ->values(),
+            'recordReference' => fn () => {$resourceClass}::getRecordReference(\$record),
             'breadcrumbs' => fn () => {$resourceClass}::breadcrumbs('edit', \$record),
         ]);
     }
@@ -881,12 +887,18 @@ PHP;
 import KinetixTable from '@/components/kinetix/KinetixTable.vue';
 import type { KinetixBreadcrumb, KinetixTableData } from '@/types/kinetix';
 
-// `breadcrumbs` is auto-derived from the resource; feed it to your app layout's
-// <Breadcrumbs> (see https://happones.github.io/kinetix/breadcrumbs).
 defineProps<{
   table: KinetixTableData;
   breadcrumbs?: KinetixBreadcrumb[];
 }>();
+
+// `breadcrumbs` is auto-derived from the resource and handed to the app
+// layout's <Breadcrumbs> as a layout prop (the starter kit's AppLayout).
+defineOptions({
+  layout: (props: { breadcrumbs?: KinetixBreadcrumb[] }) => ({
+    breadcrumbs: props.breadcrumbs ?? [],
+  }),
+});
 </script>
 
 <template>
@@ -906,12 +918,18 @@ VUE;
 import KinetixTable from '@/components/kinetix/KinetixTable.vue';
 import type { KinetixBreadcrumb, KinetixTableData } from '@/types/kinetix';
 
-// `breadcrumbs` is auto-derived from the resource; feed it to your app layout's
-// <Breadcrumbs> (see https://happones.github.io/kinetix/breadcrumbs).
 defineProps<{
   table: KinetixTableData;
   breadcrumbs?: KinetixBreadcrumb[];
 }>();
+
+// `breadcrumbs` is auto-derived from the resource and handed to the app
+// layout's <Breadcrumbs> as a layout prop (the starter kit's AppLayout).
+defineOptions({
+  layout: (props: { breadcrumbs?: KinetixBreadcrumb[] }) => ({
+    breadcrumbs: props.breadcrumbs ?? [],
+  }),
+});
 </script>
 
 <template>
@@ -940,6 +958,14 @@ const props = defineProps<{
   cancelUrl: string;
   breadcrumbs?: KinetixBreadcrumb[];
 }>();
+
+// `breadcrumbs` is auto-derived from the resource and handed to the app
+// layout's <Breadcrumbs> as a layout prop (the starter kit's AppLayout).
+defineOptions({
+  layout: (props: { breadcrumbs?: KinetixBreadcrumb[] }) => ({
+    breadcrumbs: props.breadcrumbs ?? [],
+  }),
+});
 
 const saving = ref(false);
 
@@ -1007,19 +1033,30 @@ import KinetixPageHeader from '@/components/kinetix/KinetixPageHeader.vue';
 import KinetixRelationManagers from '@/components/kinetix/KinetixRelationManagers.vue';
 import type {
   KinetixBreadcrumb,
+  KinetixRecordReference,
   KinetixRelationManagerData,
 } from '@/types/kinetix';
 
 // `updateUrl` / `cancelUrl` are resolved server-side (Resource::getUrl()), so
 // team-scoped routes ({current_team}) work with no client-side team handling.
 // `relations` are the resource's relation managers (auto-tabs when more than one).
+// `recordReference` is the record's discreet, copyable id (Resource::recordReference()).
 const props = defineProps<{
   form: any;
   updateUrl: string;
   cancelUrl: string;
   relations?: KinetixRelationManagerData[];
+  recordReference?: KinetixRecordReference | null;
   breadcrumbs?: KinetixBreadcrumb[];
 }>();
+
+// `breadcrumbs` is auto-derived from the resource and handed to the app
+// layout's <Breadcrumbs> as a layout prop (the starter kit's AppLayout).
+defineOptions({
+  layout: (props: { breadcrumbs?: KinetixBreadcrumb[] }) => ({
+    breadcrumbs: props.breadcrumbs ?? [],
+  }),
+});
 
 const saving = ref(false);
 
@@ -1043,6 +1080,7 @@ const handleCancel = () => {
     <KinetixPageHeader
       heading="Edit {$modelName}"
       description="Update this {$modelName}'s details."
+      :record-reference="recordReference"
     />
 
     <!-- The form's own Section provides the card surface — no extra wrapper,
@@ -1089,25 +1127,40 @@ import type {
   KinetixAction,
   KinetixBreadcrumb,
   KinetixInfolistData,
+  KinetixRecordReference,
   KinetixRelationManagerData,
 } from '@/types/kinetix';
 
 // `actions` (Edit / Delete) render top-right in the header for quick redirects;
 // `infolist` is the resource's read-only detail schema; `relations` are the
-// resource's relation managers (auto-tabs when more than one).
+// resource's relation managers (auto-tabs when more than one); `recordReference`
+// is the record's discreet, copyable id (Resource::recordReference()).
 defineProps<{
   infolist: KinetixInfolistData;
   actions: KinetixAction[];
   relations?: KinetixRelationManagerData[];
+  recordReference?: KinetixRecordReference | null;
   breadcrumbs?: KinetixBreadcrumb[];
 }>();
+
+// `breadcrumbs` is auto-derived from the resource and handed to the app
+// layout's <Breadcrumbs> as a layout prop (the starter kit's AppLayout).
+defineOptions({
+  layout: (props: { breadcrumbs?: KinetixBreadcrumb[] }) => ({
+    breadcrumbs: props.breadcrumbs ?? [],
+  }),
+});
 </script>
 
 <template>
   <!-- Same width and padding as the Index page, so the resource's pages
        share one visual frame. -->
   <div class="flex h-full min-w-0 flex-1 flex-col gap-6 rounded-xl p-4">
-    <KinetixPageHeader heading="{$modelName} details" :actions="actions" />
+    <KinetixPageHeader
+      heading="{$modelName} details"
+      :actions="actions"
+      :record-reference="recordReference"
+    />
     <KinetixInfolist :infolist="infolist" />
     <KinetixRelationManagers v-if="relations?.length" :managers="relations" />
   </div>
