@@ -953,6 +953,7 @@ models per feature (all typed by `HostKeys` — morphs marked need
 | `comments` | `user_id`, `commentable_id` (morph) |
 | `tags` | `taggable_id` (morph), `team_id` |
 | `notification-preferences` | `user_id` |
+| `notification-routing` | `team_id`, `user_id` (group members) |
 | `saved-views` | `user_id`, `team_id` |
 | `announcements` | `user_id`, `team_id` |
 | `api-logs` | `user_id`, `team_id` |

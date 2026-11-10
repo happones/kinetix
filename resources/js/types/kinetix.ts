@@ -1079,7 +1079,94 @@ export interface KinetixNotificationPreferences {
         label: string;
         /** The channels the type is sent on, each with its switch. */
         channels: Record<string, boolean>;
+        /** Channels delivered whatever the user chose (set in code): shown on and locked. */
+        mandatory: string[];
     }[];
+}
+
+/** Who a notification route points at. */
+export type KinetixNotificationAudienceType =
+    | 'member'
+    | 'role'
+    | 'group'
+    | 'eligible';
+
+/** One routing rule: a notification type goes to an audience on some channels. */
+export interface KinetixNotificationRoute {
+    id: number | string;
+    type: string;
+    audienceType: KinetixNotificationAudienceType;
+    /** A member ref (opaque `{modelType}|{key}` string), the role's id or the group's id; null for `eligible`. */
+    audienceId: string | null;
+    /** The audience's name; null when it no longer exists (a member who left, a deleted role). */
+    audienceLabel: string | null;
+    channels: string[];
+}
+
+/** A notification type a team can route, with its rules. */
+export interface KinetixNotificationRoutingType {
+    key: string;
+    label: string;
+    /** The channels the type is delivered on: the only ones a rule may use. */
+    channels: string[];
+    /** Channels a user cannot opt out of (set in code, never editable). */
+    mandatory: string[];
+    /** The ability a recipient must hold, judged when the notification is sent. */
+    requires: string | null;
+    routes: KinetixNotificationRoute[];
+}
+
+/**
+ * A member, role or group a rule can point at. A member's `id` is an opaque
+ * member ref (`{modelType}|{key}`, so a Client #5 is not a User #5): send it
+ * back as is and `encodeURIComponent` it in URLs.
+ */
+export interface KinetixNotificationAudience {
+    id: number | string;
+    name: string;
+}
+
+/** The response of the audiences endpoint. */
+export interface KinetixNotificationAudiences {
+    /** At most 200, by name, narrowed by `search`; empty with `members=0`. */
+    members: KinetixNotificationAudience[];
+    /** True when `members` is every match (filter locally); false when capped or skipped. */
+    membersComplete: boolean;
+    roles: KinetixNotificationAudience[];
+    groups: KinetixNotificationAudience[];
+}
+
+/** A named group of team members. */
+export interface KinetixNotificationGroup {
+    id: number | string;
+    name: string;
+    description: string | null;
+    /** The group's people who are still members of the team. */
+    members: KinetixNotificationAudience[];
+}
+
+/** One person in a recipients preview. */
+export interface KinetixNotificationRecipient {
+    /** The person's member ref (opaque). */
+    id: number | string;
+    name: string;
+    /** Empty for a skipped person. */
+    channels: string[];
+    /** Why they are left out; null for someone who would be notified. */
+    reason: 'ineligible' | 'opted_out' | 'no_channels' | null;
+}
+
+/** The dry run of a type's routes: nothing is sent. */
+export interface KinetixNotificationRecipients {
+    recipients: KinetixNotificationRecipient[];
+    /** A sample of the people left out: at most 50. */
+    skipped: KinetixNotificationRecipient[];
+    /** How many people were left out in all; `skipped` is only a sample of them. */
+    skippedCount: number;
+    /** The team has at least one rule for the type. */
+    hasRules: boolean;
+    /** More people than `max_recipients`: the rest would not be notified. */
+    truncated: boolean;
 }
 
 /** A comment (with its threaded replies) on a commentable model. */

@@ -103,6 +103,7 @@ Each module ships with a dedicated `docs/<feature>.md` guide, translations
   [Onboarding](docs/onboarding.md).
 - **Notifications & collaboration** — [Notifications](docs/notifications.md)
   (local/database/broadcast), [Notification Preferences](docs/notification-preferences.md),
+  [Notification Routing](docs/notification-routing.md),
   [Comments](docs/comments.md), [Tags](docs/tags.md),
   [Announcements](docs/announcements.md), [Presence](docs/presence.md),
   [Mail Templates](docs/mail-templates.md).

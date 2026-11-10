@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { Lock } from '@lucide/vue';
+import { onMounted, useId } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixNotificationPreferences } from '@/composables/useKinetixNotificationPreferences';
 import KinetixCheckbox from './KinetixCheckbox.vue';
+import { safeIdPart } from './NotificationRouting/notificationRoutingIds';
 
 /**
  * Drop-in notification-preferences matrix: a row per notification type and a
@@ -22,7 +24,17 @@ withDefaults(
 );
 
 const { t } = useI18n();
-const { matrix, loading, load, set } = useKinetixNotificationPreferences();
+const uid = useId();
+const hintId = (key: string): string => `${uid}-${safeIdPart(key)}-mandatory`;
+
+const channelLabel = (key: string): string =>
+    matrix.value.channels.find((c) => c.key === key)?.label ?? key;
+
+/** The mandatory channels of a type, by label: what the visible hint names. */
+const mandatoryLabels = (keys: string[] | undefined): string =>
+    (keys ?? []).map(channelLabel).join(', ');
+const { matrix, loading, load, set, isMandatory } =
+    useKinetixNotificationPreferences();
 
 onMounted(load);
 </script>
@@ -71,6 +83,27 @@ onMounted(load);
                     >
                         <td class="px-4 py-3 font-medium text-foreground">
                             {{ type.label }}
+                            <p
+                                v-if="type.mandatory?.length"
+                                :id="hintId(type.key)"
+                                class="mt-0.5 gap-1 text-xs font-normal flex items-start text-muted-foreground"
+                                data-test="pref-mandatory-hint"
+                            >
+                                <Lock
+                                    class="mt-0.5 size-3 shrink-0"
+                                    aria-hidden="true"
+                                />
+                                <span>{{
+                                    t(
+                                        'kinetix.notification_routing_prefs_required_on',
+                                        {
+                                            channels: mandatoryLabels(
+                                                type.mandatory,
+                                            ),
+                                        },
+                                    )
+                                }}</span>
+                            </p>
                         </td>
                         <td
                             v-for="channel in matrix.channels"
@@ -83,7 +116,29 @@ onMounted(load);
                             >
                                 <KinetixCheckbox
                                     :checked="type.channels[channel.key]"
+                                    :aria-disabled="
+                                        isMandatory(type.key, channel.key)
+                                            ? 'true'
+                                            : undefined
+                                    "
+                                    :class="
+                                        isMandatory(type.key, channel.key)
+                                            ? 'cursor-not-allowed opacity-50'
+                                            : undefined
+                                    "
                                     :aria-label="`${type.label} · ${channel.label}`"
+                                    :aria-describedby="
+                                        isMandatory(type.key, channel.key)
+                                            ? hintId(type.key)
+                                            : undefined
+                                    "
+                                    :title="
+                                        isMandatory(type.key, channel.key)
+                                            ? t(
+                                                  'kinetix.notification_preference_mandatory',
+                                              )
+                                            : undefined
+                                    "
                                     @change="
                                         set(
                                             type.key,

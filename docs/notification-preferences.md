@@ -150,6 +150,19 @@ request, and its notification is the only way to reach the file. The
 warns if it's still registered. Transactional mail (temporary passwords, member
 activation links) has no type and is always sent.
 
+### Mandatory channels
+
+A type can keep a channel on whatever the user chose, declared in code with
+[Notification Routing](/notification-routing#declaring-types)
+(`KinetixNotificationRouting::type('security')->mandatory(['mail'])`). The
+matrix payload lists those channels in each type's `mandatory`, shows them on,
+and updating one to off answers a 422. Reserve it for what the person must
+receive, never for marketing.
+
+Preferences of many users are read in one query with
+`NotificationPreferenceManager::storedMany($users)` /
+`deliverableMany($users, $type, $candidates)`.
+
 ### Several notifiable models
 
 A preference row belongs to its notifiable by key **and** model type, so with
@@ -169,6 +182,9 @@ migrations make a key unique per model type; a run that stopped halfway is
 finished by the next `migrate`. `php artisan kinetix:doctor` warns while the
 column or that unique key is missing, and when the module is on with no types
 registered.
+
+Teams choosing **who** receives each type, not just whether one person opts
+out, is [Notification Routing](/notification-routing).
 
 ---
 

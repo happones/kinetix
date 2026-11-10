@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Gdpr;
 
 use Closure;
+use Happones\Kinetix\Gdpr\Events\GdprPurged;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -46,17 +47,13 @@ class GdprManager
 
         if ($callback instanceof Closure) {
             $callback($user);
-
-            return;
-        }
-
-        if (config('kinetix.gdpr.deletion', 'anonymize') === 'delete') {
+        } elseif (config('kinetix.gdpr.deletion', 'anonymize') === 'delete') {
             $user->delete();
-
-            return;
+        } else {
+            $this->anonymize($user);
         }
 
-        $this->anonymize($user);
+        GdprPurged::dispatch($user);
     }
 
     protected function anonymize(Model $user): void

@@ -241,11 +241,13 @@ class TeamOwner
 
     protected static function teamKey(): string
     {
+        $pinned = PermissionTeam::pinned();
+
         if (! class_exists(PermissionRegistrar::class)) {
-            return 'none';
+            return $pinned === null ? 'none' : (string) $pinned[1];
         }
 
-        return (string) (app(PermissionRegistrar::class)->getPermissionsTeamId() ?? 'none');
+        return (string) (app(PermissionRegistrar::class)->getPermissionsTeamId() ?? $pinned[1] ?? 'none');
     }
 
     /**

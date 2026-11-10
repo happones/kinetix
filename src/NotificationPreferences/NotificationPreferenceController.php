@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Self-service notification preferences: each user reads and updates only their
@@ -37,6 +38,11 @@ class NotificationPreferenceController
             'channel' => ['required', 'string', Rule::in(is_string($type) ? $this->manager->channelsOf($type) : [])],
             'enabled' => ['required', 'boolean'],
         ]);
+
+        // A channel the type makes mandatory (in code) cannot be switched off.
+        if (! $validated['enabled'] && $this->manager->isMandatory($validated['type'], $validated['channel'])) {
+            throw ValidationException::withMessages(['enabled' => __('kinetix::kinetix.notification_preference_mandatory')]);
+        }
 
         $this->manager->update($user, $validated['type'], $validated['channel'], $validated['enabled']);
 

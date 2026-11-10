@@ -14,7 +14,7 @@ use Happones\Kinetix\Inbox\Events\ConversationMessageCreated;
 use Happones\Kinetix\Inbox\Events\ConversationReplied;
 use Happones\Kinetix\Inbox\Events\InboxUpdated;
 use Happones\Kinetix\Support\ConfigCallback;
-use Happones\Kinetix\Support\HostKeys;
+use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
@@ -159,26 +159,7 @@ class InboxManager
      */
     public function members(int|string|null $teamKey): Collection
     {
-        $resolver = ConfigCallback::resolve(config('kinetix.inbox.members'));
-
-        if ($resolver !== null) {
-            return collect($resolver($teamKey))->filter(static fn ($user): bool => $user instanceof Model)->values();
-        }
-
-        $teamModel = HostKeys::teamModel();
-        $relation  = (string) config('kinetix.inbox.members_relation', 'members');
-
-        if ($teamKey !== null && $teamModel !== null) {
-            $team = $teamModel::query()->find($teamKey);
-
-            return $team instanceof Model && method_exists($team, $relation)
-                ? $team->{$relation}()->get()->values()
-                : collect();
-        }
-
-        $userModel = config('auth.providers.users.model');
-
-        return is_string($userModel) && class_exists($userModel) ? $userModel::query()->limit(500)->get() : collect();
+        return KinetixTeams::members($teamKey, config('kinetix.inbox.members'), (string) config('kinetix.inbox.members_relation', 'members'));
     }
 
     /**

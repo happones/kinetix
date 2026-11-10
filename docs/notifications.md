@@ -321,6 +321,14 @@ Notification::make()
     ->sendToDatabase($user);
 ```
 
+### Routing to a team's chosen audience
+
+To send a notification to whoever each team picked for its type (members,
+roles, groups, everyone eligible), instead of one recipient you name, use
+[Notification Routing](/notification-routing):
+`KinetixNotificationRouting::for($type, $teamKey)->send(Notification::make()->title('…'))`.
+It stamps the team on the stored row, so the bell stays team-scoped.
+
 ---
 
 ## Actions

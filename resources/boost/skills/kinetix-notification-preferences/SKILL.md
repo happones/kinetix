@@ -72,6 +72,13 @@ A personal-data (GDPR) export is untyped and always delivered (`DATA_EXPORTS`
 is deprecated). Rows are owned by key + model type (`notifiable_type`,
 migrations 000039 + 000040), so credential-profile models never share choices.
 
+A type can keep channels on whatever the user chose, declared in code only with
+`KinetixNotificationRouting::type($type)->mandatory(['mail'])` (see the
+`kinetix-notification-routing` skill): the matrix payload lists them in each
+type's `mandatory` (shown on, locked) and updating one to off is a 422. Many
+users at once: `storedMany($users)` / `deliverableMany($users, $type, $candidates)`
+read their choices in one query.
+
 ## Frontend
 
 ```vue

@@ -1806,6 +1806,46 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Notification Routing
+    |--------------------------------------------------------------------------
+    |
+    | Lets each team choose who receives a notification type (members, roles,
+    | groups, or everyone eligible) and on which channels, on top of the types
+    | registered for Notification Preferences. Send with
+    | KinetixNotificationRouting::for($type, $teamKey)->notify(...). Opt-in:
+    | publish the tables with `kinetix-notification-routing-migrations`.
+    | Administered with `notification_routing.manage`.
+    |
+    */
+    'notification_routing' => [
+        'enabled' => env('KINETIX_NOTIFICATION_ROUTING_ENABLED', false),
+
+        'teams' => env('KINETIX_NOTIFICATION_ROUTING_TEAMS'), // null = inherit kinetix.teams
+
+        // The queue the audience is resolved and delivered on (null = the
+        // default queue).
+        'queue' => env('KINETIX_NOTIFICATION_ROUTING_QUEUE'),
+
+        // People notified per delivery job.
+        'chunk' => 100,
+
+        // The most people one notification reaches; the rest are left out and
+        // a warning is logged.
+        'max_recipients' => 500,
+
+        // The team's people: a callable array [Class::class, 'method']
+        // receiving the team key and returning the users, or null for the
+        // team model's `members_relation`.
+        'members'          => null,
+        'members_relation' => 'members',
+        'name_attribute'   => 'name',
+
+        // Recipient previews per user: 'attempts,minutes' (null = no limit).
+        'preview_throttle' => '30,1',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Forms
     |--------------------------------------------------------------------------
     |

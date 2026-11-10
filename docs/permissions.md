@@ -234,6 +234,7 @@ taken, so don't register your own under them:
 | `channels` | `manage` | `channels.enabled` | Messaging lines |
 | `conversations` | `view`, `view_all`, `quick_replies` | `inbox.enabled` and `channels.enabled` | The inbox |
 | `flows` | `manage` | `flows.enabled` (with inbox and channels) | Bot flows |
+| `notification_routing` | `manage` | `notification_routing.enabled` | Who receives each notification type, and the groups ([Notification Routing](./notification-routing.md)) |
 | `billing` | `view`, `manage` | `billing.enabled` | The billing page and invoices (`view`); subscribe, payment methods, cancel and resume (`manage`). See [Billing → Authorization](./billing.md#authorization) |
 
 #### Platform-level abilities (`->platform()`)
@@ -621,6 +622,7 @@ abilities on roles:
 | `channels.teams` | `channels`, `conversations`, `flows` |
 | `settings.teams` | `settings` |
 | `activity.teams` | `activity` |
+| `notification_routing.teams` | `notification_routing` |
 | `membership.teams` | `members` |
 
 Roles are app-wide too when `permissions.teams` is off; list `roles` in

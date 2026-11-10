@@ -31,6 +31,21 @@ class NotificationTypeRegistry
     ];
 
     /**
+     * The channels a type is delivered on whatever the user chose, declared
+     * in code only.
+     *
+     * @var array<string, list<string>>
+     */
+    protected array $mandatory = [];
+
+    /**
+     * The ability a recipient must hold for a type to reach them.
+     *
+     * @var array<string, string>
+     */
+    protected array $requires = [];
+
+    /**
      * @param array<int|string, string> $types key=>label, or a plain list of keys
      */
     public function register(array $types): void
@@ -77,5 +92,41 @@ class NotificationTypeRegistry
     public function channelsOf(string $type): ?array
     {
         return $this->channels[$type] ?? null;
+    }
+
+    /**
+     * Declare the channels a type is delivered on even when the user turned
+     * them off (a security alert, a billing notice). Code only: nothing in
+     * the UI or the API can set it.
+     *
+     * @param list<string> $channels
+     */
+    public function mandate(string $type, array $channels): void
+    {
+        $this->mandatory[$type] = array_values(array_unique($channels));
+    }
+
+    /**
+     * The channels a user cannot opt out of for a type.
+     *
+     * @return list<string>
+     */
+    public function mandatoryOf(string $type): array
+    {
+        return $this->mandatory[$type] ?? [];
+    }
+
+    /**
+     * Declare the ability a recipient must hold, judged when the notification
+     * is sent, for a type to reach them.
+     */
+    public function require(string $type, string $ability): void
+    {
+        $this->requires[$type] = $ability;
+    }
+
+    public function requirementOf(string $type): ?string
+    {
+        return $this->requires[$type] ?? null;
     }
 }

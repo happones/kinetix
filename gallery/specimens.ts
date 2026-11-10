@@ -51,7 +51,9 @@ import KinetixTableRepeater from '@/components/KinetixTableRepeater.vue';
 import KinetixComments from '@/components/KinetixComments.vue';
 import KinetixMailTemplates from '@/components/KinetixMailTemplates.vue';
 import KinetixTags from '@/components/KinetixTags.vue';
+import KinetixNotificationGroups from '@/components/KinetixNotificationGroups.vue';
 import KinetixNotificationPreferences from '@/components/KinetixNotificationPreferences.vue';
+import KinetixNotificationRouting from '@/components/KinetixNotificationRouting.vue';
 import KinetixCookieConsent from '@/components/KinetixCookieConsent.vue';
 import KinetixReportLauncher from '@/components/KinetixReportLauncher.vue';
 import KinetixReportRunsTable from '@/components/KinetixReportRunsTable.vue';
@@ -2240,6 +2242,26 @@ const MemberListWithFieldsSpecimen = defineComponent({
     },
 });
 
+/**
+ * The preferences matrix of an app with a mandatory type: its mail and in-app
+ * switches render on and locked, with the reason beside the type. Flips the
+ * http stub's flag while mounted so the plain `notification-preferences`
+ * specimen is untouched.
+ */
+const NotificationPreferencesMandatorySpecimen = defineComponent({
+    name: 'NotificationPreferencesMandatorySpecimen',
+    setup() {
+        const flags = globalThis as { __kinetixPrefsMandatory?: boolean };
+
+        flags.__kinetixPrefsMandatory = true;
+        onBeforeUnmount(() => {
+            flags.__kinetixPrefsMandatory = false;
+        });
+
+        return () => h(KinetixNotificationPreferences);
+    },
+});
+
 const generatorField = (
     name: string,
     label: string,
@@ -3632,6 +3654,49 @@ export const specimens: Specimen[] = [
         component: KinetixNotificationPreferences,
         frame: 'card',
         width: 640,
+    },
+    {
+        name: 'notification-preferences-mandatory',
+        title: 'Notification preferences — mandatory channels locked on',
+        component: NotificationPreferencesMandatorySpecimen,
+        frame: 'card',
+        width: 640,
+    },
+    {
+        name: 'notification-routing',
+        title: 'Notification routing — audiences and channels per type',
+        component: KinetixNotificationRouting,
+        width: 880,
+    },
+    {
+        name: 'notification-routing-add',
+        title: 'Notification routing — adding an audience',
+        component: KinetixNotificationRouting,
+        width: 880,
+        height: 720,
+        openSelector: '[data-test="routing-add"]',
+    },
+    {
+        name: 'notification-routing-preview',
+        title: 'Notification routing — preview of who would be notified',
+        component: KinetixNotificationRouting,
+        width: 880,
+        height: 900,
+        openSelector: '[data-test="routing-preview"]',
+    },
+    {
+        name: 'notification-groups',
+        title: 'Notification groups — named sets of members',
+        component: KinetixNotificationGroups,
+        width: 760,
+    },
+    {
+        name: 'notification-groups-edit',
+        title: 'Notification groups — editing a group',
+        component: KinetixNotificationGroups,
+        width: 760,
+        height: 760,
+        openSelector: '[data-test="group-edit"]',
     },
     {
         name: 'webhook-manager',

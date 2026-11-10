@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Support;
 
+use Happones\Kinetix\Permissions\PermissionTeam;
 use Happones\Kinetix\Teams\TeamSwitcherManager;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Illuminate\Routing\RouteRegistrar;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -243,6 +245,12 @@ class KinetixTeams
         // because the Billing routes (and hosts that predate the rename) use
         // that name — without this a Kinetix component rendered inside such a
         // page would silently fall back to the user's `currentTeam`.
+        $pinned = PermissionTeam::pinned();
+
+        if ($pinned !== null) {
+            return $pinned;
+        }
+
         $param = self::segment($request);
         $user  = self::requestUser($request);
 
@@ -373,5 +381,42 @@ class KinetixTeams
     public static function redirectAfterCreate(Model $team, string $default): string
     {
         return app(TeamSwitcherManager::class)->redirectAfterCreate($team, $default);
+    }
+
+    /**
+     * The members of a team: what the host's `$resolver` (a callable array
+     * receiving the team key) returns, else the team model's `$relation`.
+     * Without a team key (an app that isn't team-scoped), the user model's
+     * first 500 rows, which is what the Inbox lists. With `$failClosed`, a
+     * team that can't be resolved (no key, no team model) has NO members
+     * instead: for callers that must never reach people outside the team.
+     *
+     * @return Collection<int, Model>
+     */
+    public static function members(int|string|null $teamKey, mixed $resolver = null, string $relation = 'members', bool $failClosed = false): Collection
+    {
+        $callback = ConfigCallback::resolve($resolver);
+
+        if ($callback !== null) {
+            return collect($callback($teamKey))->filter(static fn ($user): bool => $user instanceof Model)->values();
+        }
+
+        $teamModel = HostKeys::teamModel();
+
+        if ($teamKey !== null && $teamModel !== null) {
+            $team = $teamModel::query()->find($teamKey);
+
+            return $team instanceof Model && method_exists($team, $relation)
+                ? $team->{$relation}()->get()->values()
+                : collect();
+        }
+
+        if ($failClosed) {
+            return collect();
+        }
+
+        $userModel = config('auth.providers.users.model');
+
+        return is_string($userModel) && class_exists($userModel) ? $userModel::query()->limit(500)->get() : collect();
     }
 }

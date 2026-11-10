@@ -15,6 +15,7 @@ use Happones\Kinetix\Membership\MemberActivationNotification;
 use Happones\Kinetix\Membership\MemberFields;
 use Happones\Kinetix\Membership\MemberProvision;
 use Happones\Kinetix\Membership\MemberProvisionStatus;
+use Happones\Kinetix\NotificationPreferences\NotificationPreferenceManager;
 use Happones\Kinetix\NotificationPreferences\NotificationTypeRegistry;
 use Happones\Kinetix\Permissions\AssignableRoles;
 use Happones\Kinetix\Permissions\PermissionRegistry;
@@ -29,6 +30,7 @@ use Happones\Kinetix\Support\Casts\EncryptedWithPlaintextFallback;
 use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\DiscoveryManifest;
 use Happones\Kinetix\Support\HostKeyColumns;
+use Happones\Kinetix\Support\HostKeys;
 use Happones\Kinetix\Support\KinetixSharedProps;
 use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\KinetixThrottle;
@@ -98,6 +100,7 @@ class DoctorCommand extends Command
         $this->checkRoles();
         $this->checkMembership();
         $this->checkNotificationPreferences();
+        $this->checkNotificationRouting();
         $this->checkConfigCallbacks();
         $this->checkConfigKeys();
         $this->checkTenantColumns();
@@ -169,7 +172,7 @@ class DoctorCommand extends Command
         $modules = [
             'permissions', 'membership', 'settings', 'activity', 'webhooks', 'onboarding',
             'wizards', 'billing', 'tours', 'help', 'spotlight', 'reports_center', 'confidential',
-            'entitlements', 'credentials', 'dismissals', 'channels', 'inbox', 'flows',
+            'entitlements', 'credentials', 'dismissals', 'channels', 'inbox', 'flows', 'notification_routing',
         ];
 
         $enabled = array_values(array_filter(
@@ -1115,6 +1118,115 @@ class DoctorCommand extends Command
         $this->ok('Notification preferences', count($types).' type(s) registered');
     }
 
+    protected function checkNotificationRouting(): void
+    {
+        if (! config('kinetix.notification_routing.enabled', false)) {
+            return;
+        }
+
+        $publish = 'php artisan vendor:publish --tag=kinetix-notification-routing-migrations && php artisan migrate';
+
+        foreach (['kinetix_notification_routes', 'kinetix_notification_groups', 'kinetix_notification_group_members'] as $table) {
+            if (! Schema::hasTable($table)) {
+                $this->error_('Notification routing', "enabled but the {$table} table is missing", $publish);
+
+                return;
+            }
+        }
+
+        $this->checkRoutingPeople();
+
+        $registry = app(NotificationTypeRegistry::class);
+        $manager  = app(NotificationPreferenceManager::class);
+        $types    = array_filter(array_keys($registry->all()), static fn (string $type): bool => ! str_starts_with($type, 'kinetix.'));
+
+        if ($types === []) {
+            $this->warn_('Notification routing', 'no notification types registered, so there is nothing to route',
+                'Register them with KinetixNotificationPreferences::types([...]) in a provider.');
+
+            return;
+        }
+
+        $problems = [];
+
+        foreach ($types as $type) {
+            $ability = $registry->requirementOf($type);
+
+            if ($ability !== null && ! static::abilityIsKnown($ability)) {
+                $problems[] = "{$type}: requires('{$ability}') is not a defined ability, so nobody is eligible";
+            }
+
+            $stray = array_diff($registry->mandatoryOf($type), $manager->channelsOf($type));
+
+            if ($stray !== []) {
+                $problems[] = "{$type}: mandatory channel(s) ".implode(', ', $stray).' are not ones the type is delivered on';
+            }
+        }
+
+        if ($problems !== []) {
+            $this->warn_('Notification routing', count($problems).' type(s) have a routing declaration that does nothing',
+                'Define the ability with Gate::define() or a policy, and keep mandatory() to the type\'s deliverOn() channels.', $problems);
+        }
+
+        if (config('queue.default') === 'sync') {
+            $this->warn_('Notification routing', 'the queue connection is sync, so a routed notification is delivered inside the request that sends it',
+                'Use a real queue connection (and set kinetix.notification_routing.queue) so a large audience does not slow the request.');
+        }
+
+        if (! config('kinetix.notification_preferences.enabled', false)) {
+            $this->warn_('Notification routing', 'Notification Preferences is off, so users cannot opt out and mandatory() has no effect',
+                'Set kinetix.notification_preferences.enabled to true if people should choose their channels.');
+        }
+
+        $this->ok('Notification routing', count($types).' routable type(s)');
+    }
+
+    /**
+     * With teams on, routing reaches only the members it can resolve: an
+     * app that gives neither a callable nor a team model with a members
+     * relation would notify nobody.
+     */
+    protected function checkRoutingPeople(): void
+    {
+        if (! config('kinetix.teams', false) || ConfigCallback::resolve(config('kinetix.notification_routing.members')) !== null) {
+            return;
+        }
+
+        $relation  = (string) config('kinetix.notification_routing.members_relation', 'members');
+        $teamModel = HostKeys::teamModel();
+
+        if ($teamModel === null || ! method_exists($teamModel, $relation)) {
+            $this->error_('Notification routing', 'teams are on but the team members cannot be resolved, so no notification reaches anybody',
+                "Set kinetix.notification_routing.members to a callable array [Class::class, 'method'] receiving the team key and returning its users, or give your team model a '{$relation}' relation (kinetix.notification_routing.members_relation).");
+        }
+    }
+
+    /**
+     * Whether an ability exists: a Gate definition, a Kinetix registered
+     * ability, or a spatie permission of the guard (granted through
+     * Gate::before, so Gate::has() cannot see it).
+     */
+    protected static function abilityIsKnown(string $ability): bool
+    {
+        if (Gate::has($ability) || app(PermissionRegistry::class)->featureOf($ability) !== null) {
+            return true;
+        }
+
+        if (! class_exists(PermissionRegistrar::class)) {
+            return false;
+        }
+
+        try {
+            /** @var class-string<Model> $model */
+            $model = config('permission.models.permission', Permission::class);
+
+            return Schema::hasTable((new $model)->getTable())
+                && $model::query()->where('name', $ability)->where('guard_name', (string) config('kinetix.permissions.guard', 'web'))->exists();
+        } catch (QueryException) {
+            return false;
+        }
+    }
+
     /**
      * Team billing where nobody can change the plan: the billing endpoints ask
      * for `billing.manage` (or ownership), and a setup that grants it to no
@@ -1189,6 +1301,7 @@ class DoctorCommand extends Command
             'kinetix.membership.detach_member',
             'kinetix.membership.assign_role',
             'kinetix.membership.fields',
+            'kinetix.notification_routing.members',
             'kinetix.billing.authorize',
             'kinetix.billing.resolve_billable',
             'kinetix.connected_accounts.email_verified',

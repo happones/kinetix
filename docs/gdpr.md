@@ -92,6 +92,17 @@ KinetixGdpr::deleteUsing(function ($user) {
 
 ---
 
+### Purge event
+
+After a purge (anonymize, delete, or your own callback) Kinetix dispatches
+`Happones\Kinetix\Gdpr\Events\GdprPurged` with the user. Modules that keep
+rows about a person listen to it (Notification Routing removes the account from
+its groups and member rules); so can you, to clean up your own tables:
+
+```php
+Event::listen(GdprPurged::class, fn (GdprPurged $event) => Preference::where('user_id', $event->user->getKey())->delete());
+```
+
 ## 3. The panel component
 
 Mount the drop-in panel on a privacy / account settings page:

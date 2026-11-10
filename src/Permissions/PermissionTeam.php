@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Permissions;
 
+use Happones\Kinetix\Support\HostKeys;
+use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -28,6 +30,55 @@ final class PermissionTeam
     public static function active(): bool
     {
         return class_exists(PermissionRegistrar::class) && (bool) config('permission.teams', false);
+    }
+
+    /** @var array{0: Model|null, 1: int|string}|null */
+    private static ?array $pinned = null;
+
+    /**
+     * Run `$callback` as one team's work even where nothing in the request
+     * says which team that is (a queued job): the current team
+     * ({@see KinetixTeams}) and the owner check
+     * ({@see TeamOwner}) answer with it, instead of the user's own
+     * `currentTeam`, whether or not spatie scopes roles by team. Restored
+     * after, even when the callback throws.
+     *
+     * @template TReturn
+     *
+     * @param  callable(): TReturn $callback
+     * @return TReturn
+     */
+    public static function pin(int|string|null $teamId, callable $callback): mixed
+    {
+        $previous     = self::$pinned;
+        self::$pinned = $teamId === null ? null : [null, $teamId];
+
+        try {
+            return self::run($teamId, $callback);
+        } finally {
+            self::$pinned = $previous;
+        }
+    }
+
+    /**
+     * The team and key a {@see pin()} is running for, null outside one.
+     *
+     * @return array{0: Model|null, 1: int|string}|null
+     */
+    public static function pinned(): ?array
+    {
+        if (self::$pinned === null) {
+            return null;
+        }
+
+        if (self::$pinned[0] === null) {
+            $model = HostKeys::teamModel();
+            $team  = $model === null ? null : $model::query()->find(self::$pinned[1]);
+
+            self::$pinned[0] = $team instanceof Model ? $team : null;
+        }
+
+        return self::$pinned;
     }
 
     /**

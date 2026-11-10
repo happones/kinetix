@@ -48,7 +48,7 @@ class ModuleMiddlewareTest extends TestCase
         'permissions', 'credentials', 'membership', 'settings', 'activity', 'impersonation', 'tours', 'help',
         'spotlight', 'webhooks', 'channels', 'inbox', 'flows', 'pdf', 'api_logs', 'tokens', 'onboarding',
         'wizards', 'gdpr', 'accessibility', 'connected_accounts', 'sessions', 'comments', 'tags',
-        'notification_preferences', 'saved_views', 'announcements', 'queue', 'mail_templates', 'health',
+        'notification_preferences', 'notification_routing', 'saved_views', 'announcements', 'queue', 'mail_templates', 'health',
         'reports_center', 'confidential', 'dismissals', 'notifications', 'tables', 'forms', 'uploads',
         'imports', 'exports', 'team_switcher',
     ];

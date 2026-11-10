@@ -116,4 +116,105 @@ describe('KinetixNotificationPreferences', () => {
         expect(bare.text()).not.toContain('notification_prefs_title');
         expect(bare.find('h2').exists()).toBe(false);
     });
+
+    describe('mandatory channels', () => {
+        const withMandatory = {
+            channels: matrix.channels,
+            types: [
+                {
+                    key: 'security',
+                    label: 'Security alerts',
+                    // The server sends a mandatory channel on.
+                    channels: { mail: true, database: true },
+                    mandatory: ['mail'],
+                },
+            ],
+        };
+
+        it('renders a mandatory channel checked and aria-disabled, still focusable, with an explanation', async () => {
+            fetchMock.mockResolvedValueOnce(withMandatory);
+            const w = mountIt();
+            await flushPromises();
+
+            const [mail, inApp] = w.findAllComponents(KinetixCheckbox);
+            const mailBox = w.get('[aria-label="Security alerts · Email"]');
+            expect(mailBox.attributes('aria-disabled')).toBe('true');
+            // Not `disabled`: it stays reachable by keyboard and screen reader.
+            expect(mailBox.attributes('disabled')).toBeUndefined();
+            expect(mail.props('checked')).toBe(true);
+            expect(
+                w
+                    .get('[aria-label="Security alerts · In-app"]')
+                    .attributes('aria-disabled'),
+            ).toBeUndefined();
+            expect(inApp.props('disabled')).toBe(false);
+
+            const hint = w.get('[data-test="pref-mandatory-hint"]');
+            expect(hint.text()).toContain(
+                'kinetix.notification_routing_prefs_required_on',
+            );
+            expect(
+                w
+                    .get('[aria-label="Security alerts · Email"]')
+                    .attributes('aria-describedby'),
+            ).toBe(hint.attributes('id'));
+            expect(
+                w
+                    .get('[aria-label="Security alerts · In-app"]')
+                    .attributes('aria-describedby'),
+            ).toBeUndefined();
+        });
+
+        it('keeps a mandatory channel on even when an older payload says off', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ...withMandatory,
+                types: [
+                    {
+                        ...withMandatory.types[0],
+                        channels: { mail: false, database: true },
+                    },
+                ],
+            });
+            const w = mountIt();
+            await flushPromises();
+
+            expect(
+                w.findAllComponents(KinetixCheckbox)[0].props('checked'),
+            ).toBe(true);
+        });
+
+        it('never posts for a mandatory channel, but still does for the others', async () => {
+            fetchMock.mockResolvedValueOnce(withMandatory);
+            const w = mountIt();
+            await flushPromises();
+            fetchMock.mockClear();
+            fetchMock.mockResolvedValue({ status: 'success' });
+
+            const [mail, inApp] = w.findAllComponents(KinetixCheckbox);
+            mail.vm.$emit('change', false);
+            await flushPromises();
+            expect(fetchMock).not.toHaveBeenCalled();
+
+            // A real click does not change it either.
+            await w
+                .get('[aria-label="Security alerts · Email"]')
+                .trigger('click');
+            await flushPromises();
+            expect(fetchMock).not.toHaveBeenCalled();
+            expect(
+                w
+                    .get('[aria-label="Security alerts · Email"]')
+                    .attributes('data-state'),
+            ).toBe('checked');
+
+            inApp.vm.$emit('change', false);
+            await flushPromises();
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+            expect(fetchMock.mock.calls[0][1].body).toMatchObject({
+                type: 'security',
+                channel: 'database',
+                enabled: false,
+            });
+        });
+    });
 });

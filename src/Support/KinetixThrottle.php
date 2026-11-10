@@ -36,19 +36,20 @@ final class KinetixThrottle
      * @var array<string, array{0: string, 1: string, 2: string|null}>
      */
     public const LIMITERS = [
-        'kinetix-password'      => ['password_confirmation.throttle', '5,1', 'password'],
-        'kinetix-exports'       => ['exports.start_throttle', '10,1', null],
-        'kinetix-gdpr-export'   => ['gdpr.export_throttle', '3,60', null],
-        'kinetix-report-runs'   => ['reports_center.launch_throttle', '10,1', null],
-        'kinetix-mail-test'     => ['mail_templates.test_throttle', '5,1', null],
-        'kinetix-member-resend' => ['membership.resend_throttle', '6,1', null],
-        'kinetix-channels'      => ['channels.action_throttle', '10,1', null],
-        'kinetix-team-search'   => ['team_switcher.search_throttle', '60,1', null],
-        'kinetix-member-invite' => ['membership.invite_throttle', '10,1', null],
-        'kinetix-spotlight'     => ['spotlight.throttle', '60,1', null],
-        'kinetix-webhook-test'  => ['webhooks.test_throttle', '6,1', null],
-        'kinetix-flow-simulate' => ['flows.simulate_throttle', '10,1', null],
-        'kinetix-recompute'     => ['forms.recompute_throttle', '120,1', null],
+        'kinetix-password'             => ['password_confirmation.throttle', '5,1', 'password'],
+        'kinetix-exports'              => ['exports.start_throttle', '10,1', null],
+        'kinetix-gdpr-export'          => ['gdpr.export_throttle', '3,60', null],
+        'kinetix-report-runs'          => ['reports_center.launch_throttle', '10,1', null],
+        'kinetix-mail-test'            => ['mail_templates.test_throttle', '5,1', null],
+        'kinetix-member-resend'        => ['membership.resend_throttle', '6,1', null],
+        'kinetix-channels'             => ['channels.action_throttle', '10,1', null],
+        'kinetix-team-search'          => ['team_switcher.search_throttle', '60,1', null],
+        'kinetix-member-invite'        => ['membership.invite_throttle', '10,1', null],
+        'kinetix-spotlight'            => ['spotlight.throttle', '60,1', null],
+        'kinetix-webhook-test'         => ['webhooks.test_throttle', '6,1', null],
+        'kinetix-flow-simulate'        => ['flows.simulate_throttle', '10,1', null],
+        'kinetix-recompute'            => ['forms.recompute_throttle', '120,1', null],
+        'kinetix-notification-routing' => ['notification_routing.preview_throttle', '30,1', null],
     ];
 
     /**

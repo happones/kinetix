@@ -13,6 +13,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.283.0] - 2026-11-09
+
+### Added
+
+- **Notification Routing** (opt-in, `kinetix.notification_routing.enabled`):
+  each team chooses who receives each notification type (members, roles,
+  groups, or everyone eligible) and on which channels, on top of the types
+  registered for Notification Preferences. Send with
+  `KinetixNotificationRouting::for($type, $teamKey)->notify($notification)`
+  (queued; `notifyNow()`, `send()` for a Kinetix in-app notification,
+  `fallback()`, and `recipients()` as a dry run). A person reached by several
+  rules gets one notification on the union of their channels; recipients are
+  always current team members; the type's `requires()` ability is judged at
+  send time; the queries stay constant for a whole audience (two more per 200
+  people when the type has a `requires`). With teams on and no way to resolve
+  the team's members it reaches nobody and `kinetix:doctor` errors; set
+  `notification_routing.members`. Members are identified by an opaque member ref
+  (`{modelType}|{key}`). The recipients preview returns a sample of at most 50
+  skipped people plus `skippedCount`. See docs/notification-routing.md.
+- JSON endpoints for the routing screens (`kinetix.notification-routing.*`:
+  types with their rules, audiences, rules, groups and members, recipients
+  preview), guarded by the new `notification_routing.manage` ability, with
+  `Data` payloads and `KinetixNotificationRoutingType`, `KinetixNotificationRoute`,
+  `KinetixNotificationGroup`, `KinetixNotificationAudience` and
+  `KinetixNotificationRecipients` types.
+- Mandatory notification channels: `KinetixNotificationRouting::type($type)->mandatory(['mail'])`
+  keeps a channel on whatever the user chose (code only: no screen or endpoint
+  can set it). The preferences matrix lists them in each type's `mandatory`,
+  and turning one off answers a 422. Never use it for marketing types.
+- `KinetixNotificationRouting.vue` (one row per type: audiences with their
+  channel icons, "Add audience" dialog with a remote member search, mandatory
+  badge, recipients preview with the reason each skipped person is left out)
+  and `KinetixNotificationGroups.vue` (group create/edit/delete with a member
+  picker), backed by `useKinetixNotificationRouting()`. Screens of the same
+  team share one store, so a group created or deleted on one shows up on the
+  other. `GET audiences` returns at most 200 members (`?search=`,
+  `membersComplete`, `?members=0` for roles and groups only).
+- `KinetixNotificationPreferences` shows mandatory channels checked and locked
+  (`aria-disabled`, still focusable) with the reason, and never posts them.
+- `NotificationPreferenceManager::storedMany()` and `deliverableMany()` read
+  many users' preferences in one query.
+- `KinetixTeams::members($teamKey, $resolver, $relation)`: the team's people
+  the Inbox already resolved, now shared (the Inbox delegates to it; its
+  behavior is unchanged).
+- `Gdpr\Events\GdprPurged`, dispatched after an account is purged.
+- `PermissionTeam::pin()` (internal): code run for a given team, such as the
+  routing fan-out, sees that team from `KinetixTeams` and the owner bypass.
+- `kinetix:doctor` checks Notification Routing, and flags a closure in
+  `notification_routing.members`.
+- Events `AudienceResolved`, `RoutedNotificationSent` and
+  `NotificationRouteChanged`; a limiter for the recipients preview
+  (`notification_routing.preview_throttle`).
+
+### Upgrade notes
+
+- Nothing changes until you opt in. To use Notification Routing, publish and
+  run the migrations (000054 to 000055), then enable the module:
+  `php artisan vendor:publish --tag=kinetix-notification-routing-migrations && php artisan migrate`.
+- Add the `notification_routing` block to your published `config/kinetix.php`
+  (`kinetix:doctor` lists the missing keys), and give `notification_routing.manage`
+  to whoever administers routing.
+- `mandatory()` is for what the person must receive (a security alert, a
+  billing notice). Do not use it for marketing or optional types.
+- Frontend: `types[].mandatory` is new in the notification preferences payload
+  (`KinetixNotificationPreferences` type). Re-publish the TypeScript types
+  and components (`kinetix:upgrade` does both).
+
 ## [0.282.0] - 2026-11-09
 
 ### Added

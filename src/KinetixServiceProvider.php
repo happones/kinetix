@@ -103,6 +103,7 @@ use Happones\Kinetix\Forms\FormRecomputeController;
 use Happones\Kinetix\Forms\SearchController;
 use Happones\Kinetix\Forms\TableRepeaterController;
 use Happones\Kinetix\Forms\UploadController;
+use Happones\Kinetix\Gdpr\Events\GdprPurged;
 use Happones\Kinetix\Gdpr\GdprController;
 use Happones\Kinetix\Gdpr\GdprManager;
 use Happones\Kinetix\Gdpr\GdprRegistry;
@@ -139,6 +140,9 @@ use Happones\Kinetix\Membership\MembershipController;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceController;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceManager;
 use Happones\Kinetix\NotificationPreferences\NotificationTypeRegistry;
+use Happones\Kinetix\NotificationRouting\NotificationGroupController;
+use Happones\Kinetix\NotificationRouting\NotificationRoutingController;
+use Happones\Kinetix\NotificationRouting\RemovePurgedMember;
 use Happones\Kinetix\Notifications\Notification;
 use Happones\Kinetix\Notifications\NotificationController;
 use Happones\Kinetix\Notifications\NotificationFeed;
@@ -708,6 +712,12 @@ class KinetixServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations/2026_01_01_000040_scope_kinetix_notification_preferences_unique_to_type.php'         => database_path('migrations/2026_01_01_000040_scope_kinetix_notification_preferences_unique_to_type.php'),
             ], 'kinetix-notification-preferences-migrations');
 
+            // Publish the optional Notification Routing module's migrations.
+            $this->publishes([
+                __DIR__.'/../database/migrations/2026_01_01_000054_create_kinetix_notification_groups_tables.php' => database_path('migrations/2026_01_01_000054_create_kinetix_notification_groups_tables.php'),
+                __DIR__.'/../database/migrations/2026_01_01_000055_create_kinetix_notification_routes_table.php'  => database_path('migrations/2026_01_01_000055_create_kinetix_notification_routes_table.php'),
+            ], 'kinetix-notification-routing-migrations');
+
             // Publish the optional Saved Views module's migration.
             $this->publishes([
                 __DIR__.'/../database/migrations/2026_01_01_000013_create_kinetix_saved_views_table.php' => database_path('migrations/2026_01_01_000013_create_kinetix_saved_views_table.php'),
@@ -896,6 +906,9 @@ class KinetixServiceProvider extends ServiceProvider
 
         // Register the optional Notification Preferences module (opt-in matrix)
         $this->registerNotificationPreferences();
+
+        // Register the optional Notification Routing module (who gets which type)
+        $this->registerNotificationRouting();
 
         // Register the optional Saved Views module (per-user table presets)
         $this->registerSavedViews();
@@ -2238,6 +2251,50 @@ class KinetixServiceProvider extends ServiceProvider
                 ->group(function () {
                     Route::get('/', [NotificationPreferenceController::class, 'index'])->name('kinetix.notification-preferences.index');
                     Route::post('/', [NotificationPreferenceController::class, 'update'])->name('kinetix.notification-preferences.update');
+                });
+        });
+    }
+
+    /**
+     * Wire the optional Notification Routing module: the
+     * `notification_routing.manage` ability, the team's rule and group
+     * endpoints, and the cleanup of a purged account's groups and rules.
+     */
+    protected function registerNotificationRouting(): void
+    {
+        if (! config('kinetix.notification_routing.enabled', false)) {
+            return;
+        }
+
+        $this->platformWhenAppWide(app(PermissionRegistry::class)->feature('notification_routing'), 'notification_routing')
+            ->label('kinetix.permission_feature_notification_routing')
+            ->ability('manage', 'kinetix.permission_ability_manage_notification_routing');
+
+        $this->app['events']->listen(GdprPurged::class, [RemovePurgedMember::class, 'handle']);
+
+        $this->routes(function (): void {
+            $prefix     = config('kinetix.route_prefix', '_kinetix');
+            $middleware = $this->moduleMiddleware('notification_routing');
+
+            if (config('kinetix.teams', false)) {
+                $prefix = KinetixTeams::routePrefix($prefix);
+            }
+
+            KinetixTeams::routes($middleware)
+                ->prefix("{$prefix}/notification-routing")
+                ->group(function () {
+                    Route::get('/', [NotificationRoutingController::class, 'index'])->name('kinetix.notification-routing.index');
+                    Route::get('audiences', [NotificationRoutingController::class, 'audiences'])->name('kinetix.notification-routing.audiences');
+                    Route::get('recipients', [NotificationRoutingController::class, 'recipients'])->middleware(KinetixThrottle::middleware('kinetix-notification-routing'))->name('kinetix.notification-routing.recipients');
+                    Route::post('routes', [NotificationRoutingController::class, 'store'])->name('kinetix.notification-routing.routes.store');
+                    Route::put('routes/{route}', [NotificationRoutingController::class, 'update'])->name('kinetix.notification-routing.routes.update');
+                    Route::delete('routes/{route}', [NotificationRoutingController::class, 'destroy'])->name('kinetix.notification-routing.routes.destroy');
+                    Route::get('groups', [NotificationGroupController::class, 'index'])->name('kinetix.notification-routing.groups.index');
+                    Route::post('groups', [NotificationGroupController::class, 'store'])->name('kinetix.notification-routing.groups.store');
+                    Route::put('groups/{group}', [NotificationGroupController::class, 'update'])->name('kinetix.notification-routing.groups.update');
+                    Route::delete('groups/{group}', [NotificationGroupController::class, 'destroy'])->name('kinetix.notification-routing.groups.destroy');
+                    Route::post('groups/{group}/members', [NotificationGroupController::class, 'addMembers'])->name('kinetix.notification-routing.groups.members.store');
+                    Route::delete('groups/{group}/members/{member}', [NotificationGroupController::class, 'removeMember'])->where('member', '.+')->name('kinetix.notification-routing.groups.members.destroy');
                 });
         });
     }

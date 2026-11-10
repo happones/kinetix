@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Support\Concerns;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
 
@@ -52,18 +53,59 @@ trait OwnedByModelType
     {
         $query = static::query()->where(static::ownerKeyColumn(), $owner->getKey());
 
-        if (! static::hasOwnerTypeColumn()) {
-            return $query;
+        return static::constrainToOwnerType($query, $owner);
+    }
+
+    /**
+     * The rows that belong to any of $owners, in one query. Owners of
+     * different model types are matched each by its own type.
+     *
+     * @param  Collection<int, Model> $owners
+     * @return Builder<static>
+     */
+    public static function ownedByMany(Collection $owners): Builder
+    {
+        $query = static::query();
+
+        if ($owners->isEmpty()) {
+            return $query->whereRaw('1 = 0');
         }
 
-        $column = static::ownerTypeColumn();
-        $types  = array_values(array_unique([$owner->getMorphClass(), $owner::class]));
+        return $query->where(static function (Builder $any) use ($owners): void {
+            foreach ($owners->groupBy(static fn (Model $owner): string => $owner::class) as $group) {
+                /** @var Model $first */
+                $first = $group->first();
 
-        return static::isDefaultOwner($owner)
-            ? $query->where(static fn (Builder $q) => $q
-                ->whereIn($column, $types)
-                ->orWhereNull($column))
-            : $query->whereIn($column, $types);
+                $any->orWhere(static function (Builder $one) use ($group, $first): void {
+                    $one->whereIn(static::ownerKeyColumn(), $group->map(static fn (Model $owner): mixed => $owner->getKey())->all());
+
+                    static::constrainToOwnerType($one, $first);
+                });
+            }
+        });
+    }
+
+    /**
+     * Whether a row read through {@see ownedByMany()} belongs to $owner: the
+     * same key and the same type rules {@see ownedBy()} applies in SQL.
+     */
+    public static function rowBelongsTo(Model $row, Model $owner): bool
+    {
+        if ((string) $row->getAttribute(static::ownerKeyColumn()) !== (string) $owner->getKey()) {
+            return false;
+        }
+
+        if (! static::hasOwnerTypeColumn()) {
+            return true;
+        }
+
+        $type = $row->getAttribute(static::ownerTypeColumn());
+
+        if ($type === null) {
+            return static::isDefaultOwner($owner);
+        }
+
+        return in_array($type, [$owner->getMorphClass(), $owner::class], true);
     }
 
     /**
@@ -76,6 +118,26 @@ trait OwnedByModelType
         return static::hasOwnerTypeColumn()
             ? [static::ownerKeyColumn() => $owner->getKey(), static::ownerTypeColumn() => $owner->getMorphClass()]
             : [static::ownerKeyColumn() => $owner->getKey()];
+    }
+
+    /**
+     * @param  Builder<static> $query
+     * @return Builder<static>
+     */
+    protected static function constrainToOwnerType(Builder $query, Model $owner): Builder
+    {
+        if (! static::hasOwnerTypeColumn()) {
+            return $query;
+        }
+
+        $column = static::ownerTypeColumn();
+        $types  = array_values(array_unique([$owner->getMorphClass(), $owner::class]));
+
+        return static::isDefaultOwner($owner)
+            ? $query->where(static fn (Builder $q) => $q
+                ->whereIn($column, $types)
+                ->orWhereNull($column))
+            : $query->whereIn($column, $types);
     }
 
     /**

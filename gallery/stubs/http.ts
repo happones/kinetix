@@ -66,6 +66,11 @@ const membersWithFields = (): boolean =>
     (globalThis as { __kinetixMemberFields?: boolean })
         .__kinetixMemberFields === true;
 
+/** Set by the locked-mandatory preferences specimen: a type then carries mandatory channels. */
+const prefsWithMandatory = (): boolean =>
+    (globalThis as { __kinetixPrefsMandatory?: boolean })
+        .__kinetixPrefsMandatory === true;
+
 const galleryMemberFieldValues = {
     portal_access: true,
     badge: 'EMP-0042',
@@ -1711,21 +1716,241 @@ const fixtures: Array<{ match: RegExp; data: unknown }> = [
                 { key: 'database', label: 'In-app' },
                 { key: 'broadcast', label: 'Push' },
             ],
+            get types() {
+                return [
+                    {
+                        key: 'orders',
+                        label: 'Order updates',
+                        channels: {
+                            mail: true,
+                            database: true,
+                            broadcast: true,
+                        },
+                    },
+                    {
+                        key: 'mentions',
+                        label: 'Mentions & replies',
+                        channels: {
+                            mail: false,
+                            database: true,
+                            broadcast: true,
+                        },
+                    },
+                    {
+                        key: 'marketing',
+                        label: 'Marketing & tips',
+                        channels: {
+                            mail: false,
+                            database: true,
+                            broadcast: false,
+                        },
+                    },
+                    ...(prefsWithMandatory()
+                        ? [
+                              {
+                                  key: 'security',
+                                  label: 'Security alerts',
+                                  channels: {
+                                      mail: true,
+                                      database: true,
+                                      broadcast: false,
+                                  },
+                                  mandatory: ['mail', 'database'],
+                              },
+                          ]
+                        : []),
+                ];
+            },
+        },
+    },
+    {
+        match: /\/notification-routing\/audiences(\?|$)/,
+        data: {
+            members: [
+                { id: 'App\\Models\\User|1', name: 'Ada Lovelace' },
+                { id: 'App\\Models\\User|2', name: 'Linus Torvalds' },
+                { id: 'App\\Models\\User|3', name: 'Margaret Hamilton' },
+                { id: 'App\\Models\\User|4', name: 'Barbara Liskov' },
+            ],
+            membersComplete: true,
+            roles: [
+                { id: 1, name: 'Admin' },
+                { id: 2, name: 'Support agent' },
+            ],
+            groups: [
+                { id: 1, name: 'Support leads' },
+                { id: 2, name: 'On call' },
+            ],
+        },
+    },
+    {
+        match: /\/notification-routing\/recipients\?/,
+        data: {
+            recipients: [
+                {
+                    id: 1,
+                    name: 'Ada Lovelace',
+                    channels: ['mail', 'database'],
+                    reason: null,
+                },
+                {
+                    id: 2,
+                    name: 'Linus Torvalds',
+                    channels: ['database'],
+                    reason: null,
+                },
+                {
+                    id: 3,
+                    name: 'Margaret Hamilton',
+                    channels: ['mail', 'database', 'broadcast'],
+                    reason: null,
+                },
+            ],
+            skipped: [
+                {
+                    id: 4,
+                    name: 'Barbara Liskov',
+                    channels: [],
+                    reason: 'opted_out',
+                },
+                {
+                    id: 5,
+                    name: 'Ken Thompson',
+                    channels: [],
+                    reason: 'ineligible',
+                },
+                {
+                    id: 6,
+                    name: 'Alan Kay',
+                    channels: [],
+                    reason: 'no_channels',
+                },
+            ],
+            skippedCount: 3,
+            hasRules: true,
+            truncated: false,
+        },
+    },
+    {
+        match: /\/notification-routing\/groups$/,
+        data: {
+            groups: [
+                {
+                    id: 1,
+                    name: 'Support leads',
+                    description: 'Escalation contacts for the support desk',
+                    members: [
+                        { id: 'App\\Models\\User|1', name: 'Ada Lovelace' },
+                        {
+                            id: 'App\\Models\\User|3',
+                            name: 'Margaret Hamilton',
+                        },
+                    ],
+                },
+                {
+                    id: 2,
+                    name: 'On call',
+                    description: null,
+                    members: [
+                        { id: 'App\\Models\\User|2', name: 'Linus Torvalds' },
+                        {
+                            id: 'App\\Models\\User|3',
+                            name: 'Margaret Hamilton',
+                        },
+                        { id: 'App\\Models\\User|4', name: 'Barbara Liskov' },
+                    ],
+                },
+                { id: 3, name: 'Interns', description: null, members: [] },
+            ],
+        },
+    },
+    {
+        match: /\/notification-routing\/routes/,
+        data: {
+            route: {
+                id: 99,
+                type: 'inventory.low-stock',
+                audienceType: 'member',
+                audienceId: '1',
+                audienceLabel: 'Ada Lovelace',
+                channels: ['mail'],
+            },
+        },
+    },
+    {
+        match: /\/notification-routing$/,
+        data: {
+            channels: [
+                { key: 'mail', label: 'Email' },
+                { key: 'database', label: 'In-app' },
+                { key: 'broadcast', label: 'Push' },
+            ],
             types: [
                 {
-                    key: 'orders',
-                    label: 'Order updates',
-                    channels: { mail: true, database: true, broadcast: true },
+                    key: 'inventory.low-stock',
+                    label: 'Low stock',
+                    channels: ['mail', 'database', 'broadcast'],
+                    mandatory: [],
+                    requires: 'products.viewAny',
+                    routes: [
+                        {
+                            id: 1,
+                            type: 'inventory.low-stock',
+                            audienceType: 'group',
+                            audienceId: '1',
+                            audienceLabel: 'Support leads',
+                            channels: ['mail', 'database'],
+                        },
+                        {
+                            id: 2,
+                            type: 'inventory.low-stock',
+                            audienceType: 'eligible',
+                            audienceId: null,
+                            audienceLabel: 'Everyone who can see it',
+                            channels: ['database'],
+                        },
+                        {
+                            id: 3,
+                            type: 'inventory.low-stock',
+                            audienceType: 'role',
+                            audienceId: '1',
+                            audienceLabel: 'Admin',
+                            channels: ['mail', 'database', 'broadcast'],
+                        },
+                    ],
                 },
                 {
-                    key: 'mentions',
-                    label: 'Mentions & replies',
-                    channels: { mail: false, database: true, broadcast: true },
+                    key: 'security.new-login',
+                    label: 'New sign-in',
+                    channels: ['mail', 'database'],
+                    mandatory: ['mail'],
+                    requires: null,
+                    routes: [
+                        {
+                            id: 4,
+                            type: 'security.new-login',
+                            audienceType: 'member',
+                            audienceId: '2',
+                            audienceLabel: 'Linus Torvalds',
+                            channels: ['mail', 'database'],
+                        },
+                        {
+                            id: 5,
+                            type: 'security.new-login',
+                            audienceType: 'member',
+                            audienceId: '9',
+                            audienceLabel: null,
+                            channels: ['mail'],
+                        },
+                    ],
                 },
                 {
-                    key: 'marketing',
-                    label: 'Marketing & tips',
-                    channels: { mail: false, database: true, broadcast: false },
+                    key: 'billing.invoice-overdue',
+                    label: 'Invoice overdue',
+                    channels: ['mail', 'database'],
+                    mandatory: [],
+                    requires: 'invoices.viewAny',
+                    routes: [],
                 },
             ],
         },

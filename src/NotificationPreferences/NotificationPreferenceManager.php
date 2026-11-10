@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\NotificationPreferences;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 
 /**
  * Resolves and persists per-user notification preferences (a type × channel
@@ -46,7 +47,10 @@ class NotificationPreferenceManager
      * The full matrix for a user: channels + each type with its per-channel
      * state. A type lists only the channels it is delivered on.
      *
-     * @return array{channels: array<int, array{key: string, label: string}>, types: array<int, array{key: string, label: string, channels: array<string, bool>}>}
+     * A channel the type makes mandatory always reads on, and is listed in the
+     * type's `mandatory`: the user cannot switch it off.
+     *
+     * @return array{channels: array<int, array{key: string, label: string}>, types: array<int, array{key: string, label: string, channels: array<string, bool>, mandatory: list<string>}>}
      */
     public function for(Model $user): array
     {
@@ -55,11 +59,14 @@ class NotificationPreferenceManager
 
         $types = [];
         foreach ($this->registry->all() as $type => $label) {
-            $state = [];
-            foreach ($this->channelsOf($type) as $channel) {
-                $state[$channel] = $stored[$type][$channel] ?? true;
+            $state      = [];
+            $channelsOf = $this->channelsOf($type);
+            $mandatory  = array_values(array_intersect($this->registry->mandatoryOf($type), $channelsOf));
+
+            foreach ($channelsOf as $channel) {
+                $state[$channel] = in_array($channel, $mandatory, true) || ($stored[$type][$channel] ?? true);
             }
-            $types[] = ['key' => $type, 'label' => $label, 'channels' => $state];
+            $types[] = ['key' => $type, 'label' => $label, 'channels' => $state, 'mandatory' => $mandatory];
         }
 
         return [
@@ -95,7 +102,20 @@ class NotificationPreferenceManager
      */
     public function allows(Model $user, string $type, string $channel): bool
     {
+        if (in_array($channel, $this->registry->mandatoryOf($type), true)) {
+            return true;
+        }
+
         return $this->stored($user)[$type][$channel] ?? true;
+    }
+
+    /**
+     * Whether the type makes the channel mandatory (code-declared): a user
+     * cannot opt out of it.
+     */
+    public function isMandatory(string $type, string $channel): bool
+    {
+        return in_array($channel, $this->registry->mandatoryOf($type), true);
     }
 
     /**
@@ -106,12 +126,69 @@ class NotificationPreferenceManager
      */
     public function channelsFor(Model $user, string $type, array $channels): array
     {
-        $stored = $this->stored($user);
+        return $this->applyStored($this->stored($user), $type, $channels);
+    }
 
-        return array_values(array_filter(
-            $channels,
-            static fn (string $channel): bool => $stored[$type][$channel] ?? true,
-        ));
+    /**
+     * The users' stored opt-outs in ONE query (per model type), keyed by
+     * {@see ownerKey()}. A user with nothing stored is absent.
+     *
+     * @param  Collection<int, Model>                            $users
+     * @return array<string, array<string, array<string, bool>>>
+     */
+    public function storedMany(Collection $users): array
+    {
+        if ($users->isEmpty()) {
+            return [];
+        }
+
+        $rows   = NotificationPreference::ownedByMany($users)->get()->groupBy(static fn (NotificationPreference $row): string => (string) $row->user_id);
+        $stored = [];
+
+        foreach ($users as $user) {
+            $row = ($rows[(string) $user->getKey()] ?? collect())
+                ->first(static fn (NotificationPreference $row): bool => NotificationPreference::rowBelongsTo($row, $user));
+
+            if ($row !== null) {
+                $stored[static::ownerKey($user)] = $row->preferences ?? [];
+            }
+        }
+
+        return $stored;
+    }
+
+    /**
+     * {@see deliverable()} for many users at once: one preferences query for
+     * all of them. $candidates are each user's channels, keyed by
+     * {@see ownerKey()}; the result keeps those keys.
+     *
+     * @param  Collection<int, Model>      $users
+     * @param  array<string, list<string>> $candidates
+     * @return array<string, list<string>>
+     */
+    public function deliverableMany(Collection $users, string $type, array $candidates): array
+    {
+        if (! config('kinetix.notification_preferences.enabled', false) || ! $this->registry->has($type)) {
+            return $candidates;
+        }
+
+        $stored = $this->storedMany($users);
+        $result = [];
+
+        foreach ($candidates as $key => $channels) {
+            $result[$key] = $this->applyStored($stored[$key] ?? [], $type, $channels);
+        }
+
+        return $result;
+    }
+
+    /**
+     * The identity a batched result is keyed by: model type and key, so a
+     * `Client` #1 never collides with a `User` #1.
+     */
+    public static function ownerKey(Model $user): string
+    {
+        return $user->getMorphClass().'|'.$user->getKey();
     }
 
     /**
@@ -131,6 +208,24 @@ class NotificationPreferenceManager
         }
 
         return $this->channelsFor($user, $type, $channels);
+    }
+
+    /**
+     * Drop the channels one user's stored map turned off, except the ones the
+     * type makes mandatory.
+     *
+     * @param  array<string, array<string, bool>> $stored
+     * @param  array<int, string>                 $channels
+     * @return list<string>
+     */
+    protected function applyStored(array $stored, string $type, array $channels): array
+    {
+        $mandatory = $this->registry->mandatoryOf($type);
+
+        return array_values(array_filter(
+            $channels,
+            static fn (string $channel): bool => in_array($channel, $mandatory, true) || ($stored[$type][$channel] ?? true),
+        ));
     }
 
     /**
