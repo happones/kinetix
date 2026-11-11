@@ -1,3 +1,13 @@
+# Kinetix agent workflow (REQUIRED)
+
+Kinetix work runs through the agent team in `.claude/agents/`; the main session orchestrates, briefs, verifies and releases. Activate the `kinetix-workflow` skill for the full procedure.
+
+- **Plan:** a new feature, module, public API change or cross-cutting refactor starts with `kinetix-architect`. A small, local bug fix may skip the architect.
+- **Implement:** `kinetix-backend` (PHP, routes, Data, tests) and `kinetix-frontend` (Vue, TS, a11y, vitest) implement the approved plan, in parallel when the contract is fixed. The main session does not hand-write large implementations.
+- **Review:** `kinetix-reviewer` reviews every change before it is tagged, without exception. CHANGES REQUESTED → the implementers fix → re-review (a focused one is enough) → only then release.
+- **Verify before tagging:** full PHP suite, PHP 8.3 prefer-lowest in docker, phpstan, `pint --test` twice, vue-tsc, full vitest, `trail check`. Then commit on main, push, tag (tags are immutable — fix forward).
+- **Every brief, plan and review is multi-team:** a tenant is a team ("empresa" to the user and consuming apps); see "Multi-team by default" in `.agents/skills/kinetix-development/SKILL.md`.
+
 <laravel-boost-guidelines>
 === foundation rules ===
 
