@@ -48,16 +48,24 @@ final class PermissionTeam
      * @param  callable(): TReturn $callback
      * @return TReturn
      */
-    public static function pin(int|string|null $teamId, callable $callback): mixed
+    public static function pin(int|string|null $teamId, callable $callback, ?Model $user = null): mixed
     {
         $previous     = self::$pinned;
         self::$pinned = $teamId === null ? null : [null, $teamId];
 
         try {
-            return self::run($teamId, $callback);
+            return self::run($teamId, $callback, $user);
         } finally {
             self::$pinned = $previous;
         }
+    }
+
+    /**
+     * The key a {@see pin()} is running for, without loading the team.
+     */
+    public static function pinnedKey(): int|string|null
+    {
+        return self::$pinned[1] ?? null;
     }
 
     /**

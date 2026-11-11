@@ -221,4 +221,23 @@ class HostKeysTest extends TestCase
 
         $this->assertSame('bigint', HostKeys::type('user'));
     }
+
+    public function test_the_user_model_follows_the_default_guards_provider(): void
+    {
+        $this->setUserModel(UuidKeyUser::class);
+
+        $this->assertSame(UuidKeyUser::class, HostKeys::userModelClass());
+    }
+
+    public function test_a_provider_less_default_guard_falls_back_to_the_web_guards_provider(): void
+    {
+        $this->setUserModel(UlidKeyUser::class);
+
+        // What `auth:sanctum` leaves behind: the token guard is the default
+        // and names no provider.
+        config()->set('auth.guards.sanctum', ['driver' => 'sanctum', 'provider' => null]);
+        config()->set('auth.defaults.guard', 'sanctum');
+
+        $this->assertSame(UlidKeyUser::class, HostKeys::userModelClass());
+    }
 }

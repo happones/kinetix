@@ -6,7 +6,10 @@ namespace Happones\Kinetix\Api\Middleware;
 
 use Closure;
 use Happones\Kinetix\Api\ApiLog;
+use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\SensitiveKeys;
+use Happones\Kinetix\Tokens\KinetixTokens;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
@@ -46,9 +49,7 @@ class LogApiRequest
 
         try {
             ApiLog::query()->create([
-                // An API route rarely carries a `{current_team}` segment, so
-                // this usually resolves through the token holder's currentTeam.
-                ...ApiLog::teamAttributes(),
+                ...$this->teamAttributes($request),
                 'user_id'     => $request->user()?->getAuthIdentifier(),
                 'token_id'    => $this->tokenId($request),
                 'token_name'  => $this->tokenName($request),
@@ -66,6 +67,28 @@ class LogApiRequest
         } catch (Throwable) {
             // Logging must never break the API response path.
         }
+    }
+
+    /**
+     * The team the request belongs to: the token's own team when it has one (it
+     * is what the request acted on), else what the request resolves to. An API
+     * route rarely carries a `{current_team}` segment, so the fallback is the
+     * token holder's currentTeam. The `kinetix.token-team` pin is already gone
+     * by terminate(), hence the token is read again here.
+     *
+     * @return array<string, int|string|null>
+     */
+    protected function teamAttributes(Request $request): array
+    {
+        if (! KinetixTeams::enabledFor(ApiLog::kinetixTeamModule())) {
+            return [];
+        }
+
+        $user  = $request->user();
+        $token = $user !== null && method_exists($user, 'currentAccessToken') ? $user->currentAccessToken() : null;
+        $team  = $token instanceof Model ? KinetixTokens::teamOf($token) : null;
+
+        return $team === null ? ApiLog::teamAttributes() : ['team_id' => $team];
     }
 
     protected function tokenId(Request $request): int|string|null

@@ -124,6 +124,7 @@ class BillingManager
         }
 
         return implode('|', [
+            'pin:'.(PermissionTeam::pinnedKey() ?? ''),
             $request->getHost(),
             is_scalar($team) ? (string) $team : '',
             KinetixTeams::enabledFor('billing') ? 'teams' : '',
@@ -133,6 +134,16 @@ class BillingManager
 
     protected static function resolveTeam($user): ?Model
     {
+        // A pinned team (an API token's, a queued job's) outranks the route
+        // and the holder's own current team.
+        if (PermissionTeam::pinnedKey() !== null) {
+            $pinned = KinetixTeams::currentTeam();
+
+            if ($pinned !== null) {
+                return $pinned;
+            }
+        }
+
         $subdomainColumn = config('kinetix.tenancy.subdomain');
 
         if ($subdomainColumn !== null) {

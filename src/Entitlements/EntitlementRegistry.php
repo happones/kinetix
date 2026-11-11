@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Entitlements;
 
+use Happones\Kinetix\Permissions\PermissionTeam;
 use Happones\Kinetix\Support\Memo;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Log;
@@ -94,7 +95,7 @@ class EntitlementRegistry
         $verdict = Memo::remember(
             self::MEMO,
             $subject,
-            $name,
+            $name.'|'.(PermissionTeam::pinnedKey() ?? ''),
             static fn (): Verdict => $entitlement->evaluate($subject),
         );
 

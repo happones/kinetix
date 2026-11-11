@@ -124,6 +124,11 @@ class KinetixTeams
         }
 
         if ($team === null || $team === '') {
+            $pinned = PermissionTeam::pinned();
+            $team   = $pinned !== null && $pinned[0] instanceof Model ? $pinned[0]->getRouteKey() : null;
+        }
+
+        if ($team === null || $team === '') {
             $user = $request->user() ?? auth()->user();
             $team = $user?->currentTeam?->getRouteKey();
         }

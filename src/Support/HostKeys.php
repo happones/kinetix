@@ -77,7 +77,7 @@ class HostKeys
         }
 
         return match ($kind) {
-            'user'  => static::detect(static::userModel()),
+            'user'  => static::detect(static::userModelClass()),
             'team'  => static::detect(static::teamModel()),
             default => 'bigint',
         };
@@ -137,16 +137,21 @@ class HostKeys
     }
 
     /**
-     * The app's User model, resolved the same way the runtime relations do
-     * (default guard → provider → model).
+     * The app's User model class: the default guard's provider model, falling
+     * back to the web guard's provider when that guard names none (`auth:sanctum`
+     * makes the provider-less token guard the default one), then to
+     * `App\Models\User`. Null when the configured model is not a class name.
+     *
+     * @return class-string|null
      */
-    protected static function userModel(): ?string
+    public static function userModelClass(): ?string
     {
         $guard    = config('auth.defaults.guard', 'web');
-        $provider = config("auth.guards.{$guard}.provider", 'users');
+        $provider = config("auth.guards.{$guard}.provider") ?? config('auth.guards.web.provider', 'users');
 
         $model = config("auth.providers.{$provider}.model", 'App\\Models\\User');
 
+        /** @var class-string|null */
         return is_string($model) ? $model : null;
     }
 
@@ -158,7 +163,7 @@ class HostKeys
      */
     public static function teamModel(): ?string
     {
-        $user = static::userModel();
+        $user = static::userModelClass();
 
         if ($user === null || ! class_exists($user)) {
             return null;

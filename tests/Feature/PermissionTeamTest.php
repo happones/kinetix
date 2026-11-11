@@ -61,6 +61,21 @@ class PermissionTeamTest extends TestCase
         $this->assertSame(5, $registrar->getPermissionsTeamId());
     }
 
+    public function test_pin_drops_the_users_loaded_roles_and_reads_under_the_pinned_team(): void
+    {
+        $registrar = app(PermissionRegistrar::class);
+        $registrar->setPermissionsTeamId(8);
+        $user = $this->userWithLoadedRoles();
+
+        $seen = PermissionTeam::pin(7, function () use ($registrar, $user): array {
+            return [$registrar->getPermissionsTeamId(), $user->relationLoaded('roles'), PermissionTeam::pinnedKey()];
+        }, $user);
+
+        $this->assertSame([7, false, 7], $seen);
+        $this->assertSame(8, $registrar->getPermissionsTeamId());
+        $this->assertNull(PermissionTeam::pinnedKey());
+    }
+
     public function test_an_exception_in_the_callback_still_restores_the_team(): void
     {
         $registrar = app(PermissionRegistrar::class);

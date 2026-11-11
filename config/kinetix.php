@@ -1319,6 +1319,26 @@ return [
         // stamped with the current team, and a token can only be revoked from
         // the team it belongs to. Null = one list across every team.
         'team_column' => env('KINETIX_TOKENS_TEAM_COLUMN'),
+
+        // Seal a token to its team through an ability, for apps that do not
+        // want a column: 'team:' stores `team:{teamKey}` on create. The list and
+        // revoke only reach the current team's tokens (and the unsealed ones).
+        // The seal never shows in the UI and cannot be requested by the form.
+        // Null = off. KinetixTokens::teamOf($token) reads it (column first).
+        'team_ability' => null,
+
+        // @var array<int, string> abilities added to every token on create
+        // (e.g. ['integration']); hidden from the token list like the seal.
+        'stamp_abilities' => [],
+
+        // @var array<int, string> middleware for the CREATE route only
+        // (e.g. ['kinetix.entitled:api', 'can:webhooks.manage']): list and
+        // revoke stay open, so tokens can still be revoked after a downgrade.
+        'create_middleware' => [],
+
+        // `kinetix.token-team` rejects (403) a token that carries no team when
+        // true; false lets the teamless ones minted before sealing through.
+        'require_team' => false,
     ],
 
     /*

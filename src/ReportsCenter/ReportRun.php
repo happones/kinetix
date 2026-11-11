@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\ReportsCenter;
 
 use Happones\Kinetix\Support\Concerns\ScopedToTeam;
+use Happones\Kinetix\Support\HostKeys;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -73,11 +74,8 @@ class ReportRun extends Model
      */
     public function launchedBy(): BelongsTo
     {
-        $guard    = config('auth.defaults.guard', 'web');
-        $provider = config("auth.guards.{$guard}.provider", 'users');
-
         /** @var class-string<Model> $model */
-        $model = config("auth.providers.{$provider}.model", 'App\\Models\\User');
+        $model = HostKeys::userModelClass() ?? 'App\\Models\\User';
 
         return $this->belongsTo($model, 'launched_by_id');
     }

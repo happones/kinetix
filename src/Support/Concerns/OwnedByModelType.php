@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Support\Concerns;
 
+use Happones\Kinetix\Support\HostKeys;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -162,11 +163,9 @@ trait OwnedByModelType
         if (is_string($configured) && $configured !== '') {
             $defaults = [$configured];
         } else {
-            $guard    = config('auth.defaults.guard', 'web');
-            $provider = config("auth.guards.{$guard}.provider", 'users');
             $defaults = [
                 config('kinetix.membership.user_model', 'App\\Models\\User'),
-                config("auth.providers.{$provider}.model"),
+                HostKeys::userModelClass(),
             ];
         }
 

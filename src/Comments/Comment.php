@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Comments;
 
+use Happones\Kinetix\Support\HostKeys;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -63,11 +64,8 @@ class Comment extends Model
      */
     public function author(): BelongsTo
     {
-        $guard    = config('auth.defaults.guard', 'web');
-        $provider = config("auth.guards.{$guard}.provider", 'users');
-
         /** @var class-string<Model> $model */
-        $model = config("auth.providers.{$provider}.model", 'App\\Models\\User');
+        $model = HostKeys::userModelClass() ?? 'App\\Models\\User';
 
         return $this->belongsTo($model, 'user_id');
     }

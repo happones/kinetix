@@ -198,6 +198,7 @@ use Happones\Kinetix\Tags\TagManager;
 use Happones\Kinetix\Tags\TagRegistry;
 use Happones\Kinetix\Teams\TeamSwitcherController;
 use Happones\Kinetix\Teams\TeamSwitcherManager;
+use Happones\Kinetix\Tokens\EnsureTokenTeam;
 use Happones\Kinetix\Tokens\TokenController;
 use Happones\Kinetix\Tokens\TokenScopeRegistry;
 use Happones\Kinetix\Tours\TourController;
@@ -210,6 +211,8 @@ use Happones\Kinetix\Webhooks\WebhookEventRegistry;
 use Happones\Kinetix\Wizards\Middleware\EnsureWizardCompleted;
 use Happones\Kinetix\Wizards\WizardController;
 use Happones\Kinetix\Wizards\WizardManager;
+use Illuminate\Auth\Middleware\Authorize;
+use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Contracts\Foundation\CachesRoutes;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Eloquent\Model;
@@ -220,6 +223,7 @@ use Illuminate\Foundation\Http\Kernel as FoundationHttpKernel;
 use Illuminate\Http\Request;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Queue\Jobs\SyncJob;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Event;
@@ -232,6 +236,9 @@ use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Laravel\Octane\Events\RequestReceived as OctaneRequestReceived;
 use Laravel\Socialite\Facades\Socialite;
+use Spatie\Permission\Middleware\PermissionMiddleware;
+use Spatie\Permission\Middleware\RoleMiddleware;
+use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
 use Spatie\Permission\PermissionRegistrar;
 use Spatie\WebhookServer\Events\WebhookCallFailedEvent;
 use Spatie\WebhookServer\Events\WebhookCallSucceededEvent;
@@ -1913,6 +1920,54 @@ class KinetixServiceProvider extends ServiceProvider
     }
 
     /**
+     * The kernel middleware priority with the token's team pinned right after
+     * authentication and before route-model binding, and the checks that read
+     * the team (spatie team id, entitlements, spatie role/permission) after
+     * binding and before `Authorize`. Idempotent.
+     *
+     * @param  array<int, string> $priority
+     * @return array<int, string>
+     */
+    public static function prioritizeTeamMiddleware(array $priority): array
+    {
+        $followers = [
+            SetPermissionsTeam::class,
+            EnsureEntitled::class,
+            RoleMiddleware::class,
+            PermissionMiddleware::class,
+            RoleOrPermissionMiddleware::class,
+        ];
+
+        $priority = array_values(array_diff($priority, [EnsureTokenTeam::class, ...$followers]));
+
+        $bindings = array_search(SubstituteBindings::class, $priority, true);
+        $auth     = array_search(AuthenticatesRequests::class, $priority, true);
+
+        if ($bindings !== false) {
+            array_splice($priority, $bindings, 0, [EnsureTokenTeam::class]);
+            array_splice($priority, $bindings + 2, 0, $followers);
+        } else {
+            // No binding step in a custom kernel: the token's team right
+            // after authentication; the readers just before `Authorize`
+            // (or last), so they never jump ahead of throttling or the
+            // session check.
+            if ($auth !== false) {
+                array_splice($priority, $auth + 1, 0, [EnsureTokenTeam::class]);
+            } else {
+                $priority[] = EnsureTokenTeam::class;
+            }
+
+            $authorize = array_search(Authorize::class, $priority, true);
+
+            $authorize !== false
+                ? array_splice($priority, $authorize, 0, $followers)
+                : array_push($priority, ...$followers);
+        }
+
+        return $priority;
+    }
+
+    /**
      * Wire the optional API request logs module: a terminable middleware the
      * host attaches to its API group (`kinetix.api-log`) plus the read feed
      * behind the integration-logs viewer, gated by `viewKinetixApiLogs`
@@ -1922,6 +1977,21 @@ class KinetixServiceProvider extends ServiceProvider
     {
         // The alias is always available; the middleware no-ops while disabled.
         $this->app['router']->aliasMiddleware('kinetix.api-log', LogApiRequest::class);
+        $this->app['router']->aliasMiddleware('kinetix.token-team', EnsureTokenTeam::class);
+
+        // The token's team is pinned right after authentication and BEFORE
+        // route-model binding: a scoped or team-aware binding must resolve
+        // under it. The checks that READ the team follow the binding, in the
+        // order a session request needs: the spatie team id first
+        // (`kinetix.permissions.team`), then entitlements, then spatie's
+        // role/permission middleware, all still after the token's team.
+        $this->callAfterResolving(HttpKernel::class, static function (HttpKernel $kernel): void {
+            if (! $kernel instanceof FoundationHttpKernel) {
+                return;
+            }
+
+            $kernel->setMiddlewarePriority(self::prioritizeTeamMiddleware($kernel->getMiddlewarePriority()));
+        });
 
         if (! config('kinetix.api_logs.enabled', false)) {
             return;
@@ -1962,6 +2032,13 @@ class KinetixServiceProvider extends ServiceProvider
             $prefix     = config('kinetix.route_prefix', '_kinetix');
             $middleware = $this->moduleMiddleware('tokens');
 
+            // Only minting is gated (plan, permission): listing and revoking
+            // stay open, so tokens can still be revoked after a downgrade.
+            $create = array_values(array_filter(
+                (array) config('kinetix.tokens.create_middleware', []),
+                static fn (mixed $entry): bool => is_string($entry) && $entry !== '',
+            ));
+
             if (config('kinetix.teams', false)) {
                 $prefix = KinetixTeams::routePrefix($prefix);
             }
@@ -1970,9 +2047,9 @@ class KinetixServiceProvider extends ServiceProvider
             // their API tokens.
             KinetixTeams::routes([...$middleware, 'kinetix.impersonation.protect:writes'])
                 ->prefix("{$prefix}/tokens")
-                ->group(function () {
+                ->group(function () use ($create) {
                     Route::get('/', [TokenController::class, 'index'])->name('kinetix.tokens.index');
-                    Route::post('/', [TokenController::class, 'store'])->name('kinetix.tokens.store');
+                    Route::post('/', [TokenController::class, 'store'])->middleware($create)->name('kinetix.tokens.store');
                     Route::delete('{token}', [TokenController::class, 'destroy'])->name('kinetix.tokens.destroy');
                 });
         });

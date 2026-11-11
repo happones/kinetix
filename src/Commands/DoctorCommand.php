@@ -39,6 +39,7 @@ use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\KinetixThrottle;
 use Happones\Kinetix\Support\PublishedFiles;
 use Happones\Kinetix\Support\TailwindSourceExclusions;
+use Happones\Kinetix\Tokens\KinetixTokens;
 use Happones\Kinetix\Webhooks\WebhookEndpoint;
 use Illuminate\Cache\ArrayStore;
 use Illuminate\Cache\DatabaseStore;
@@ -55,6 +56,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\Sanctum;
 use Laravel\Socialite\Facades\Socialite;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -115,6 +117,7 @@ class DoctorCommand extends Command
         $this->checkIndexes();
         $this->checkWebhookSecrets();
         $this->checkChannelPhoneCountries();
+        $this->checkTokenTeamColumn();
         $this->checkConfidentialEnvelopes();
         $this->checkThrottles();
         $this->checkSearchLimits();
@@ -1075,6 +1078,105 @@ class DoctorCommand extends Command
             .'set assignable_roles to null to keep them in sync.');
     }
 
+    /**
+     * `tokens.team_column` names a column on the Sanctum tokens table: when it
+     * is missing, every token create fails and no token is scoped to a team.
+     */
+    protected function checkTokenTeamColumn(): void
+    {
+        $this->checkTokenSealCollisions();
+
+        $column = config('kinetix.tokens.team_column');
+
+        if (! config('kinetix.tokens.enabled', false) || ! is_string($column) || $column === '') {
+            return;
+        }
+
+        $table = class_exists(Sanctum::class)
+            ? (new (Sanctum::$personalAccessTokenModel))->getTable()
+            : 'personal_access_tokens';
+
+        try {
+            if (! Schema::hasTable($table)) {
+                return;
+            }
+
+            if (Schema::hasColumn($table, $column)) {
+                $this->ok('Tokens', "tokens are scoped to a team through {$table}.{$column}");
+
+                return;
+            }
+        } catch (QueryException) {
+            return;
+        }
+
+        $this->error_('Tokens', "tokens.team_column is '{$column}' but {$table} has no such column",
+            'Creating a token fails and none is tied to a team. Add the column in a migration: '
+            ."\$table->foreignId('{$column}')->nullable()->index();", [$table]);
+    }
+
+    /**
+     * A token scope that starts with `tokens.team_ability` or equals a stamped
+     * ability cannot be granted (the create form refuses it) and would be read
+     * as a team seal; and, once sealing is on, tokens minted before it are
+     * counted: they pass `kinetix.token-team` without a team.
+     */
+    protected function checkTokenSealCollisions(): void
+    {
+        if (! config('kinetix.tokens.enabled', false)) {
+            return;
+        }
+
+        $colliding = KinetixTokens::collidingScopes();
+
+        if ($colliding !== []) {
+            $this->error_('Tokens', count($colliding).' token scope(s) collide with tokens.team_ability / tokens.stamp_abilities',
+                'Rename the scope, or change the prefix or the stamp: a colliding scope is refused on create '
+                .'and ignored when reading a token\'s team.', $colliding);
+        }
+
+        $prefix = KinetixTokens::sealPrefix();
+
+        if ($prefix === null || ! config('kinetix.teams', false)) {
+            return;
+        }
+
+        $unsealed = 0;
+
+        try {
+            $table = class_exists(Sanctum::class)
+                ? (new (Sanctum::$personalAccessTokenModel))->getTable()
+                : 'personal_access_tokens';
+
+            if (! Schema::hasTable($table) || ! Schema::hasColumn($table, 'abilities')) {
+                return;
+            }
+
+            // Counted in PHP: a LIKE would have to escape wildcards and the
+            // JSON-escaped slashes of the stored list.
+            $live = static fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now());
+
+            foreach (DB::table($table)->where($live)->select('id', 'abilities')->lazyById() as $row) {
+                $abilities = json_decode((string) $row->abilities, true);
+
+                $sealed = is_array($abilities) && array_filter(
+                    $abilities,
+                    static fn (mixed $ability): bool => is_string($ability) && str_starts_with($ability, $prefix),
+                ) !== [];
+
+                $unsealed += $sealed ? 0 : 1;
+            }
+        } catch (QueryException) {
+            return;
+        }
+
+        if ($unsealed > 0) {
+            $this->warn_('Tokens', "{$unsealed} token(s) carry no team seal",
+                'They are listed in every team and pass kinetix.token-team without a team; revoke and re-issue them, '
+                .'or set tokens.require_team to refuse them.');
+        }
+    }
+
     protected function checkChannelPhoneCountries(): void
     {
         $configured = config('kinetix.channels.phone_countries');
@@ -1309,9 +1411,7 @@ class DoctorCommand extends Command
             return;
         }
 
-        $guard     = (string) config('auth.defaults.guard', 'web');
-        $provider  = (string) config("auth.guards.{$guard}.provider", 'users');
-        $userModel = (string) config("auth.providers.{$provider}.model", 'App\Models\User');
+        $userModel = (string) HostKeys::userModelClass();
 
         if (class_exists($userModel) && method_exists($userModel, 'ownsTeam')) {
             return;

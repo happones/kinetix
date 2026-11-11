@@ -13,6 +13,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.289.0] - 2026-11-11
+
+### Added
+
+- **Tokens per team.** A token can now belong to one team, by the existing
+  `tokens.team_column` (now documented, with a migration snippet and a
+  `kinetix:doctor` check for a configured column the table lacks) and/or by an
+  ability seal: `tokens.team_ability` (`'team:'` seals `team:{teamKey}` on
+  create; the list and revoke reach only the current team's tokens),
+  `tokens.stamp_abilities` (extra abilities on every new token, e.g.
+  `['integration']`) and `tokens.require_team`. `KinetixTokens::teamOf($token)`
+  reads the team back (column first, then the seal).
+- `tokens.create_middleware`: middleware for the create route ONLY (e.g.
+  `['kinetix.entitled:api', 'can:webhooks.manage']`), so listing and revoking
+  keep working after a plan downgrade.
+- Middleware alias `kinetix.token-team`: place it after `auth:sanctum`; for a
+  request authenticated by a token that names a team, the work done while the
+  request is handled (`KinetixTeams`, `ScopedToTeam`, route-model bindings,
+  billing and plan limits, permission checks, streamed bodies) acts on that
+  team instead of the holder's `currentTeam`; a holder who left the team, or a
+  URL team segment that is not the token's, gets `403`; and
+  `tokens.require_team` refuses teamless tokens. Callbacks that run after the
+  response (`afterResponse`, `terminate()`, queued jobs) are not pinned.
+- `kinetix:doctor` errors on a token scope that collides with the seal prefix
+  or a stamped ability, and warns about tokens minted without a seal.
+
+### Fixed
+
+- API logs written for a token request are attributed to the token's team, not
+  to the token holder's current team.
+- The create form answers `422` for an ability that is a team seal or a stamp
+  (instead of dropping it silently), and `403` when `team_column` is set and no
+  team resolves. Billing resolves a pinned team before the route and the
+  holder's `currentTeam`.
+- The User model is resolved in one place (`HostKeys::userModelClass()`). It no
+  longer falls back to `App\Models\User` when `auth:sanctum` has made the
+  provider-less token guard the default; comments, report runs and schedules,
+  connected accounts and the doctor use it too.
+
+### Changed
+
+- `TokenData` (and the token list) hides the team seal and the stamped
+  abilities from the UI. The payload shape and `KinetixToken` are unchanged.
+
+### Upgrade notes
+
+- The token keys are opt-in, but four things apply to every app: the User model
+  lookup above; the kernel middleware priority gains entries: `kinetix.token-team` runs
+  right after authentication and before route-model binding; after binding
+  come `kinetix.permissions.team` (so spatie's team id is set), then
+  `kinetix.entitled`, then spatie's `role`, `permission` and
+  `role_or_permission`, before `can:`. This keeps those checks after the token's
+  team and after the team-id bridge whatever order a route lists them in
+  (a route that listed `role:`/`permission:`/`kinetix.entitled` before an
+  explicit `SubstituteBindings` now binds first, so a missing record answers
+  404 before the 403);
+  entitlement checks are memoized per pinned team; and, with `team_column` set
+  and teams on, creating a token answers `403` when no team resolves.
+- Apps that replaced `TokenController` to scope tokens per team can drop it and set
+  `team_ability`, `stamp_abilities` and `create_middleware` instead; add
+  `kinetix.token-team` to the API route group so requests act on the token's
+  team. Tokens minted before sealing stay visible in every team's list and pass
+  the middleware unless `require_team` is on.
+
 ## [0.288.0] - 2026-11-11
 
 ### Changed

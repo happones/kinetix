@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tokens;
 
+use Closure;
 use Happones\Kinetix\Data\TokenData;
 use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Builder;
@@ -30,6 +31,7 @@ class TokenController
             'tokens' => $this->teamTokens($user->tokens())
                 ->latest()
                 ->get()
+                ->filter($this->visibleToCurrentTeam(...))
                 ->map(static fn (Model $token): TokenData => TokenData::fromModel($token))
                 ->values(),
             'scopes'        => app(TokenScopeRegistry::class)->all(),
@@ -50,16 +52,25 @@ class TokenController
             'expires_at'  => ['nullable', 'date', 'after:now'],
         ];
 
+        $rules['abilities.*'][] = static function (string $attribute, mixed $value, Closure $fail): void {
+            if (is_string($value) && KinetixTokens::isInternalAbility($value)) {
+                $fail('validation.not_in')->translate(['attribute' => $attribute]);
+            }
+        };
+
         // When the host declares a scope catalog, tokens must be granted at
         // least one of those scopes. Otherwise they default to full access.
         if ($allowed !== []) {
             $rules['abilities']   = ['required', 'array', 'min:1'];
-            $rules['abilities.*'] = ['string', Rule::in($allowed)];
+            $rules['abilities.*'] = [...$rules['abilities.*'], Rule::in($allowed)];
         }
 
         $validated = $request->validate($rules);
 
-        $abilities = $validated['abilities'] ?? ['*'];
+        // A token that cannot be tied to a team would answer for every team.
+        abort_if($this->teamColumn() !== null && config('kinetix.teams', false) && KinetixTeams::currentTeamKey() === null, 403);
+
+        $abilities = $this->mintedAbilities($validated['abilities'] ?? ['*']);
 
         // Optional expiration — Sanctum's guard rejects the token past this
         // date. A bare Y-m-d expires at the END of that day.
@@ -84,7 +95,11 @@ class TokenController
     {
         $user = $this->tokenableUser($request);
 
-        $this->teamTokens($user->tokens())->whereKey($request->route('token'))->delete();
+        $this->teamTokens($user->tokens())
+            ->whereKey($request->route('token'))
+            ->get()
+            ->filter($this->visibleToCurrentTeam(...))
+            ->each(static fn (Model $token): ?bool => $token->delete());
 
         return response()->json(['status' => 'success']);
     }
@@ -112,6 +127,54 @@ class TokenController
         return $query->where(fn ($scope) => $scope
             ->whereNull($column)
             ->when($teamKey !== null, fn ($inner) => $inner->orWhere($column, $teamKey)));
+    }
+
+    /**
+     * Whether a token belongs on the current team's list: sealed to this team
+     * or not sealed at all (minted before sealing). Without a seal setting the
+     * column filter in {@see teamTokens()} is the whole rule.
+     */
+    protected function visibleToCurrentTeam(Model $token): bool
+    {
+        if (KinetixTokens::sealPrefix() === null || ! config('kinetix.teams', false)) {
+            return true;
+        }
+
+        $team = KinetixTokens::teamOf($token);
+
+        if ($team === null) {
+            return true;
+        }
+
+        $current = KinetixTeams::currentTeamKey();
+
+        return $current !== null && (string) $team === (string) $current;
+    }
+
+    /**
+     * The abilities a new token is minted with: the requested ones minus any
+     * the form may not set (a hand-written `team:9` seal), plus the stamped
+     * abilities and the current team's seal.
+     *
+     * @param  array<int, string> $requested
+     * @return array<int, string>
+     */
+    protected function mintedAbilities(array $requested): array
+    {
+        $abilities = array_values(array_filter($requested, static fn (string $ability): bool => ! KinetixTokens::isInternalAbility($ability)));
+
+        $prefix = KinetixTokens::sealPrefix();
+
+        if ($prefix !== null && config('kinetix.teams', false)) {
+            $teamKey = KinetixTeams::currentTeamKey();
+
+            // A token that cannot be sealed would answer for every team.
+            abort_if($teamKey === null, 403);
+
+            $abilities[] = $prefix.$teamKey;
+        }
+
+        return array_values(array_unique([...$abilities, ...KinetixTokens::stampAbilities()]));
     }
 
     protected function teamColumn(): ?string
