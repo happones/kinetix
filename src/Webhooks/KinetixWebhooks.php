@@ -11,7 +11,9 @@ use Illuminate\Database\Eloquent\Model;
  *
  *     KinetixWebhooks::events(['order.created' => 'Order created']); // in a provider
  *     KinetixWebhooks::fire('order.created', ['id' => $order->id]);  // in your domain code
- *     KinetixWebhooks::fireFor($order->team_id, 'order.created', [...]); // outside a team's request
+ *     if ($order->team_id !== null) {                                    // outside a team's request
+ *         KinetixWebhooks::fireFor($order->team_id, 'order.created', [...]);
+ *     }                                                                  // (null would mean the platform's endpoints)
  *
  * Firing queues a signed delivery to every active, subscribed endpoint.
  */

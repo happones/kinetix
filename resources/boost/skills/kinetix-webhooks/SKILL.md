@@ -35,7 +35,8 @@ php artisan migrate
 'webhooks' => [
     'enabled'        => env('KINETIX_WEBHOOKS_ENABLED', false),
     'driver'         => env('KINETIX_WEBHOOKS_DRIVER', 'auto'), // auto | spatie | native
-    'teams'          => env('KINETIX_WEBHOOKS_TEAMS', false),
+    'teams'          => env('KINETIX_WEBHOOKS_TEAMS'), // null = inherit kinetix.teams
+    'unresolved_team' => 'skip', // 'skip' | 'platform': fire() with no team (teams on)
     'allow_private'  => env('KINETIX_WEBHOOKS_ALLOW_PRIVATE', false), // dev/testing only
     'timeout'        => env('KINETIX_WEBHOOKS_TIMEOUT', 10),
     'tries'          => env('KINETIX_WEBHOOKS_TRIES', 3),
@@ -54,13 +55,19 @@ use Happones\Kinetix\Webhooks\KinetixWebhooks;
 
 KinetixWebhooks::events(['order.created' => 'Order created']); // provider boot
 KinetixWebhooks::fire('order.created', ['id' => $order->id]);  // domain code
-KinetixWebhooks::fireFor($order->team_id, 'order.created', [...]); // jobs, console
+if ($order->team_id !== null) {                                  // jobs, console
+    KinetixWebhooks::fireFor($order->team_id, 'order.created', [...]);
+}
 ```
 
 - Only **registered** events fire; firing queues a signed delivery to each active,
-  subscribed endpoint in the current team scope. Outside a team's request (a
-  queued job, a console command, a model event) use `fireFor($team, ...)`, or
-  the event reaches the platform's endpoints instead of the record's team.
+  subscribed endpoint in the current team scope. With teams on, `fire()` with no
+  resolvable team (queued job, console, scheduler) FAILS CLOSED: nothing is
+  delivered and `Log::warning` records the event name only
+  (`webhooks.unresolved_team` = `'skip'` default | `'platform'`, the old
+  behaviour). Use `fireFor($team, ...)` there; the auth user's `currentTeam` outside a routed request is NOT used; `fireFor(null, ...)` is the
+  explicit platform path. A Model passed to `fireFor` is the team; beware
+  `fireFor($record->team_id, ...)` on a nullable column (null = platform).
 - **Signing**: `X-Kinetix-Signature: hmac_sha256(rawBody, secret)`, `X-Kinetix-Event`.
   Body = `{"event": "...", "data": {...}}`. Secret shown once (create/rotate).
 - **SSRF** (`WebhookUrlGuard::target()`): rejects non-HTTP(S) + any A/AAAA

@@ -1178,6 +1178,7 @@ return [
     'channel_agents_title'                      => 'Кто отвечает в :name',
     'channel_agents_description'                => 'Агенты видят только переписки своих линий.',
     'channel_agents_empty'                      => 'Нет участников команды для выбора.',
+    'channel_phone_country_not_allowed'         => 'Введите номер с кодом разрешённой страны, начиная с +.',
     'channel_agents_sees_all'                   => 'Видит все линии',
     'inbox_search'                              => 'Поиск по перепискам',
     'inbox_filters'                             => 'Фильтры',

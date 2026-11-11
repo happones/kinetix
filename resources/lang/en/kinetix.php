@@ -1269,6 +1269,7 @@ return [
     'channel_agents_title'                      => 'Who answers :name',
     'channel_agents_description'                => 'Agents see only the conversations of the lines they answer.',
     'channel_agents_empty'                      => 'There are no team members to choose from.',
+    'channel_phone_country_not_allowed'         => 'Enter the number with the country code of an allowed country, starting with +.',
     'channel_agents_sees_all'                   => 'Sees every line',
     'inbox_search'                              => 'Search conversations',
     'inbox_filters'                             => 'Filters',

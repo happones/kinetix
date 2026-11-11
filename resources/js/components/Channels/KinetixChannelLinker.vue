@@ -10,6 +10,7 @@ import { computed, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { KinetixChannelUpdate } from '@/composables/useKinetixChannels';
 import { useKinetixChannels } from '@/composables/useKinetixChannels';
+import type { KinetixFetchError } from '@/composables/useKinetixHttp';
 import {
     buttonVariants,
     inputClass,
@@ -74,6 +75,8 @@ const phoneConfig = computed(() => {
         return null;
     }
 
+    const firstListed = props.phoneField.countries[0].code;
+
     const region = navigator.language.split('-')[1]?.toUpperCase() ?? null;
     const listed = (code: string | null): code is string =>
         !!code && props.phoneField!.countries.some((c) => c.code === code);
@@ -85,11 +88,23 @@ const phoneConfig = computed(() => {
             ? preferred
             : listed(region)
               ? region
-              : 'US',
+              : listed('US')
+                ? 'US'
+                : firstListed,
     };
+});
+const phoneDescribedBy = computed(() =>
+    phoneRejected.value
+        ? 'kinetix-channel-phone-help kinetix-channel-phone-error'
+        : 'kinetix-channel-phone-help',
+);
+watch(phone, () => {
+    phoneRejected.value = false;
 });
 const loading = ref(false);
 const error = ref<string | null>(null);
+/** The server rejected the number itself (422 on `phone`). */
+const phoneRejected = ref(false);
 const remaining = ref(0);
 const total = ref(0);
 const refreshes = ref(0);
@@ -164,11 +179,17 @@ async function fetchLink(withPhone?: string): Promise<void> {
 
     loading.value = true;
     error.value = null;
+    phoneRejected.value = false;
 
     try {
         apply(await link(props.channel, withPhone ?? null));
     } catch (e) {
-        error.value = e instanceof Error ? e.message : String(e);
+        const fieldMessage = (e as KinetixFetchError | null)?.errors
+            ?.phone?.[0];
+
+        error.value =
+            fieldMessage ?? (e instanceof Error ? e.message : String(e));
+        phoneRejected.value = !!fieldMessage;
     } finally {
         loading.value = false;
     }
@@ -240,6 +261,7 @@ function reset(): void {
     qr.value = null;
     pairingCode.value = null;
     error.value = null;
+    phoneRejected.value = false;
     refreshes.value = 0;
     linked.value = false;
     handle.value = null;
@@ -306,6 +328,7 @@ watch(
 
 watch(mode, (next) => {
     error.value = null;
+    phoneRejected.value = false;
 
     // Opening the dialog fetches its own first code (loading by now).
     if (next === 'qr' && !qr.value && !loading.value) {
@@ -492,7 +515,8 @@ const steps = computed(() => [
                         :value="phone"
                         :config="phoneConfig"
                         placeholder="55 1234 5678"
-                        aria-describedby="kinetix-channel-phone-help"
+                        :aria-describedby="phoneDescribedBy"
+                        :aria-invalid="phoneRejected || undefined"
                         @update:value="phone = $event"
                     />
                     <input
@@ -503,7 +527,8 @@ const steps = computed(() => [
                         inputmode="tel"
                         autocomplete="tel"
                         placeholder="+52 55 1234 5678"
-                        aria-describedby="kinetix-channel-phone-help"
+                        :aria-describedby="phoneDescribedBy"
+                        :aria-invalid="phoneRejected || undefined"
                         :class="inputClass"
                     />
                     <p
@@ -551,6 +576,7 @@ const steps = computed(() => [
 
             <p
                 v-if="error"
+                id="kinetix-channel-phone-error"
                 class="sm:col-span-2 gap-2 text-sm flex items-center text-destructive"
                 role="alert"
             >

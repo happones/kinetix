@@ -38,6 +38,9 @@ php artisan migrate
     // null = the browser's region.
     'phone_country' => env('KINETIX_CHANNELS_PHONE_COUNTRY'),
 
+    // Countries a number may be linked from (ISO alpha-2); null = all.
+    'phone_countries' => null, // e.g. ['MX']
+
     'providers' => [
         'whatsapp' => [
             'enabled'  => env('KINETIX_CHANNELS_WHATSAPP', true),
@@ -435,3 +438,18 @@ keep the old key in `APP_PREVIOUS_KEYS` when rotating.
 `429` with `{"message": "<translated>", "code": "throttled", "retry_after": N}`
 and the `Retry-After` header. The limit is read on every request, so it
 also applies to cached routes.
+
+## Restricting phone countries
+
+`channels.phone_countries` (`null` or a list such as `['MX']`) narrows the
+countries of the pairing-code number. The linker lists only those, a
+`phone_country` default outside the list is dropped, and the link endpoint
+answers 422 to a number that does not start with `+` and the dial code of an
+allowed country (a bare local number is refused too).
+
+The setting is app-wide: every team of the app sees the same countries. The
+`+1` code is shared by several countries (United States, Canada, many Caribbean
+nations), so allowing `US` also admits the others on `+1`.
+
+An app that extended `ChannelController` only to narrow the countries can drop
+that class and use the setting.

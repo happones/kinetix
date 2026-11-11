@@ -29,6 +29,7 @@ use Happones\Kinetix\Spotlight\SpotlightRegistry;
 use Happones\Kinetix\Spotlight\SpotlightSource;
 use Happones\Kinetix\Support\Casts\EncryptedWithPlaintextFallback;
 use Happones\Kinetix\Support\ConfigCallback;
+use Happones\Kinetix\Support\DialCodes;
 use Happones\Kinetix\Support\DiscoveryManifest;
 use Happones\Kinetix\Support\HostKeyColumns;
 use Happones\Kinetix\Support\HostKeys;
@@ -113,6 +114,7 @@ class DoctorCommand extends Command
         $this->checkTenantColumns();
         $this->checkIndexes();
         $this->checkWebhookSecrets();
+        $this->checkChannelPhoneCountries();
         $this->checkConfidentialEnvelopes();
         $this->checkThrottles();
         $this->checkSearchLimits();
@@ -1071,6 +1073,31 @@ class DoctorCommand extends Command
         $this->ok('Membership', 'fixed list of '.count($names).' assignable role(s)',
             'Roles created later in the Roles screen will not appear in the member picker; '
             .'set assignable_roles to null to keep them in sync.');
+    }
+
+    protected function checkChannelPhoneCountries(): void
+    {
+        $configured = config('kinetix.channels.phone_countries');
+
+        if (! config('kinetix.channels.enabled', false) || $configured === null) {
+            return;
+        }
+
+        $invalid = is_array($configured)
+            ? array_values(array_filter(
+                array_map(static fn (mixed $code): string => is_string($code) ? $code : get_debug_type($code), $configured),
+                static fn (string $code): bool => DialCodes::for($code) === null,
+            ))
+            : [get_debug_type($configured)];
+
+        if ($invalid !== [] || $configured === []) {
+            $this->warn_('Channels', 'channels.phone_countries is empty or holds values that are not ISO alpha-2 codes, so numbers cannot be linked from them',
+                'Use null for every country, or a list such as [\'MX\'].', $invalid);
+
+            return;
+        }
+
+        $this->ok('Channels', 'phone numbers limited to '.implode(', ', $configured));
     }
 
     protected function checkNotificationPreferences(): void

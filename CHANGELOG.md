@@ -13,6 +13,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.288.0] - 2026-11-11
+
+### Changed
+
+- **`fire()` without a resolvable team fails closed.** With teams on, a webhook
+  fired from a queued job, the scheduler or the console (no team in the request)
+  used to reach the platform's endpoints with the tenant's payload. It now
+  delivers nothing and logs a warning with the event name only. Set
+  `webhooks.unresolved_team` to `'platform'` to keep the old behaviour.
+  `fireFor(null, ...)` is unchanged and remains the explicit platform path.
+
+### Added
+
+- `channels.phone_countries` (`null` or ISO alpha-2 codes, e.g. `['MX']`): the
+  WhatsApp linker offers only those countries, a `phone_country` default outside
+  the list is dropped, and the link endpoint answers 422
+  (`channel_phone_country_not_allowed`, 8 locales) to a number that is not `+`
+  and an allowed dial code. App-wide, not per team; `+1` is shared by several
+  countries.
+
+### Fixed
+
+- **(published)** `KinetixChannelLinker`: when the phone-pairing country picker has no configured default, it now picks the browser-locale country if listed, then `US` if listed, then the first country offered (previously always `US`, even when `US` isn't in `channels.phone_countries`). A 422 on the phone number (e.g. `channel_phone_country_not_allowed`) now shows on the phone field with `aria-invalid` and `aria-describedby`, and clears when the number is edited.
+
+### Security
+
+- Tenant webhook events can no longer fall through to the platform's endpoints
+  because the team was not resolved. `fireFor()` documents that a Model is taken
+  as the team and that `fireFor($record->team_id, ...)` on a nullable column
+  reaches the platform's endpoints.
+
+### Upgrade notes
+
+- Behaviour change: a team app that fires webhooks from jobs, commands or the
+  scheduler with `fire()` must switch to `fireFor($team, ...)` (or set
+  `webhooks.unresolved_team` to `'platform'`). Watch the log for the warning
+  "no team resolved, nothing delivered".
+- An app that wrapped `WebhookDispatcher` to make `fireFor(null)` skip must NOT
+  simply delete the wrapper: upstream `fireFor(null)` still means the
+  platform's endpoints. First make every caller return on a null team and call
+  `fireFor($teamId, ...)`; then drop the wrapper (and its binding). An
+  `instanceof` check against the deleted class silently becomes false.
+- With teams on, `fire()` outside a routed request no longer reads the
+  authenticated user's `currentTeam` (a queue worker may still hold one): use
+  `fireFor($team, ...)`.
+- An app that extended `ChannelController` only to narrow the phone countries
+  can drop it and set `channels.phone_countries`.
+- Re-publish the components (`--force`) to pick up the `KinetixChannelLinker` fix.
+
 ## [0.287.0] - 2026-11-11
 
 Re-publish the components (`--force`) to pick up the token form fix.

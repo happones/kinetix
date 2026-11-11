@@ -1178,6 +1178,7 @@ return [
     'channel_agents_title'                      => ':name の担当者',
     'channel_agents_description'                => '担当者は、担当する回線の会話だけを見られます。',
     'channel_agents_empty'                      => '選べるチームメンバーがいません。',
+    'channel_phone_country_not_allowed'         => '許可されている国の国番号を付け、+ から始まる番号を入力してください。',
     'channel_agents_sees_all'                   => 'すべての回線を閲覧可',
     'inbox_search'                              => '会話を検索',
     'inbox_filters'                             => 'フィルター',

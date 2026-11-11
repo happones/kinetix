@@ -447,6 +447,161 @@ describe('KinetixChannelLinker phone', () => {
     });
 });
 
+describe('KinetixChannelLinker phone country fallback', () => {
+    const MX = { code: 'MX', name: 'Mexico', dial: '52' };
+    const US = { code: 'US', name: 'United States', dial: '1' };
+    const CA = { code: 'CA', name: 'Canada', dial: '1' };
+
+    async function sentPhone(
+        phoneField: {
+            defaultCountry: string | null;
+            countries: (typeof MX)[];
+        },
+        language: string,
+        national: string,
+    ): Promise<string> {
+        vi.spyOn(navigator, 'language', 'get').mockReturnValue(language);
+        serve({
+            'POST /_kinetix/channels/1/link': () => ({
+                channel: line(),
+                link: {
+                    status: 'connecting',
+                    qr: null,
+                    pairingCode: 'ABCD1234',
+                    expiresIn: 60,
+                },
+            }),
+            'GET /_kinetix/channels/1/status': () => ({ channel: line() }),
+        });
+
+        const w = mount(KinetixChannelLinker, {
+            props: { open: true, channel: line(), phoneField },
+            attachTo: document.body,
+            global: { plugins: [i18n] },
+        });
+        await flushPromises();
+        (
+            document.querySelector(
+                '[data-test="channel-link-mode"]',
+            ) as HTMLButtonElement
+        ).click();
+        await flushPromises();
+
+        const phone = document.querySelector(
+            '#kinetix-channel-phone',
+        ) as HTMLInputElement;
+        phone.value = national;
+        phone.dispatchEvent(new Event('input'));
+        await flushPromises();
+        phone.form?.dispatchEvent(new Event('submit'));
+        await flushPromises();
+        w.unmount();
+
+        const call = fetchMock.mock.calls.find(
+            (c) => c[0] === '/_kinetix/channels/1/link' && c[1]?.body?.phone,
+        );
+
+        return call![1].body.phone as string;
+    }
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('falls back to the first listed country, not US, when only MX is offered', async () => {
+        expect(
+            await sentPhone(
+                { defaultCountry: null, countries: [MX] },
+                'en-US',
+                '55 1234 5678',
+            ),
+        ).toBe('+525512345678');
+    });
+
+    it('prefers the configured default when it is listed', async () => {
+        expect(
+            await sentPhone(
+                { defaultCountry: 'MX', countries: [US, MX] },
+                'en-US',
+                '55 1234 5678',
+            ),
+        ).toBe('+525512345678');
+    });
+
+    it('keeps the browser region when it is listed and there is no default', async () => {
+        expect(
+            await sentPhone(
+                { defaultCountry: null, countries: [MX, US, CA] },
+                'es-MX',
+                '55 1234 5678',
+            ),
+        ).toBe('+525512345678');
+    });
+
+    it('falls back to US on a full list when the browser has no region', async () => {
+        expect(
+            await sentPhone(
+                { defaultCountry: null, countries: [MX, US, CA] },
+                'es',
+                '5551234567',
+            ),
+        ).toBe('+15551234567');
+    });
+
+    it('shows the server rejection of the number on the phone field', async () => {
+        vi.spyOn(navigator, 'language', 'get').mockReturnValue('en-US');
+        fetchMock.mockImplementation(async (url: string) => {
+            if (url.endsWith('/status')) {
+                return { channel: line() };
+            }
+
+            throw Object.assign(new Error('Country not allowed'), {
+                errors: { phone: ['Country not allowed'] },
+            });
+        });
+
+        const w = mount(KinetixChannelLinker, {
+            props: {
+                open: true,
+                channel: line(),
+                phoneField: { defaultCountry: null, countries: [MX] },
+            },
+            attachTo: document.body,
+            global: { plugins: [i18n] },
+        });
+        await flushPromises();
+        (
+            document.querySelector(
+                '[data-test="channel-link-mode"]',
+            ) as HTMLButtonElement
+        ).click();
+        await flushPromises();
+
+        const phone = document.querySelector(
+            '#kinetix-channel-phone',
+        ) as HTMLInputElement;
+        phone.value = '55 1234 5678';
+        phone.dispatchEvent(new Event('input'));
+        await flushPromises();
+        phone.form?.dispatchEvent(new Event('submit'));
+        await flushPromises();
+
+        const alert = document.querySelector('[role="alert"]');
+        expect(alert?.textContent).toContain('Country not allowed');
+        expect(alert?.id).toBe('kinetix-channel-phone-error');
+        expect(phone.getAttribute('aria-invalid')).toBe('true');
+        expect(phone.getAttribute('aria-describedby')).toContain(
+            'kinetix-channel-phone-error',
+        );
+
+        phone.value = '55 1234 5679';
+        phone.dispatchEvent(new Event('input'));
+        await flushPromises();
+        expect(phone.getAttribute('aria-invalid')).toBeNull();
+        w.unmount();
+    });
+});
+
 describe('KinetixChannelCard', () => {
     it('offers the next step for where the line stands', () => {
         const scan = mount(KinetixChannelCard, {

@@ -1148,6 +1148,7 @@ return [
     'channel_agents_title'                           => 'Wer :name beantwortet',
     'channel_agents_description'                     => 'Agenten sehen nur die Unterhaltungen der Leitungen, die sie beantworten.',
     'channel_agents_empty'                           => 'Es gibt keine Teammitglieder zur Auswahl.',
+    'channel_phone_country_not_allowed'              => 'Geben Sie die Nummer mit der Landesvorwahl eines zulässigen Landes ein, beginnend mit +.',
     'channel_agents_sees_all'                        => 'Sieht alle Leitungen',
     'inbox_search'                                   => 'Unterhaltungen durchsuchen',
     'inbox_filters'                                  => 'Filter',

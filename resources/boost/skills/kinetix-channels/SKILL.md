@@ -35,6 +35,7 @@ php artisan vendor:publish --tag=kinetix-channels-migrations
     'webhook_url' => env('KINETIX_CHANNELS_WEBHOOK_URL'), // tunnel in dev; Telegram needs HTTPS
     'check_interval' => 5,                            // status endpoint asks the provider every N s
     'phone_country' => env('KINETIX_CHANNELS_PHONE_COUNTRY'), // pairing-code number's country; null = browser region
+    'phone_countries' => null, // ['MX'] = only these (list + link() 422 `channel_phone_country_not_allowed`); app-wide; +1 is shared by several countries
     'broadcast' => env('KINETIX_CHANNELS_BROADCAST', false), // channel.updated on private kinetix.channels.{team}
     'providers' => [
         'whatsapp' => ['enabled' => true, 'driver' => WhatsAppDriver::class, 'base_url' => null, 'api_key' => null, 'qr_ttl' => 30,

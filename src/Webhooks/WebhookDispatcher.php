@@ -4,13 +4,18 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Webhooks;
 
+use Happones\Kinetix\Permissions\PermissionTeam;
 use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 use Spatie\WebhookServer\WebhookCall;
 
 /**
  * Fans a fired event out to the active, subscribed endpoints in the current team
- * scope. Delivery goes through the configured driver: `spatie/laravel-webhook-server`
+ * scope. With teams on, `fire()` without a resolvable team (a job, the
+ * scheduler, the console) delivers nothing unless `webhooks.unresolved_team`
+ * is 'platform'. A routed request or a pinned team (PermissionTeam::pin) counts
+ * as the team; the auth user's `currentTeam` outside a request does not. Delivery goes through the configured driver: `spatie/laravel-webhook-server`
  * when installed (its tuned retries/backoff), otherwise the native queued job.
  * Only registered events fire, and every endpoint URL is SSRF-checked at dispatch.
  */
@@ -23,14 +28,29 @@ class WebhookDispatcher
      */
     public function fire(string $event, array $payload = []): void
     {
-        $this->fireFor($this->teamId(), $event, $payload);
+        $teamId = $this->hasTeamContext() ? $this->teamId() : null;
+
+        if ($teamId === null && KinetixTeams::enabledFor('webhooks') && $this->unresolvedTeamSkips()) {
+            if ($this->events->has($event)) {
+                Log::warning('Kinetix webhooks: no team resolved, nothing delivered. Use fireFor($team, ...) outside a team request.', ['event' => $event]);
+            }
+
+            return;
+        }
+
+        $this->fireFor($teamId, $event, $payload);
     }
 
     /**
      * Fire to one team's endpoints (`null`: the platform's, those with no
-     * team) whatever team the request serves: a queued job, a console command
-     * or a record whose team you know. With webhooks not team-scoped, every
-     * endpoint is the platform's, and the team is ignored.
+     * team, an explicit choice) whatever team the request serves: a queued
+     * job, a console command or a record whose team you know. With webhooks
+     * not team-scoped, every endpoint is the platform's, and the team is
+     * ignored.
+     *
+     * A Model is taken AS the team. `fireFor($record->team_id, ...)` on a
+     * nullable column passes `null` for a record with no team and reaches the
+     * platform's endpoints with that record's payload: check it first.
      *
      * @param array<string, mixed> $payload
      */
@@ -115,6 +135,23 @@ class WebhookDispatcher
             'spatie' => true,
             default  => class_exists(WebhookCall::class),
         };
+    }
+
+    /**
+     * Whether something says which team this call serves: a routed request
+     * (a team route or the user's team on it) or a pinned team
+     * ({@see PermissionTeam::pin()}). Without either (a queued job, the
+     * console, the scheduler) the user a worker may still have authenticated
+     * is no evidence of the team, so `currentTeam` is never consulted.
+     */
+    protected function hasTeamContext(): bool
+    {
+        return PermissionTeam::pinned() !== null || request()->route() !== null;
+    }
+
+    protected function unresolvedTeamSkips(): bool
+    {
+        return config('kinetix.webhooks.unresolved_team', 'skip') !== 'platform';
     }
 
     protected function teamId(): int|string|null

@@ -179,6 +179,76 @@ class ChannelsTest extends TestCase
         $this->actingAs($this->manager())->getJson('/_kinetix/channels')->assertJsonPath('phone', null);
     }
 
+    public function test_the_phone_countries_setting_narrows_the_list_and_drops_a_foreign_default(): void
+    {
+        config(['kinetix.channels.phone_countries' => ['mx'], 'kinetix.channels.phone_country' => 'US']);
+
+        $this->actingAs($this->manager())->getJson('/_kinetix/channels')
+            ->assertJsonPath('phone.defaultCountry', null)
+            ->assertJsonPath('phone.countries', [['code' => 'MX', 'name' => 'Mexico', 'dial' => '52']]);
+
+        config(['kinetix.channels.phone_country' => 'mx']);
+        $this->actingAs($this->manager())->getJson('/_kinetix/channels')->assertJsonPath('phone.defaultCountry', 'MX');
+
+        config(['kinetix.channels.phone_countries' => null]);
+        $this->assertGreaterThan(100, count($this->actingAs($this->manager())->getJson('/_kinetix/channels')->json('phone.countries')));
+    }
+
+    public function test_a_number_outside_the_allowed_countries_is_a_422_and_reaches_no_provider(): void
+    {
+        config(['kinetix.channels.phone_countries' => ['MX']]);
+        $channel = $this->line();
+        $user    = $this->manager();
+
+        foreach (['+1 555 123 4567', '55 1234 5678', '0052 55 1234 5678'] as $phone) {
+            $this->actingAs($user)
+                ->postJson("/_kinetix/channels/{$channel->id}/link", ['phone' => $phone])
+                ->assertStatus(422)
+                ->assertJsonValidationErrors('phone');
+        }
+
+        $this->assertSame([], $this->evolution->callsTo('connect'));
+
+        $this->actingAs($user)
+            ->postJson("/_kinetix/channels/{$channel->id}/link", ['phone' => '+52 (55) 1234-5678'])
+            ->assertOk()
+            ->assertJsonPath('link.pairingCode', 'ABCD1234');
+    }
+
+    public function test_an_empty_or_invalid_phone_countries_value_fails_closed(): void
+    {
+        $channel = $this->line();
+        $user    = $this->manager();
+
+        foreach ([[], 'MX', ['XX', 'nope']] as $value) {
+            config(['kinetix.channels.phone_countries' => $value]);
+
+            $this->actingAs($user)->getJson('/_kinetix/channels')->assertJsonPath('phone.countries', []);
+            $this->actingAs($user)
+                ->postJson("/_kinetix/channels/{$channel->id}/link", ['phone' => '+52 55 1234 5678'])
+                ->assertStatus(422);
+        }
+
+        config(['kinetix.channels.phone_countries' => ['XX', 'MX']]);
+        $this->actingAs($user)->getJson('/_kinetix/channels')->assertJsonCount(1, 'phone.countries');
+    }
+
+    public function test_the_doctor_flags_a_bad_phone_countries_setting(): void
+    {
+        config(['kinetix.channels.phone_countries' => ['MX', 'XX']]);
+
+        $this->artisan('kinetix:doctor', ['--json' => true])->expectsOutputToContain('channels.phone_countries');
+    }
+
+    public function test_without_the_setting_any_country_links(): void
+    {
+        $channel = $this->line();
+
+        $this->actingAs($this->manager())
+            ->postJson("/_kinetix/channels/{$channel->id}/link", ['phone' => '+1 555 123 4567'])
+            ->assertOk();
+    }
+
     public function test_a_new_whatsapp_line_gets_the_configured_bot_behind_the_scenes(): void
     {
         config(['kinetix.channels.providers.whatsapp.bot' => [

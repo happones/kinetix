@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tests\Feature;
 
 use Happones\Kinetix\Permissions\KinetixPermissions;
+use Happones\Kinetix\Permissions\PermissionTeam;
 use Happones\Kinetix\Tests\TestCase;
 use Happones\Kinetix\Webhooks\DispatchWebhookJob;
 use Happones\Kinetix\Webhooks\HostResolver;
@@ -12,10 +13,13 @@ use Happones\Kinetix\Webhooks\KinetixWebhooks;
 use Happones\Kinetix\Webhooks\WebhookEndpoint;
 use Happones\Kinetix\Webhooks\WebhookLog;
 use Happones\Kinetix\Webhooks\WebhookUrlGuard;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionServiceProvider;
@@ -244,6 +248,145 @@ class WebhooksTest extends TestCase
         Bus::assertDispatchedTimes(DispatchWebhookJob::class, 2);
         Bus::assertDispatched(DispatchWebhookJob::class, fn (DispatchWebhookJob $job): bool => $job->endpointId === $theirs->getKey() && $job->payload === ['id' => 1]);
         Bus::assertDispatched(DispatchWebhookJob::class, fn (DispatchWebhookJob $job): bool => $job->endpointId === $platform->getKey() && $job->payload === ['id' => 2]);
+    }
+
+    public function test_fire_without_a_resolvable_team_delivers_nothing_with_teams_on(): void
+    {
+        Bus::fake();
+        Log::spy();
+        config()->set('kinetix.teams', true);
+
+        $this->endpoint(['team_id' => 5]);
+        $this->endpoint(['team_id' => null]);
+
+        KinetixWebhooks::fire('order.created', ['tenant_data' => 'team 5 secret']);
+
+        Bus::assertNotDispatched(DispatchWebhookJob::class);
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $message, array $context): bool => $context === ['event' => 'order.created'])
+            ->once();
+    }
+
+    public function test_the_platform_setting_restores_the_old_unresolved_team_behaviour(): void
+    {
+        Bus::fake();
+        config()->set('kinetix.teams', true);
+        config()->set('kinetix.webhooks.unresolved_team', 'platform');
+
+        $team     = $this->endpoint(['team_id' => 5]);
+        $platform = $this->endpoint(['team_id' => null]);
+
+        KinetixWebhooks::fire('order.created', ['id' => 1]);
+
+        Bus::assertDispatchedTimes(DispatchWebhookJob::class, 1);
+        Bus::assertDispatched(DispatchWebhookJob::class, fn (DispatchWebhookJob $job): bool => $job->endpointId === $platform->getKey());
+        Bus::assertNotDispatched(DispatchWebhookJob::class, fn (DispatchWebhookJob $job): bool => $job->endpointId === $team->getKey());
+    }
+
+    public function test_fire_in_a_team_request_reaches_only_that_teams_endpoints(): void
+    {
+        Bus::fake();
+        config()->set('kinetix.teams', true);
+
+        $theirs = $this->endpoint(['team_id' => 5]);
+        $this->endpoint(['team_id' => 6]);
+        $this->endpoint(['team_id' => null]);
+
+        $route = new Route('POST', '{current_team}/orders', fn () => null);
+        $route->bind(request());
+        $route->setParameter('current_team', 5);
+        request()->setRouteResolver(fn (): Route => $route);
+
+        KinetixWebhooks::fire('order.created', ['id' => 1]);
+
+        Bus::assertDispatchedTimes(DispatchWebhookJob::class, 1);
+        Bus::assertDispatched(DispatchWebhookJob::class, fn (DispatchWebhookJob $job): bool => $job->endpointId === $theirs->getKey());
+    }
+
+    public function test_an_authenticated_users_current_team_is_not_a_team_outside_a_request(): void
+    {
+        Bus::fake();
+        Log::spy();
+        config()->set('kinetix.teams', true);
+
+        $this->endpoint(['team_id' => 6]);
+        $this->endpoint(['team_id' => null]);
+
+        $team     = new WebhookUser(['name' => 'Team']);
+        $team->id = 6;
+
+        $user = new class extends WebhookUser
+        {
+            public ?Model $team = null;
+
+            public function getCurrentTeamAttribute(): ?Model
+            {
+                return $this->team;
+            }
+        };
+        $user->team = $team;
+        $this->actingAs($user);
+
+        KinetixWebhooks::fire('order.created', ['id' => 1]);
+
+        Bus::assertNotDispatched(DispatchWebhookJob::class);
+        Log::shouldHaveReceived('warning')->once();
+    }
+
+    public function test_a_pinned_team_is_the_team_of_a_fire_from_a_job(): void
+    {
+        Bus::fake();
+        config()->set('kinetix.teams', true);
+
+        $theirs = $this->endpoint(['team_id' => 6]);
+        $this->endpoint(['team_id' => null]);
+
+        PermissionTeam::pin(6, fn () => KinetixWebhooks::fire('order.created', ['id' => 1]));
+
+        Bus::assertDispatchedTimes(DispatchWebhookJob::class, 1);
+        Bus::assertDispatched(DispatchWebhookJob::class, fn (DispatchWebhookJob $job): bool => $job->endpointId === $theirs->getKey());
+    }
+
+    public function test_teams_on_with_webhooks_not_team_scoped_fires_to_the_platform_endpoints(): void
+    {
+        Bus::fake();
+        config()->set('kinetix.teams', true);
+        config()->set('kinetix.webhooks.teams', false);
+
+        $platform = $this->endpoint(['team_id' => null]);
+
+        KinetixWebhooks::fire('order.created', ['id' => 1]);
+
+        Bus::assertDispatched(DispatchWebhookJob::class, fn (DispatchWebhookJob $job): bool => $job->endpointId === $platform->getKey());
+    }
+
+    public function test_fire_with_teams_off_still_reaches_the_endpoints(): void
+    {
+        Bus::fake();
+        config()->set('kinetix.teams', false);
+
+        $endpoint = $this->endpoint(['team_id' => null]);
+
+        KinetixWebhooks::fire('order.created', ['id' => 1]);
+
+        Bus::assertDispatched(DispatchWebhookJob::class, fn (DispatchWebhookJob $job): bool => $job->endpointId === $endpoint->getKey());
+    }
+
+    public function test_fire_for_a_team_model_is_taken_as_the_team(): void
+    {
+        Bus::fake();
+        config()->set('kinetix.teams', true);
+
+        $theirs = $this->endpoint(['team_id' => 5]);
+        $this->endpoint(['team_id' => null]);
+
+        $team     = new WebhookUser(['name' => 'Team']);
+        $team->id = 5;
+
+        KinetixWebhooks::fireFor($team, 'order.created', ['id' => 1]);
+
+        Bus::assertDispatchedTimes(DispatchWebhookJob::class, 1);
+        Bus::assertDispatched(DispatchWebhookJob::class, fn (DispatchWebhookJob $job): bool => $job->endpointId === $theirs->getKey());
     }
 
     public function test_fire_for_ignores_the_team_when_webhooks_are_not_team_scoped(): void

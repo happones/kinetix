@@ -28,7 +28,9 @@ on a very large table, run it in a maintenance window.
     'enabled'        => env('KINETIX_WEBHOOKS_ENABLED', false),
     // auto = spatie/laravel-webhook-server when installed, else the native job.
     'driver'         => env('KINETIX_WEBHOOKS_DRIVER', 'auto'),
-    'teams'          => env('KINETIX_WEBHOOKS_TEAMS', false),
+    'teams'          => env('KINETIX_WEBHOOKS_TEAMS'), // null = inherit kinetix.teams
+    // With teams on, fire() with no resolvable team: 'skip' (log, deliver nothing) | 'platform'.
+    'unresolved_team' => 'skip',
     // Permit private/loopback URLs — dev/testing only (SSRF risk in production).
     'allow_private'  => env('KINETIX_WEBHOOKS_ALLOW_PRIVATE', false),
     'timeout'        => env('KINETIX_WEBHOOKS_TIMEOUT', 10),
@@ -69,15 +71,35 @@ scope).
 
 ### Firing outside a team's request
 
-`fire()` reads the team from the request. A queued job, a console command or a
-model event that runs without one would reach the platform's endpoints (those
-with no team) instead of the customer's. Name the team with `fireFor()`: a team
-model or key, or `null` for the platform's endpoints:
+`fire()` reads the team from the routed request (the `{current_team}` segment,
+or the user's team on that route). Inside a team's request, a model event
+resolves it too. With teams on, a `fire()` that resolves no team (a queued job,
+a console command, the scheduler) **fails closed**: a user a queue worker still
+has authenticated is not taken as evidence of the team: nothing is delivered and a warning with the event name (never
+the payload) is logged. Name the team with `fireFor()`: a team model or key, or
+`null` for the platform's endpoints:
 
 ```php
-// A model event: the order's team, whichever request (or job) created it.
-KinetixWebhooks::fireFor($order->team_id, 'order.created', ['id' => $order->id]);
+// From a job or command: the order's team, guarded against a missing one.
+if ($order->team_id !== null) {
+    KinetixWebhooks::fireFor($order->team_id, 'order.created', ['id' => $order->id]);
+}
 ```
+
+From a job, the scheduler or a console command, fire with `fireFor($team, ...)`
+(the team model or its key, guarded against a null key). A single `fire()` there
+is skipped and logged once per call, so a job that fires per row should use
+`fireFor()`.
+
+- `fireFor(null, ...)` is the explicit path to the platform's endpoints (those
+  with no team): a tenant's event never reaches them unless you ask for it.
+- A `Model` passed to `fireFor()` is taken as the team. Passing
+  `$record->team_id` on a nullable column hands over `null` for a record with no
+  team, and that record's payload reaches the platform's endpoints: check the
+  value first.
+- `webhooks.unresolved_team` (`'skip'` by default) set to `'platform'` restores
+  the behaviour before 0.288, where an unresolved `fire()` reached the platform's
+  endpoints.
 
 With webhooks not team-scoped, every endpoint belongs to the platform and the
 team is ignored.

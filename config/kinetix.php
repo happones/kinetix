@@ -898,8 +898,17 @@ return [
 
         'teams'         => env('KINETIX_WEBHOOKS_TEAMS'), // null = inherit kinetix.teams
         'allow_private' => env('KINETIX_WEBHOOKS_ALLOW_PRIVATE', false),
-        'timeout'       => env('KINETIX_WEBHOOKS_TIMEOUT', 10),
-        'tries'         => env('KINETIX_WEBHOOKS_TRIES', 3),
+
+        // With teams on, what fire() does when no team resolves (a queued
+        // job, the scheduler, the console): 'skip' (default) delivers nothing
+        // and logs a warning with the event name; 'platform' delivers to the
+        // platform's endpoints (those with no team), the behaviour before
+        // 0.288. fireFor($team, ...) names the team; fireFor(null, ...) is
+        // always the explicit platform path.
+        'unresolved_team' => 'skip',
+
+        'timeout' => env('KINETIX_WEBHOOKS_TIMEOUT', 10),
+        'tries'   => env('KINETIX_WEBHOOKS_TRIES', 3),
 
         // Delivery log: every attempt is recorded automatically (no extra
         // setup — the logs table ships in kinetix-webhooks-migrations).
@@ -965,6 +974,13 @@ return [
         // The country preselected where a WhatsApp number is typed for a
         // pairing code (ISO alpha-2, e.g. 'MX'); null = the browser's region.
         'phone_country' => env('KINETIX_CHANNELS_PHONE_COUNTRY'),
+
+        // Countries a WhatsApp number may be linked from (ISO alpha-2, e.g.
+        // ['MX']): the linker offers only these and a number outside them is
+        // refused; null = every country. App-wide, not per team. +1 is
+        // shared by several countries, so listing 'US' also admits Canada
+        // and the Caribbean numbers.
+        'phone_countries' => null,
 
         // Broadcast status and QR changes on the private channel
         // `kinetix.channels.{team}` (needs Laravel Echo); the linker polls

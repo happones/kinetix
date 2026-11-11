@@ -1178,6 +1178,7 @@ return [
     'channel_agents_title'                      => ':name 的客服',
     'channel_agents_description'                => '客服只能看到自己负责线路的对话。',
     'channel_agents_empty'                      => '没有可选的团队成员。',
+    'channel_phone_country_not_allowed'         => '请输入以 + 开头并带有允许国家区号的号码。',
     'channel_agents_sees_all'                   => '可查看所有线路',
     'inbox_search'                              => '搜索对话',
     'inbox_filters'                             => '筛选',

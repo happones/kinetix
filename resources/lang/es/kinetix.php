@@ -1243,6 +1243,7 @@ return [
     'channel_agents_title'                      => 'Quién atiende :name',
     'channel_agents_description'                => 'Los agentes solo ven las conversaciones de las líneas que atienden.',
     'channel_agents_empty'                      => 'No hay miembros del equipo para elegir.',
+    'channel_phone_country_not_allowed'         => 'Escribe el número con el código de país de un país permitido, empezando con +.',
     'channel_agents_sees_all'                   => 'Ve todas las líneas',
     'inbox_search'                              => 'Buscar conversaciones',
     'inbox_filters'                             => 'Filtros',

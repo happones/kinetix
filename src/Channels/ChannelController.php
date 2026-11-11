@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Channels;
 
 use Happones\Kinetix\Data\ChannelData;
 use Happones\Kinetix\Forms\Components\PhoneInput;
+use Happones\Kinetix\Support\DialCodes;
 use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -128,6 +129,8 @@ class ChannelController
         $channel = $this->find($request);
         $phone   = $request->validate(['phone' => ['nullable', 'string', 'regex:/^\+?[\d\s()-]{8,20}$/']])['phone'] ?? null;
 
+        $this->assertPhoneCountryAllowed($phone);
+
         return $this->attempt($channel, function () use ($channel, $phone): JsonResponse {
             $state = $this->manager->for($channel)->link($channel, $phone);
             $this->manager->transition($channel, $state->status);
@@ -244,10 +247,81 @@ class ChannelController
         }
 
         $country = config('kinetix.channels.phone_country');
+        $country = is_string($country) && $country !== '' ? strtoupper($country) : null;
+        $only    = $this->allowedPhoneCountries();
+
+        if ($country !== null && $only !== null && ! in_array($country, $only, true)) {
+            $country = null;
+        }
 
         return [
-            'defaultCountry' => is_string($country) && $country !== '' ? strtoupper($country) : null,
-            'countries'      => PhoneInput::countryList(),
+            'defaultCountry' => $country,
+            'countries'      => PhoneInput::countryList($only),
         ];
+    }
+
+    /**
+     * The ISO alpha-2 codes `channels.phone_countries` restricts numbers to,
+     * or null for every country. App-wide, not per team.
+     *
+     * @return list<string>|null
+     */
+    protected function allowedPhoneCountries(): ?array
+    {
+        $configured = config('kinetix.channels.phone_countries');
+
+        if ($configured === null) {
+            return null;
+        }
+
+        $given = is_array($configured) ? $configured : [];
+        $codes = array_values(array_unique(array_filter(
+            array_map(static fn (mixed $code): string => is_string($code) ? strtoupper(trim($code)) : '', $given),
+            static fn (string $code): bool => DialCodes::for($code) !== null,
+        )));
+
+        if (! is_array($configured) || count($codes) !== count($given)) {
+            $this->warnAboutPhoneCountries();
+        }
+
+        return $codes;
+    }
+
+    /** Once per process: a misspelled code would otherwise log on every request. */
+    private static bool $warnedPhoneCountries = false;
+
+    private function warnAboutPhoneCountries(): void
+    {
+        if (self::$warnedPhoneCountries) {
+            return;
+        }
+
+        self::$warnedPhoneCountries = true;
+
+        Log::warning('Kinetix channels: channels.phone_countries holds a value that is not an ISO alpha-2 code (or is not a list); it is ignored, and with none left no number can be linked. Run kinetix:doctor.');
+    }
+
+    /**
+     * With countries restricted, the number must be international: "+" and
+     * the dial code of an allowed country. +1 is shared by several countries,
+     * so it cannot tell them apart.
+     */
+    protected function assertPhoneCountryAllowed(?string $phone): void
+    {
+        $only = $this->allowedPhoneCountries();
+
+        if ($phone === null || $only === null) {
+            return;
+        }
+
+        $number = preg_replace('/[\s()-]/', '', $phone) ?? '';
+
+        foreach ($only as $code) {
+            if (str_starts_with($number, '+'.DialCodes::for($code))) {
+                return;
+            }
+        }
+
+        throw ValidationException::withMessages(['phone' => __('kinetix::kinetix.channel_phone_country_not_allowed')]);
     }
 }
