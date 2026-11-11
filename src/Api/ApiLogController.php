@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Api;
 
 use Happones\Kinetix\Data\ApiLogData;
 use Happones\Kinetix\Query\KinetixQuery;
+use Happones\Kinetix\Query\SearchTerm;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -29,7 +30,7 @@ class ApiLogController
             $query->where('status', '>=', 400);
         }
 
-        if (($search = trim((string) $request->query('search'))) !== '') {
+        if (($search = SearchTerm::from($request->query('search'))) !== '') {
             KinetixQuery::search($query, $search, ['path', 'token_name']);
         }
 

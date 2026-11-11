@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Resources;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Query\KinetixQuery;
+use Happones\Kinetix\Query\SearchTerm;
 use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\DescriptorRejection;
 use Happones\Kinetix\Support\EloquentRelation;
@@ -371,7 +372,16 @@ class RelationManagerController
         $title   = $manager::getRecordTitleAttribute() ?? $model->getKeyName();
         $columns = $manager::getRecordSelectSearchColumns() ?: [$model->getKeyName()];
 
-        KinetixQuery::search($query, (string) $request->input('search', ''), $columns);
+        $term = SearchTerm::from($request->input('search', ''));
+
+        if (SearchTerm::isBelowMinimum($term)) {
+            return response()->json([
+                'options' => [],
+                'meta'    => ['below_min' => true, 'min_chars' => SearchTerm::minChars()],
+            ]);
+        }
+
+        KinetixQuery::search($query, $term, $columns);
         KinetixQuery::eagerLoad($query, [...$columns, $title]);
 
         // Relation columns search fine but can't ORDER BY without a join.

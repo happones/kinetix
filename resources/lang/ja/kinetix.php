@@ -931,6 +931,8 @@ return [
     'search_invalid_model'          => '検索モデルが無効です。',
     'search_forbidden'              => 'この検索は許可されていません。',
     'search_expired'                => '検索セッションが期限切れです。ページを再読み込みしてください。',
+    'search_min_chars'              => '検索するには {count} 文字以上入力してください。',
+    'search_busy'                   => '検索が混み合っています。しばらくしてからもう一度お試しください。',
 
     // Reports center, repeater rows and permission guardrails
     'repeater_row_not_found'                => '行が見つかりません。',

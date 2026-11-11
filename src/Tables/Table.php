@@ -23,6 +23,7 @@ use Happones\Kinetix\Data\TableStateData;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Query\KinetixQuery;
+use Happones\Kinetix\Query\SearchTerm;
 use Happones\Kinetix\Resources\Resource;
 use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
@@ -1250,7 +1251,7 @@ class Table implements Arrayable, JsonSerializable
         $search = $this->param('search');
 
         if ($search !== null && $search !== '') {
-            KinetixQuery::search($query, (string) $search, array_values(array_map(
+            KinetixQuery::search($query, SearchTerm::from($search), array_values(array_map(
                 // Pivot columns search against the JOINED pivot table —
                 // `pivot.role` is an accessor path, not a relation.
                 fn (Column $column): string => $this->translatePivotColumn($column->getName()),

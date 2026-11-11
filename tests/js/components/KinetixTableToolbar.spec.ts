@@ -2,10 +2,14 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import { createI18n } from 'vue-i18n';
 
+const { pageProps } = vi.hoisted(() => ({
+    pageProps: {
+        kinetix_config: { route_prefix: '_kinetix' } as Record<string, unknown>,
+    },
+}));
+
 vi.mock('@inertiajs/vue3', () => ({
-    usePage: () => ({
-        props: { kinetix_config: { route_prefix: '_kinetix' } },
-    }),
+    usePage: () => ({ props: pageProps }),
     router: { get: vi.fn(), visit: vi.fn(), reload: vi.fn() },
 }));
 
@@ -139,5 +143,19 @@ describe('KinetixTableToolbar heading', () => {
 
         expect(wrapper.get('h1').text()).toBe('Products');
         expect(wrapper.find('h3').exists()).toBe(false);
+    });
+
+    it('caps the search input with the shared max_length', () => {
+        pageProps.kinetix_config = {
+            route_prefix: '_kinetix',
+            search: { min_chars: 1, max_length: 60 },
+        };
+
+        const w = mountToolbar({});
+
+        expect(w.get('input[type="search"]').attributes('maxlength')).toBe(
+            '60',
+        );
+        pageProps.kinetix_config = { route_prefix: '_kinetix' };
     });
 });

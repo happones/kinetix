@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, useId, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
     KINETIX_SUPERSEDED,
@@ -10,7 +10,12 @@ import {
 import { kinetixOptionList } from '@/composables/kinetixOptions';
 import type { KinetixOptions } from '@/composables/kinetixOptions';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixOption, KinetixSharedProps } from '@/types/kinetix';
+import { useKinetixSearchLimits } from '@/composables/useKinetixSearchLimits';
+import type {
+    KinetixLookupMeta,
+    KinetixOption,
+    KinetixSharedProps,
+} from '@/types/kinetix';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 
 const props = withDefaults(
@@ -47,6 +52,9 @@ const searchQuery = ref('');
 const latest = createKinetixLatest();
 const loading = latest.pending;
 const remoteError = ref<string | null>(null);
+const hintCount = ref<number | null>(null);
+const limits = useKinetixSearchLimits();
+const hintId = `kinetix-checkbox-list-hint-${useId()}`;
 const remote = computed(() => !!props.searchToken);
 
 const remoteItems = ref<KinetixOption[]>([]);
@@ -120,9 +128,20 @@ async function fetchRemote(query: string): Promise<void> {
 
     remoteError.value = null;
 
+    // A typed term the server would refuse as too short is not sent.
+    if (limits.isTooShort(query)) {
+        latest.cancel();
+        remoteItems.value = [];
+        hintCount.value = limits.minChars.value;
+
+        return;
+    }
+
+    hintCount.value = null;
+
     try {
         const result = await latest.run((signal) =>
-            kinetixFetch<{ options: KinetixOptions }>(
+            kinetixFetch<{ options: KinetixOptions; meta?: KinetixLookupMeta }>(
                 `/${kinetixRoutePrefix(page)}/forms/search`,
                 {
                     method: 'POST',
@@ -136,10 +155,14 @@ async function fetchRemote(query: string): Promise<void> {
             return;
         }
 
+        hintCount.value = result?.meta?.below_min
+            ? limits.hintCount(result.meta)
+            : null;
         remoteItems.value = kinetixOptionList(result?.options);
         remember(remoteItems.value);
     } catch (error) {
         remoteItems.value = [];
+        hintCount.value = null;
         remoteError.value = kinetixLookupErrorMessage(
             error,
             t('kinetix.action_failed'),
@@ -227,6 +250,8 @@ function toggleValue(val: string, checked: boolean): void {
                 :aria-label="t('kinetix.checkbox_list_search')"
                 :value="searchQuery"
                 :disabled="disabled"
+                :maxlength="limits.maxLength.value"
+                :aria-describedby="hintId"
                 @input="onSearchInput"
             />
             <span
@@ -236,6 +261,19 @@ function toggleValue(val: string, checked: boolean): void {
                 {{ t('kinetix.checkbox_list_loading') }}
             </span>
         </div>
+
+        <!-- Polite hint (not an error): the term is below the minimum. -->
+        <p
+            v-if="searchable"
+            :id="hintId"
+            role="status"
+            class="text-xs text-muted-foreground"
+            :class="{ 'sr-only': hintCount === null }"
+        >
+            <template v-if="hintCount !== null">
+                {{ t('kinetix.search_min_chars', { count: hintCount }) }}
+            </template>
+        </p>
 
         <p
             v-if="remoteError && !loading"

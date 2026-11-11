@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Help;
 
+use Happones\Kinetix\Query\SearchTerm;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -74,7 +75,7 @@ class HelpController
         return $this->localized(response()->json([
             'locale'  => $locale,
             'results' => $this->manager->search(
-                (string) $request->query('q', ''),
+                SearchTerm::from($request->query('q', '')),
                 $request->user(),
                 $locale,
             ),

@@ -8,9 +8,11 @@ use Happones\Kinetix\Forms\Components\Select;
 use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
+use Illuminate\Auth\GenericUser;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class SearchAuthor extends Model
@@ -115,5 +117,61 @@ class SelectSearchableTest extends TestCase
     {
         $this->postJson('/_kinetix/forms/search', ['token' => 'tampered', 'q' => 'x'])
             ->assertStatus(400);
+    }
+
+    public function test_a_term_below_the_minimum_answers_a_hint_without_querying(): void
+    {
+        config()->set('kinetix.search.min_chars', 3);
+        SearchAuthor::create(['name' => 'Ada Lovelace']);
+
+        $token = SignedDescriptor::seal(['model' => SearchAuthor::class, 'label' => 'name', 'columns' => ['name'], 'value' => 'id'], DescriptorAudience::Search);
+
+        DB::enableQueryLog();
+
+        $this->postJson('/_kinetix/forms/search', ['token' => $token, 'q' => 'ad'])
+            ->assertOk()
+            ->assertExactJson(['options' => [], 'meta' => ['below_min' => true, 'min_chars' => 3]]);
+
+        $this->assertSame([], DB::getQueryLog());
+
+        // An empty term (the initial list) and a long-enough one still query.
+        $this->postJson('/_kinetix/forms/search', ['token' => $token, 'q' => ''])->assertOk()->assertJsonMissingPath('meta');
+        $this->postJson('/_kinetix/forms/search', ['token' => $token, 'q' => 'ada'])->assertOk()->assertJsonPath('options.1', 'Ada Lovelace');
+    }
+
+    public function test_an_over_long_term_is_truncated_not_rejected(): void
+    {
+        config()->set('kinetix.search.max_length', 3);
+        SearchAuthor::create(['name' => 'Ada Lovelace']);
+
+        $token = SignedDescriptor::seal(['model' => SearchAuthor::class, 'label' => 'name', 'columns' => ['name'], 'value' => 'id'], DescriptorAudience::Search);
+
+        $this->postJson('/_kinetix/forms/search', ['token' => $token, 'q' => 'adaXXXXXXXX'])
+            ->assertOk()
+            ->assertJsonPath('options.1', 'Ada Lovelace');
+    }
+
+    public function test_rejections_carry_a_machine_readable_code(): void
+    {
+        $expired = Crypt::encrypt(['model' => SearchAuthor::class]);
+
+        $this->postJson('/_kinetix/forms/search', ['token' => $expired, 'q' => 'x'])
+            ->assertForbidden()
+            ->assertJsonPath('code', 'descriptor_expired')
+            ->assertJsonPath('message', __('kinetix.search_expired'));
+
+        $foreign = Crypt::encrypt([
+            'model'   => SearchAuthor::class,
+            'aud'     => DescriptorAudience::Search->value,
+            'user'    => 99,
+            'team'    => null,
+            'expires' => now()->addHour()->getTimestamp(),
+        ]);
+
+        $this->actingAs(new GenericUser(['id' => 1]))
+            ->postJson('/_kinetix/forms/search', ['token' => $foreign, 'q' => 'x'])
+            ->assertForbidden()
+            ->assertJsonPath('code', 'descriptor_forbidden')
+            ->assertJsonPath('message', __('kinetix.search_forbidden'));
     }
 }

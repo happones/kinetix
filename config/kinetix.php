@@ -1172,6 +1172,28 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Search
+    |--------------------------------------------------------------------------
+    |
+    | Guardrails shared by every type-ahead endpoint (searchable selects,
+    | tag suggestions, help search, relation pickers). `max_length` truncates
+    | the term (null = uncapped, never rejects); `min_chars` is the shortest
+    | non-empty term that runs a query in searchable selects, select/multi-select
+    | filters, checkbox lists and relation pickers (1 = every term; tags, help,
+    | spotlight and the table search have their own rules). The throttles are
+    | 'attempts,minutes' per user; null turns one off (an E2E suite can).
+    |
+    */
+
+    'search' => [
+        'max_length'        => env('KINETIX_SEARCH_MAX_LENGTH', 100),
+        'min_chars'         => env('KINETIX_SEARCH_MIN_CHARS', 1),
+        'throttle'          => env('KINETIX_SEARCH_THROTTLE', '120,1'),
+        'relation_throttle' => env('KINETIX_RELATION_PICKER_THROTTLE', '60,1'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Spotlight Command Palette (optional)
     |--------------------------------------------------------------------------
     |

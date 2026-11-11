@@ -40,8 +40,15 @@ const props = withDefaults(
 );
 
 const { t } = useI18n();
-const { articles, loading, results, searching, loadArticles, search } =
-    useKinetixHelp();
+const {
+    articles,
+    loading,
+    results,
+    searching,
+    searchError,
+    loadArticles,
+    search,
+} = useKinetixHelp();
 
 onMounted(loadArticles);
 
@@ -154,6 +161,14 @@ const groups = computed(() => {
                     class="h-16 animate-pulse rounded-xl bg-muted"
                 ></div>
             </div>
+
+            <p
+                v-else-if="searchError"
+                role="alert"
+                class="text-sm text-destructive"
+            >
+                {{ searchError }}
+            </p>
 
             <p
                 v-else-if="results.length === 0"

@@ -4,6 +4,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { actionAttributes } from '@/composables/kinetixActionAttributes';
 import { resolveIcon } from '@/composables/useKinetixIcons';
+import { useKinetixSearchLimits } from '@/composables/useKinetixSearchLimits';
 import { actionButtonVariant } from '@/composables/useKinetixShadcnVariants';
 import type { KinetixAction, KinetixTableData } from '@/types/kinetix';
 import KinetixActionDropdown from '../KinetixActionDropdown.vue';
@@ -37,6 +38,8 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+
+const { maxLength: searchMaxLength } = useKinetixSearchLimits();
 
 const hasSearch = computed<boolean>(() =>
     props.table.columns.some((c) => c.isSearchable),
@@ -124,6 +127,7 @@ const layoutClass = computed<string>(() => {
                     <input
                         :value="searchQuery"
                         type="search"
+                        :maxlength="searchMaxLength"
                         :placeholder="t('kinetix.search_records')"
                         class="pl-9 pr-4 py-2 text-sm rounded-lg w-full border border-border bg-muted/40 text-foreground transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                         @input="

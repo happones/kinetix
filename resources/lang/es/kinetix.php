@@ -996,6 +996,8 @@ return [
     'search_invalid_model'          => 'Modelo de búsqueda no válido.',
     'search_forbidden'              => 'Esta búsqueda no está autorizada.',
     'search_expired'                => 'La sesión de búsqueda expiró. Recarga la página.',
+    'search_min_chars'              => 'Escribe al menos {count} caracteres para buscar.',
+    'search_busy'                   => 'La búsqueda está ocupada. Inténtalo de nuevo en un momento.',
 
     // Reports center, repeater rows and permission guardrails
     'repeater_row_not_found'                => 'Fila no encontrada.',

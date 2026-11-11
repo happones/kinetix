@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3';
 import { ChevronDown } from '@lucide/vue';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import {
@@ -10,7 +10,9 @@ import {
 } from '@/composables/kinetixLatest';
 import { kinetixComponentOf } from '@/composables/kinetixLazy';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
+import { useKinetixSearchLimits } from '@/composables/useKinetixSearchLimits';
 import type {
+    KinetixLookupMeta,
     KinetixRelationManagerData,
     KinetixSharedProps,
 } from '@/types/kinetix';
@@ -76,6 +78,9 @@ const isAttachOpen = ref(false);
 const attachOptions = ref<AttachOption[]>([]);
 const attachSelected = ref<Set<number | string>>(new Set());
 const attachSearch = ref('');
+const attachHintCount = ref<number | null>(null);
+const searchLimits = useKinetixSearchLimits();
+const attachHintId = `kinetix-attach-hint-${useId()}`;
 const attachLatest = createKinetixLatest();
 const attachLoading = attachLatest.pending;
 const attaching = ref(false);
@@ -166,9 +171,20 @@ async function loadAttachable(): Promise<void> {
         return;
     }
 
+    // A typed term the server would refuse as too short is not sent.
+    if (searchLimits.isTooShort(attachSearch.value)) {
+        attachLatest.cancel();
+        attachOptions.value = [];
+        attachHintCount.value = searchLimits.minChars.value;
+
+        return;
+    }
+
+    attachHintCount.value = null;
+
     try {
         const response = await attachLatest.run((signal) =>
-            kinetixFetch<{ options: AttachOption[] }>(
+            kinetixFetch<{ options: AttachOption[]; meta?: KinetixLookupMeta }>(
                 `${relationsUrl.value}/${picker[pickerMode.value].options}`,
                 {
                     method: 'POST',
@@ -185,9 +201,13 @@ async function loadAttachable(): Promise<void> {
             return;
         }
 
+        attachHintCount.value = response?.meta?.below_min
+            ? searchLimits.hintCount(response.meta)
+            : null;
         attachOptions.value = response?.options ?? [];
     } catch (e) {
         attachOptions.value = [];
+        attachHintCount.value = null;
         toast.error(
             e instanceof Error && e.message
                 ? e.message
@@ -286,6 +306,7 @@ function openAttach(mode: PickerMode = 'attach'): void {
     attachOptions.value = [];
     attachSelected.value = new Set();
     attachSearch.value = '';
+    attachHintCount.value = null;
     clearPageErrors();
     attachFormDto.value =
         mode === 'attach' && props.manager.attachForm
@@ -531,9 +552,27 @@ onBeforeUnmount(() => {
                     type="search"
                     :placeholder="t('kinetix.search_records')"
                     :aria-label="t('kinetix.search_records')"
+                    :maxlength="searchLimits.maxLength.value"
+                    :aria-describedby="attachHintId"
                     class="px-3 py-2 text-sm w-full rounded-md border border-border bg-muted/40 text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                     @input="onAttachSearch"
                 />
+
+                <!-- Polite hint (not an error): the term is below the minimum. -->
+                <p
+                    :id="attachHintId"
+                    role="status"
+                    class="text-xs text-muted-foreground"
+                    :class="{ 'sr-only': attachHintCount === null }"
+                >
+                    <template v-if="attachHintCount !== null">
+                        {{
+                            t('kinetix.search_min_chars', {
+                                count: attachHintCount,
+                            })
+                        }}
+                    </template>
+                </p>
 
                 <ScrollArea type="auto" viewport-class="max-h-64">
                     <div class="space-y-1">
@@ -544,7 +583,10 @@ onBeforeUnmount(() => {
                             …
                         </p>
                         <p
-                            v-else-if="attachOptions.length === 0"
+                            v-else-if="
+                                attachOptions.length === 0 &&
+                                attachHintCount === null
+                            "
                             class="py-4 text-sm text-center text-muted-foreground"
                         >
                             {{ t(picker[pickerMode].empty) }}

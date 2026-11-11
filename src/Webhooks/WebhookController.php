@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Webhooks;
 use Happones\Kinetix\Data\WebhookEndpointData;
 use Happones\Kinetix\Data\WebhookLogData;
 use Happones\Kinetix\Query\KinetixQuery;
+use Happones\Kinetix\Query\SearchTerm;
 use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -150,7 +151,7 @@ class WebhookController
             $query->where('success', false);
         }
 
-        if (($search = trim((string) $request->query('search'))) !== '') {
+        if (($search = SearchTerm::from($request->query('search'))) !== '') {
             KinetixQuery::search($query, $search, ['event', 'endpoint.name']);
         }
 

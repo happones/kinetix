@@ -192,6 +192,7 @@ apply. Dates and enums stay objects, so date and badge formatting still work.
   and paginates the model. Record actions, `visible()` / `authorize()` closures,
   policies, bulk actions and inline edits all get the model, as without a
   resource.
+- **The toolbar search term is capped.** It is truncated to `kinetix.search.max_length` characters (100) and its control characters become a space; see [Search](/search).
 - **Search and sort run in the database.** Keep `searchable()` on columns named
   after a real attribute, and sort a key the resource computes with
   `sortable(using: fn (Builder $query, string $direction) => …)`.
@@ -464,7 +465,8 @@ Renders as a dropdown select.
   ```
   For large related tables prefer `searchUsing()` (options load lazily instead of all at once).
 - `searchable()`: Renders the select dropdown as a searchable combobox.
-- `searchUsing(string $model, string $labelColumn = 'name', array $searchColumns = ['name'], string $valueColumn = 'id')`: Dynamically queries the model's database table when searching. The selection is securely query-guarded via tokens.
+- `searchUsing(string $model, string $labelColumn = 'name', array $searchColumns = ['name'], string $valueColumn = 'id', ?string $modifyQueryUsing = null)`: Dynamically queries the model's database table when searching. The selection is securely query-guarded via tokens. The optional last argument is an invokable class that receives the query builder.
+- `searchScope(array $constraints)`: Bounds the remote search **and** the labels of the already-selected values (`['team_id' => $teamId]`). Declare it in a multi-tenant app whenever the model has no global tenant scope. See [Search](/search#scoping-a-select-filter).
 
 ### 3. `MultiSelectFilter`
 Renders as a checkbox list; matches any selected value via `whereIn`. Extends `SelectFilter` (supports all the same options, including Enum classes, `relationship()`, `searchable()`, and `searchUsing()`). When searchable or remote-searching, a search input is rendered at the top of the checkbox list to query options.

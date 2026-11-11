@@ -556,6 +556,13 @@ class TagsRelationManager extends RelationManager
   record/toolbar/bulk/footer actions from the rendered table, whatever
   `table()` configured.
 
+The picker's search follows the shared [search limits](/search): the term is
+capped at `kinetix.search.max_length`, a term shorter than
+`kinetix.search.min_chars` answers `{ options: [], meta: { below_min: true,
+min_chars: N } }` without querying, and the attach and associate lookups are
+throttled per user by `kinetix.search.relation_throttle` (`60,1` by default,
+`null` turns it off).
+
 ## 9. HasMany / MorphMany: associate & dissociate
 
 The `HasMany`/`MorphMany` counterpart of attach/detach — re-parenting by

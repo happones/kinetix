@@ -1458,6 +1458,12 @@ The queued `ImportProcessor` only maps rows and counts; the per-row pipeline liv
 
 ---
 
+## 55. Search guardrails (v0.284.0)
+
+Every lookup endpoint reads its term through `Query\SearchTerm::from()` (string only, control chars → one space, ints/floats cast, trimmed, truncated to `kinetix.search.max_length`, default 100, `null` = off; never rejects) and answers `{options: [], meta: {below_min: true, min_chars: N}}` for a non-empty term under `kinetix.search.min_chars` (default 1) WITHOUT querying. Named limiters `kinetix-search` (`search.throttle` 120,1: forms.search, tags.suggest, help.search) and `kinetix-relation-picker` (`search.relation_throttle` 60,1: relations.attachable/associable) live in `KinetixThrottle::LIMITERS` (shared 429 shape, `null` = off). `Forms\SearchController` 403s carry `code: descriptor_expired|descriptor_forbidden`. Shared prop `kinetix_config.search = {min_chars, max_length}` (config only). `SelectFilter::searchScope(array)` + `searchUsing(..., ?string $modifyQueryUsing)` are sealed into the token and applied by `Forms\SearchScope` in BOTH the endpoint and `resolveSelectedOptions()` (no cross-tenant labels). Docs `docs/search.md`, skill `kinetix-search`. Tests `SearchTermTest`, `LookupThrottleTest`, `SelectSearchableTest`, `SelectFilterSearchableTest`.
+
+---
+
 ## Generators (Artisan)
 
 `kinetix:make-resource` (full CRUD: `--generate`/`--simple`/`--soft-deletes`/`--team`), `kinetix:make-action`, `make-table`, `make-form`, `make-infolist`, `make-importer`, `make-exporter`, `make-relation-manager`, `make-notification`, `kinetix:make-billing` (`--seeder`). All write to `app/Kinetix/{Type}/` (billing → `resources/js/pages/Billing/`) and accept `--force`. Built on a shared `GeneratorCommand` base.

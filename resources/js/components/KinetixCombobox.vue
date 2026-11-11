@@ -13,7 +13,7 @@ import {
     ComboboxTrigger,
     ComboboxViewport,
 } from 'reka-ui';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, useId, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
     KINETIX_SUPERSEDED,
@@ -23,7 +23,12 @@ import {
 import { kinetixOptionList } from '@/composables/kinetixOptions';
 import type { KinetixOptions } from '@/composables/kinetixOptions';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
-import type { KinetixOption, KinetixSharedProps } from '@/types/kinetix';
+import { useKinetixSearchLimits } from '@/composables/useKinetixSearchLimits';
+import type {
+    KinetixLookupMeta,
+    KinetixOption,
+    KinetixSharedProps,
+} from '@/types/kinetix';
 
 /**
  * Searchable select built on Reka Combobox. Two modes:
@@ -77,6 +82,9 @@ const open = ref(false);
 const latest = createKinetixLatest();
 const loading = latest.pending;
 const remoteError = ref<string | null>(null);
+const hintCount = ref<number | null>(null);
+const limits = useKinetixSearchLimits();
+const hintId = `kinetix-combobox-hint-${useId()}`;
 const remote = computed(() => !!props.searchToken || !!props.fetchOptions);
 
 // Values arrive as strings or numbers; the combobox compares strings.
@@ -125,31 +133,55 @@ async function fetchRemote(query: string): Promise<void> {
 
     remoteError.value = null;
 
+    // A typed term the server would refuse as too short is not sent.
+    if (props.searchToken && !props.fetchOptions && limits.isTooShort(query)) {
+        latest.cancel();
+        remoteItems.value = [];
+        hintCount.value = limits.minChars.value;
+
+        return;
+    }
+
+    hintCount.value = null;
+
     try {
         const items = await latest.run(async (signal) => {
             if (props.fetchOptions) {
-                return props.fetchOptions(query, { signal });
+                return {
+                    list: await props.fetchOptions(query, { signal }),
+                    below: null,
+                };
             }
 
             const result = await kinetixFetch<{
                 options: KinetixOptions;
+                meta?: KinetixLookupMeta;
             }>(`/${kinetixRoutePrefix(page)}/forms/search`, {
                 method: 'POST',
                 body: { token: props.searchToken, q: query },
                 signal,
             });
 
-            return toList(result?.options);
+            return {
+                list: toList(result?.options),
+                below: result?.meta?.below_min
+                    ? limits.hintCount(result.meta)
+                    : null,
+            };
         });
 
         if (items === KINETIX_SUPERSEDED) {
             return;
         }
 
-        remoteItems.value = items;
-        labelMap.value = { ...labelMap.value, ...toMap(items) };
+        hintCount.value = items.below;
+        remoteItems.value = items.list;
+        labelMap.value = { ...labelMap.value, ...toMap(items.list) };
+
+        return;
     } catch (error) {
         remoteItems.value = [];
+        hintCount.value = null;
         remoteError.value = kinetixLookupErrorMessage(
             error,
             t('kinetix.action_failed'),
@@ -188,6 +220,7 @@ watch(
         latest.cancel();
         remoteItems.value = [];
         remoteError.value = null;
+        hintCount.value = null;
     },
 );
 
@@ -252,19 +285,37 @@ const triggerClass =
                     <ComboboxInput
                         :display-value="() => ''"
                         :placeholder="t('kinetix.spotlight_placeholder')"
+                        :maxlength="limits.maxLength.value"
+                        :aria-describedby="hintId"
                         class="h-9 text-sm w-full bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
                         @input="onInput"
                     />
                 </div>
 
+                <!-- Visual hint only: the live region sits outside the
+                     listbox (a listbox may only own options). -->
+                <p
+                    v-if="hintCount !== null"
+                    aria-hidden="true"
+                    class="px-3 py-1.5 text-xs text-muted-foreground"
+                >
+                    {{ t('kinetix.search_min_chars', { count: hintCount }) }}
+                </p>
+
                 <ComboboxEmpty
                     class="py-6 text-sm text-center text-muted-foreground"
                 >
-                    <span v-if="remoteError && !loading" role="alert">
+                    <span v-if="remoteError && !loading" aria-hidden="true">
                         {{ remoteError }}
                     </span>
                     <template v-else>
-                        {{ loading ? '…' : t('kinetix.spotlight_empty') }}
+                        {{
+                            loading
+                                ? '…'
+                                : hintCount !== null
+                                  ? ''
+                                  : t('kinetix.spotlight_empty')
+                        }}
                     </template>
                 </ComboboxEmpty>
 
@@ -286,6 +337,18 @@ const triggerClass =
                     </ComboboxItem>
                 </ComboboxViewport>
             </ComboboxContent>
+
+            <!-- Announced outside the listbox; the input points at the status. -->
+            <p :id="hintId" role="status" class="sr-only">
+                <template v-if="hintCount !== null">
+                    {{ t('kinetix.search_min_chars', { count: hintCount }) }}
+                </template>
+            </p>
+            <p role="alert" class="sr-only">
+                <template v-if="remoteError && !loading">
+                    {{ remoteError }}
+                </template>
+            </p>
         </ComboboxPortal>
     </ComboboxRoot>
 </template>

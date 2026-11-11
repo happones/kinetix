@@ -109,6 +109,14 @@ class Select extends Field implements ResolvesRelationships
      */
     public function relationship(string $name, string $titleColumn = 'name', Closure|string|null $modifyQueryUsing = null): static
     {
+        if (is_string($modifyQueryUsing) && ! (class_exists($modifyQueryUsing) && method_exists($modifyQueryUsing, '__invoke'))) {
+            throw new \InvalidArgumentException(sprintf(
+                'The relationship query modifier of the "%s" field must be a Closure or the class-string of an invokable class; got "%s".',
+                $this->name,
+                $modifyQueryUsing,
+            ));
+        }
+
         $this->relationshipName        = $name;
         $this->relationshipTitleColumn = $titleColumn;
         $this->modifyRelationshipQuery = $modifyQueryUsing;

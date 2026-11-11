@@ -49,6 +49,8 @@ final class KinetixThrottle
         'kinetix-webhook-test'         => ['webhooks.test_throttle', '6,1', null],
         'kinetix-flow-simulate'        => ['flows.simulate_throttle', '10,1', null],
         'kinetix-recompute'            => ['forms.recompute_throttle', '120,1', null],
+        'kinetix-search'               => ['search.throttle', '120,1', null],
+        'kinetix-relation-picker'      => ['search.relation_throttle', '60,1', null],
         'kinetix-notification-routing' => ['notification_routing.preview_throttle', '30,1', null],
     ];
 

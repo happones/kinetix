@@ -13,6 +13,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.284.0] - 2026-11-11
+
+### Added
+
+- **Search guardrails (`kinetix.search`).** Every type-ahead lookup shares
+  one set of limits: `max_length` (100, the term is truncated, never
+  rejected), `min_chars` (1, so behavior is unchanged until you raise it),
+  `throttle` (`120,1`) and `relation_throttle` (`60,1`). Env names
+  `KINETIX_SEARCH_MAX_LENGTH`, `KINETIX_SEARCH_MIN_CHARS`,
+  `KINETIX_SEARCH_THROTTLE` and `KINETIX_RELATION_PICKER_THROTTLE`; `null`
+  turns a throttle or the length cap off. See [Search](docs/search.md).
+- **Per-user throttles on lookups.** Select and filter search, tag
+  suggestions, help search (`kinetix-search`) and the relation manager attach
+  and associate pickers (`kinetix-relation-picker`) answer the standard
+  `429` body (`{message, code: 'throttled', retry_after}`).
+- **`below_min` lookup answers.** A non-empty term shorter than `min_chars`
+  returns `{options: [], meta: {below_min: true, min_chars: N}}` without
+  querying, on the select search endpoint and the relation pickers.
+- **`kinetix_config.search`** shared prop (`{min_chars, max_length}`, no
+  queries) so inputs can cap what is typed and explain the minimum.
+- **`SelectFilter::searchScope(array)`** and an invokable class-string
+  modifier as the fifth argument of `searchUsing()`, sealed into the filter's
+  token.
+- New translation keys `search_min_chars` and `search_busy` in all locales.
+- **(published)** The `kinetix_config.search` and `KinetixLookupMeta`
+  (`below_min`, `min_chars`, `timed_out`) types in `types/kinetix.ts`, and a
+  `useKinetixSearchLimits()` composable that reads the limits (and tolerates
+  them missing).
+- **(published)** Remote pickers on Kinetix's own search endpoints
+  (searchable selects and select filters, checkbox lists with a search token,
+  the relation manager attach/associate picker) don't send a non-empty term
+  shorter than `min_chars`; they show a polite hint instead
+  (`kinetix.search_min_chars`, also when the server answers
+  `meta.below_min`). A custom `fetchOptions` source is never cut. An empty
+  term still loads the initial list. Their search inputs and the table search
+  honor `max_length` as `maxlength`.
+
+### Changed
+
+- The select search endpoint's `403` bodies gain `code:
+  descriptor_expired | descriptor_forbidden` (the message is unchanged).
+- Search terms are normalized (non-strings are empty, control characters
+  become a space, trimmed, truncated) by one shared `SearchTerm` helper in the
+  select, relation picker, spotlight, tag, help, API log, webhook log and
+  inbox searches and the table toolbar search.
+
+### Fixed
+
+- **(published)** A failed Help Center search is shown inline instead of
+  surfacing as an unhandled promise rejection.
+
+### Security
+
+- **Select filters no longer label other tenants' rows.** A searchable
+  `SelectFilter` / `MultiSelectFilter` looked up the labels of the selected
+  values without any bound, so a forged `filters[...]` value could reveal a
+  row from another team. The filter's scope and modifier now bound both the
+  search endpoint and the selected-label lookup.
+
+### Upgrade notes
+
+- Add `->searchScope([...])` to every `SelectFilter::searchUsing()` (and
+  `MultiSelectFilter`) whose model has no global tenant scope.
+- The lookups are now rate limited. End-to-end suites that fire many lookups
+  can set `KINETIX_SEARCH_THROTTLE=null` and
+  `KINETIX_RELATION_PICKER_THROTTLE=null`.
+- Re-publish the components and types (`php artisan kinetix:upgrade`, or
+  `vendor:publish --tag=kinetix-components --force` plus the types tag if you
+  publish it separately) and the translations. Re-publishing the config is
+  optional and only shows the new keys: the package merges the `search`
+  defaults on its own, and `--force` would overwrite your config.
+- `SelectFilter::searchUsing()` gained a fifth parameter,
+  `?string $modifyQueryUsing`; a subclass that overrides it must add it. A
+  modifier (here and in `Select::relationship()`) must be the class-string of
+  an invokable class or an `InvalidArgumentException` is thrown when it is
+  defined. Its `where` clauses are nested in their own group, so an
+  `orWhere` can't reach past the scope constraints; its joins and ordering
+  still apply.
+- Filter tokens minted before the deploy carry no scope and stay unscoped
+  until they expire (`kinetix.tables.token_ttl`) or the page reloads.
+- `min_chars` applies to searchable selects, select/multi-select filters,
+  checkbox lists and relation pickers. The client-side cut applies to
+  Kinetix's own search endpoint only: a custom `fetchOptions` still receives
+  every term.
+- Clients that branch on the search `403` can now read `code`.
+
 ## [0.283.1] - 2026-11-11
 
 ### Fixed

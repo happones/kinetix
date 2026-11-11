@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import {
     KINETIX_SUPERSEDED,
     createKinetixLatest,
+    kinetixLookupErrorMessage,
 } from '@/composables/kinetixLatest';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import type {
@@ -46,7 +47,7 @@ export function clearKinetixHelpCache(): void {
  */
 export function useKinetixHelp() {
     const page = usePage<KinetixSharedProps>();
-    const { locale: i18nLocale } = useI18n();
+    const { locale: i18nLocale, t } = useI18n();
 
     /** The language help content is requested in (the app's active one). */
     const locale = computed<string>(
@@ -71,6 +72,8 @@ export function useKinetixHelp() {
     const results = ref<KinetixHelpSearchResult[]>([]);
     const searchLatest = createKinetixLatest();
     const searching = searchLatest.pending;
+    /** Message of a failed search (newest request only); null otherwise. */
+    const searchError = ref<string | null>(null);
 
     /** What has been asked for, so a locale switch can replay it. */
     const loadedSlug: Ref<string | null> = ref(null);
@@ -157,24 +160,35 @@ export function useKinetixHelp() {
             // answer can't reappear after the box was cleared.
             searchLatest.cancel();
             results.value = [];
+            searchError.value = null;
 
             return;
         }
 
-        const data = await searchLatest.run((signal) =>
-            kinetixFetch<{
-                results: KinetixHelpSearchResult[];
-            }>(
-                withLocale(
-                    `${base()}/search?q=${encodeURIComponent(term)}`,
-                    locale.value,
-                ),
-                { signal },
-            ),
-        );
+        searchError.value = null;
 
-        if (data !== KINETIX_SUPERSEDED) {
-            results.value = data?.results ?? [];
+        try {
+            const data = await searchLatest.run((signal) =>
+                kinetixFetch<{
+                    results: KinetixHelpSearchResult[];
+                }>(
+                    withLocale(
+                        `${base()}/search?q=${encodeURIComponent(term)}`,
+                        locale.value,
+                    ),
+                    { signal },
+                ),
+            );
+
+            if (data !== KINETIX_SUPERSEDED) {
+                results.value = data?.results ?? [];
+            }
+        } catch (error) {
+            results.value = [];
+            searchError.value = kinetixLookupErrorMessage(
+                error,
+                t('kinetix.action_failed'),
+            );
         }
     }
 
@@ -185,6 +199,7 @@ export function useKinetixHelp() {
     watch(locale, () => {
         searchLatest.cancel();
         results.value = [];
+        searchError.value = null;
 
         if (listLoaded.value) {
             void loadArticles();
@@ -205,6 +220,7 @@ export function useKinetixHelp() {
         articleError,
         results,
         searching,
+        searchError,
         loadArticles,
         loadArticle,
         search,

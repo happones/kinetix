@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Spotlight;
 
 use Happones\Kinetix\Data\SpotlightItemData;
+use Happones\Kinetix\Query\SearchTerm;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -17,7 +18,7 @@ class SpotlightController
 {
     public function search(Request $request): JsonResponse
     {
-        $query = trim((string) $request->query('q', ''));
+        $query = SearchTerm::from($request->query('q', ''));
         $user  = $request->user();
 
         /** @var array<string, array<int, SpotlightItemData>> $grouped */

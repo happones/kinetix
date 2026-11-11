@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Tables\Filters;
 
 use Closure;
+use Happones\Kinetix\Forms\SearchScope;
 use Happones\Kinetix\Support\Contracts\HasLabel;
 use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
@@ -38,6 +39,12 @@ class SelectFilter extends Filter
 
     protected string $searchValueColumn = 'id';
 
+    /** @var array<string, mixed> */
+    protected array $searchScope = [];
+
+    /** @var class-string|null */
+    protected ?string $searchModifier = null;
+
     public function searchable(bool|Closure $condition = true): static
     {
         $this->searchable = $condition;
@@ -50,14 +57,44 @@ class SelectFilter extends Filter
      *
      * @param class-string<Model> $model
      * @param array<int, string>  $searchColumns
+     * @param class-string|null   $modifyQueryUsing an invokable class receiving the query builder; a
+     *                                              class-string because the descriptor round-trips
+     *                                              through the browser (never a closure)
      */
-    public function searchUsing(string $model, string $labelColumn = 'name', array $searchColumns = ['name'], string $valueColumn = 'id'): static
+    public function searchUsing(string $model, string $labelColumn = 'name', array $searchColumns = ['name'], string $valueColumn = 'id', ?string $modifyQueryUsing = null): static
     {
+        if ($modifyQueryUsing !== null && ! (class_exists($modifyQueryUsing) && method_exists($modifyQueryUsing, '__invoke'))) {
+            throw new \InvalidArgumentException(sprintf(
+                'The search modifier of the "%s" filter must be the class-string of an invokable class; got "%s".',
+                $this->name,
+                $modifyQueryUsing,
+            ));
+        }
+
+        $this->searchModifier    = $modifyQueryUsing;
         $this->searchModel       = $model;
         $this->searchLabelColumn = $labelColumn;
         $this->searchColumns     = $searchColumns;
         $this->searchValueColumn = $valueColumn;
         $this->searchable        = true;
+
+        return $this;
+    }
+
+    /**
+     * Bound which records the remote search and the selected-label lookup may
+     * return, sealed into the filter's token. Without it the model's rows are
+     * only as private as its global scopes, so name the tenant key here:
+     *
+     *     SelectFilter::make('project_id')
+     *         ->searchUsing(Project::class)
+     *         ->searchScope(['team_id' => $team->getKey()])
+     *
+     * @param array<string, mixed> $constraints column => value (null = whereNull)
+     */
+    public function searchScope(array $constraints): static
+    {
+        $this->searchScope = $constraints;
 
         return $this;
     }
@@ -169,7 +206,7 @@ class SelectFilter extends Filter
 
         $values = is_array($selectedValue) ? $selectedValue : [$selectedValue];
 
-        $rows = $this->searchModel::query()
+        $rows = SearchScope::apply($this->searchModel::query(), $this->searchScope, $this->searchModifier)
             ->whereIn($this->searchValueColumn, $values)
             ->get();
 
@@ -244,10 +281,12 @@ class SelectFilter extends Filter
 
         if ($this->searchModel !== null) {
             $data['searchToken'] = SignedDescriptor::seal([
-                'model'   => $this->searchModel,
-                'label'   => $this->searchLabelColumn,
-                'columns' => $this->searchColumns,
-                'value'   => $this->searchValueColumn,
+                'model'    => $this->searchModel,
+                'label'    => $this->searchLabelColumn,
+                'columns'  => $this->searchColumns,
+                'value'    => $this->searchValueColumn,
+                'scope'    => $this->searchScope,
+                'modifier' => $this->searchModifier,
             ], DescriptorAudience::Search);
         }
 

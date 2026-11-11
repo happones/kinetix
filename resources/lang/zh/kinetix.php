@@ -931,6 +931,8 @@ return [
     'search_invalid_model'          => '搜索模型无效。',
     'search_forbidden'              => '此搜索未获授权。',
     'search_expired'                => '搜索会话已过期，请重新加载页面。',
+    'search_min_chars'              => '请至少输入 {count} 个字符进行搜索。',
+    'search_busy'                   => '搜索繁忙，请稍后再试。',
 
     // Reports center, repeater rows and permission guardrails
     'repeater_row_not_found'                => '未找到该行。',

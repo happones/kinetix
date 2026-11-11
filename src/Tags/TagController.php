@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tags;
 
+use Happones\Kinetix\Query\SearchTerm;
 use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\RecordReference;
@@ -38,7 +39,7 @@ class TagController
 
         return response()->json([
             'tags' => $this->manager->suggest(
-                (string) $request->query('q', ''),
+                SearchTerm::from($request->query('q', '')),
                 $this->teamId($request),
             ),
         ]);

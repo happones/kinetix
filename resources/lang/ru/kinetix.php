@@ -931,6 +931,8 @@ return [
     'search_invalid_model'          => 'Недействительная модель поиска.',
     'search_forbidden'              => 'Этот поиск не разрешён.',
     'search_expired'                => 'Сессия поиска истекла. Обновите страницу.',
+    'search_min_chars'              => 'Введите не менее {count} символов для поиска.',
+    'search_busy'                   => 'Поиск занят. Повторите попытку через мгновение.',
 
     // Reports center, repeater rows and permission guardrails
     'repeater_row_not_found'                => 'Строка не найдена.',

@@ -1022,6 +1022,8 @@ return [
     'search_invalid_model'          => 'Invalid search model.',
     'search_forbidden'              => 'This search is unauthorized.',
     'search_expired'                => 'This search session expired. Please reload the page.',
+    'search_min_chars'              => 'Type at least {count} characters to search.',
+    'search_busy'                   => 'The search is busy. Try again in a moment.',
 
     // Reports center, repeater rows and permission guardrails
     'repeater_row_not_found'                => 'Row not found.',

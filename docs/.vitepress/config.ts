@@ -90,6 +90,7 @@ export default withMermaid(
           { text: "Kanban", link: "/kanban" },
           { text: "Calendar", link: "/calendar" },
           { text: "Forms", link: "/forms" },
+          { text: "Search", link: "/search" },
           { text: "Media Library", link: "/media-library" },
           { text: "Lightbox", link: "/lightbox" },
           { text: "Table Repeater", link: "/table-repeater" },

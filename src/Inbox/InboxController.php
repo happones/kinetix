@@ -8,6 +8,7 @@ use Happones\Kinetix\Channels\Channel;
 use Happones\Kinetix\Data\ConversationData;
 use Happones\Kinetix\Data\ConversationMessageData;
 use Happones\Kinetix\Query\KinetixQuery;
+use Happones\Kinetix\Query\SearchTerm;
 use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -278,7 +279,7 @@ class InboxController
      */
     protected function search(Builder $query, string $search): void
     {
-        $search = trim($search);
+        $search = SearchTerm::from($search);
 
         if ($search === '') {
             return;

@@ -312,4 +312,28 @@ describe('KinetixHelpCenter', () => {
         expect(w.text()).not.toContain('Ghost hit');
         vi.useRealTimers();
     });
+
+    it('shows a genuine search failure inline instead of rejecting unhandled', async () => {
+        vi.useFakeTimers();
+        const w = mountCenter();
+        await vi.advanceTimersByTimeAsync(0);
+
+        fetchMock.mockRejectedValueOnce(
+            Object.assign(new Error('Too many searches.'), { status: 429 }),
+        );
+
+        await w.get('input').setValue('drag');
+        await w.get('input').trigger('input');
+        await vi.advanceTimersByTimeAsync(300);
+
+        expect(w.get('[role="alert"]').text()).toBe('Too many searches.');
+
+        fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+        await w.get('input').setValue('drags');
+        await w.get('input').trigger('input');
+        await vi.advanceTimersByTimeAsync(300);
+
+        expect(w.get('[role="alert"]').text()).toBe('kinetix.action_failed');
+        vi.useRealTimers();
+    });
 });

@@ -158,6 +158,7 @@ use Happones\Kinetix\Permissions\PermissionRegistry;
 use Happones\Kinetix\Permissions\SuperAdmin;
 use Happones\Kinetix\Permissions\TeamOwner;
 use Happones\Kinetix\Presence\PresenceManager;
+use Happones\Kinetix\Query\SearchTerm;
 use Happones\Kinetix\Queue\QueueController;
 use Happones\Kinetix\Queue\QueueMetrics;
 use Happones\Kinetix\Reports\ReportRegistry;
@@ -1486,6 +1487,7 @@ class KinetixServiceProvider extends ServiceProvider
                         ->name('kinetix.help.index');
 
                     Route::get('search', [HelpController::class, 'search'])
+                        ->middleware(KinetixThrottle::middleware('kinetix-search'))
                         ->name('kinetix.help.search');
 
                     Route::get('article/{slug}', [HelpController::class, 'show'])
@@ -2222,7 +2224,7 @@ class KinetixServiceProvider extends ServiceProvider
                 ->prefix("{$prefix}/tags")
                 ->group(function () {
                     Route::get('/', [TagController::class, 'index'])->name('kinetix.tags.index');
-                    Route::get('suggest', [TagController::class, 'suggest'])->name('kinetix.tags.suggest');
+                    Route::get('suggest', [TagController::class, 'suggest'])->middleware(KinetixThrottle::middleware('kinetix-search'))->name('kinetix.tags.suggest');
                     Route::post('sync', [TagController::class, 'sync'])->name('kinetix.tags.sync');
                 });
         });
@@ -2700,6 +2702,13 @@ class KinetixServiceProvider extends ServiceProvider
                 // `lightbox` prop wins).
                 'lightbox' => [
                     'markdown' => (bool) config('kinetix.lightbox.markdown', true),
+                ],
+                // The search guardrails the inputs mirror: the typed term is
+                // capped client-side too (null = uncapped). Config only, no
+                // queries.
+                'search' => [
+                    'min_chars'  => SearchTerm::minChars(),
+                    'max_length' => SearchTerm::maxLength(),
                 ],
                 // The palette's own gate has to agree with the endpoint's, or
                 // it fires requests the server answers with an empty payload.
@@ -3355,10 +3364,10 @@ class KinetixServiceProvider extends ServiceProvider
 
                 // Relation manager BelongsToMany attach/detach, guarded by the
                 // manager's signed descriptor + the parent's `update` policy.
-                Route::post('relations/attachable', [RelationManagerController::class, 'attachable'])->name('kinetix.relations.attachable');
+                Route::post('relations/attachable', [RelationManagerController::class, 'attachable'])->middleware(KinetixThrottle::middleware('kinetix-relation-picker'))->name('kinetix.relations.attachable');
                 Route::post('relations/attach', [RelationManagerController::class, 'attach'])->name('kinetix.relations.attach');
                 Route::post('relations/detach', [RelationManagerController::class, 'detach'])->name('kinetix.relations.detach');
-                Route::post('relations/associable', [RelationManagerController::class, 'associable'])->name('kinetix.relations.associable');
+                Route::post('relations/associable', [RelationManagerController::class, 'associable'])->middleware(KinetixThrottle::middleware('kinetix-relation-picker'))->name('kinetix.relations.associable');
                 Route::post('relations/associate', [RelationManagerController::class, 'associate'])->name('kinetix.relations.associate');
                 Route::post('relations/dissociate', [RelationManagerController::class, 'dissociate'])->name('kinetix.relations.dissociate');
 
@@ -3437,6 +3446,7 @@ class KinetixServiceProvider extends ServiceProvider
             ->prefix("{$prefix}/forms")
             ->group(function () {
                 Route::post('search', SearchController::class)
+                    ->middleware(KinetixThrottle::middleware('kinetix-search'))
                     ->name('kinetix.forms.search');
 
                 // States / cities for an AddressPicker in locations mode. GET

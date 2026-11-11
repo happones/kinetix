@@ -882,6 +882,12 @@ Select::make('project_id')
 invokable query-modifier class shown above.
 :::
 
+::: tip Search limits
+The remote search caps the term (`kinetix.search.max_length`), can require a
+minimum length (`kinetix.search.min_chars`) and is throttled per user. A
+rejected token answers a `code` the client can act on. See [Search](/search).
+:::
+
 ---
 
 ### 3. `Checkbox`

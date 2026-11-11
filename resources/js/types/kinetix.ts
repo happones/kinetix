@@ -149,6 +149,12 @@ export interface KinetixConfig {
      */
     spotlight?: { min_chars: number; enabled?: boolean };
     /**
+     * Limits the lookup endpoints enforce, so inputs can agree with them:
+     * `max_length` caps a typed term (null = uncapped), `min_chars` is the
+     * shortest non-empty term answered.
+     */
+    search?: { min_chars: number; max_length: number | null };
+    /**
      * Whether the bell listens over Echo: on when
      * `kinetix.notifications.broadcast` is on, `kinetix.broadcasting.echo` is
      * filled, or `broadcasting.default` is a real driver (not `null`/`log`).
@@ -1755,6 +1761,17 @@ export interface KinetixImportOptions {
     hasHeader: boolean;
     /** What to do with existing records (sent on start only) */
     mode?: KinetixImportModeValue | null;
+}
+
+/**
+ * Optional `meta` on a lookup response (forms search, relation picker):
+ * `below_min` = the term was shorter than `min_chars` and nothing was searched,
+ * `timed_out` = the query hit the server's time budget.
+ */
+export interface KinetixLookupMeta {
+    below_min?: boolean;
+    min_chars?: number;
+    timed_out?: boolean;
 }
 
 /** One choice of a select or combobox; a list of these keeps its order. */

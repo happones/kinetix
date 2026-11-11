@@ -263,6 +263,24 @@ class RelationAttachDetachTest extends TestCase
         $this->assertSame(['vue'], $filtered);
     }
 
+    public function test_a_picker_term_below_the_minimum_answers_a_hint_without_querying(): void
+    {
+        config()->set('kinetix.search.min_chars', 3);
+        $user    = RmaUser::create([]);
+        $project = RmaProject::create(['name' => 'Kinetix']);
+        RmaTag::create(['name' => 'vue']);
+
+        $descriptor = $this->descriptorFor($project, $user);
+
+        $this->postJson(route('kinetix.relations.attachable'), ['descriptor' => $descriptor, 'search' => 'vu'])
+            ->assertOk()
+            ->assertExactJson(['options' => [], 'meta' => ['below_min' => true, 'min_chars' => 3]]);
+
+        $this->postJson(route('kinetix.relations.attachable'), ['descriptor' => $descriptor, 'search' => 'vue'])
+            ->assertOk()
+            ->assertJsonPath('options.0.label', 'vue');
+    }
+
     public function test_attachable_excludes_attached_records_through_a_pivot_subquery(): void
     {
         $user    = RmaUser::create([]);

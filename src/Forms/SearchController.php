@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Forms;
 
 use Happones\Kinetix\Query\KinetixQuery;
-use Happones\Kinetix\Support\ConfigCallback;
+use Happones\Kinetix\Query\SearchTerm;
 use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\DescriptorRejection;
 use Happones\Kinetix\Support\OptionList;
@@ -43,10 +43,11 @@ class SearchController
         $rejection = SignedDescriptor::rejection($descriptor, $request, DescriptorAudience::Search);
 
         if ($rejection !== null) {
+            $expired = $rejection === DescriptorRejection::Expired;
+
             return response()->json([
-                'message' => $rejection === DescriptorRejection::Expired
-                    ? __('kinetix.search_expired')
-                    : __('kinetix.search_forbidden'),
+                'message' => $expired ? __('kinetix.search_expired') : __('kinetix.search_forbidden'),
+                'code'    => $expired ? 'descriptor_expired' : 'descriptor_forbidden',
             ], 403);
         }
 
@@ -54,33 +55,20 @@ class SearchController
         $valueColumn   = (string) ($descriptor['value'] ?? 'id');
         $searchColumns = is_array($descriptor['columns'] ?? null) ? $descriptor['columns'] : [$labelColumn];
 
-        $query = (string) $request->input('q', '');
+        $query = SearchTerm::from($request->input('q', ''));
 
-        $builder = $model::query();
-
-        // The field's searchScope() bounds which records can come back, so a
-        // searchable Select doesn't hand out other tenants' labels.
-        $scope = is_array($descriptor['scope'] ?? null) ? $descriptor['scope'] : [];
-
-        foreach ($scope as $column => $value) {
-            if (! is_string($column)) {
-                continue;
-            }
-
-            $value === null
-                ? $builder->whereNull($column)
-                : $builder->where($column, $value);
+        if (SearchTerm::isBelowMinimum($query)) {
+            return response()->json([
+                'options' => [],
+                'meta'    => ['below_min' => true, 'min_chars' => SearchTerm::minChars()],
+            ]);
         }
 
-        // A searchable `relationship()` can carry a query modifier, but only as
-        // an invokable class-string: the descriptor round-trips through the
-        // browser, so it must be serializable, and it is resolved back to an
-        // object here rather than trusted as arbitrary input.
-        $modifier = ConfigCallback::resolve($descriptor['modifier'] ?? null);
-
-        if ($modifier !== null) {
-            $modifier($builder);
-        }
+        $builder = SearchScope::apply(
+            $model::query(),
+            is_array($descriptor['scope'] ?? null) ? $descriptor['scope'] : [],
+            $descriptor['modifier'] ?? null,
+        );
 
         $rows = $builder
             ->when($query !== '', fn ($b) => KinetixQuery::search($b, $query, $searchColumns))
