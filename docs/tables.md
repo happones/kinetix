@@ -1028,6 +1028,7 @@ Table-level methods control refresh, pagination, and row behavior:
 - `cursorPaginated(bool $cursor = true)`: Seek-based pagination — no `OFFSET`, constant cost at any depth. See [Deep pagination](#deep-pagination-—-cursorpaginated).
 - `defaultPaginationPageOption(int $perPage)`: Sets the initial page size (default `10`).
 - `recordUrl(?Closure $callback, bool $shouldOpenInNewTab = false)`, `openRecordUrlInNewTab()`, `recordAction(string|Closure|null $action)`, `clickableRows(bool $condition = true)`: What a click on the row does. Left alone, a row opens its record through its own `view` / `edit` action. See [Clickable rows](#clickable-rows).
+- `searchMinLength(int $length)`: The fewest characters the toolbar search needs before it reloads the table (default `0`, every keystroke). Clearing the box always reloads, and a request with a shorter `search` is still answered. See [Search](/search#table-search-minimum).
 - `toolbarLayout(string $layout)`: Toolbar arrangement. The default `'auto'`
   adapts to the **table's own width** (container queries): narrow tables stack
   heading → full-width search → a wrapping row of controls (views / actions /

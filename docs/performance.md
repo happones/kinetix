@@ -373,6 +373,14 @@ activity, billing, the owner bypass, feature flags and the team switcher. Use
 changing a membership yourself in the middle of a request, call
 `KinetixTeams::forgetCurrentTeam()`.
 
+### Lookups under load
+
+Type-ahead endpoints are the cheapest way to overload a database by accident.
+Besides the throttles, `kinetix.search.concurrency` caps how many lookups one
+user keeps in flight (Redis recommended), `kinetix.search.timeout` gives
+their queries a time budget on MySQL, MariaDB and PostgreSQL, and the browser
+reuses recent answers (`kinetix.search.client`). See [Search](/search).
+
 ### Cached routes
 
 When routes are cached (`php artisan route:cache`, or `optimize`), Kinetix

@@ -151,9 +151,17 @@ export interface KinetixConfig {
     /**
      * Limits the lookup endpoints enforce, so inputs can agree with them:
      * `max_length` caps a typed term (null = uncapped), `min_chars` is the
-     * shortest non-empty term answered.
+     * shortest non-empty term answered. `debounce` is the quiet typing time
+     * (ms) before a lookup, `cache_ttl` (seconds) and `cache_entries` size the
+     * client-side answer cache (0 = off). Absent on older servers.
      */
-    search?: { min_chars: number; max_length: number | null };
+    search?: {
+        min_chars: number;
+        max_length: number | null;
+        debounce?: number;
+        cache_ttl?: number;
+        cache_entries?: number;
+    };
     /**
      * Whether the bell listens over Echo: on when
      * `kinetix.notifications.broadcast` is on, `kinetix.broadcasting.echo` is
@@ -1766,7 +1774,10 @@ export interface KinetixImportOptions {
 /**
  * Optional `meta` on a lookup response (forms search, relation picker):
  * `below_min` = the term was shorter than `min_chars` and nothing was searched,
- * `timed_out` = the query hit the server's time budget.
+ * `timed_out` = the query hit the server's time budget (the options are
+ * empty and the answer is not worth keeping). A lookup 429 carries
+ * `code: 'throttled'` (rate limit) or `code: 'busy'` (concurrency slot) and a
+ * `retry_after` in seconds; both mean "try again shortly".
  */
 export interface KinetixLookupMeta {
     below_min?: boolean;
@@ -1988,6 +1999,12 @@ export interface KinetixTableData {
      *  kinetix.tables.aggregates via `aggregatesDescriptor`. */
     deferStats?: boolean;
     aggregatesDescriptor?: string | null;
+    /**
+     * Fewest characters before the toolbar search reloads the table
+     * (`Table::searchMinLength()`); 0 = every keystroke. Clearing the box
+     * always reloads.
+     */
+    searchMinLength?: number;
 }
 
 /** One row-grouping definition (Table::groups()). */

@@ -64,7 +64,17 @@ class SearchTermTest extends TestCase
 
         $props = $this->sharedConfig();
 
-        $this->assertSame(['min_chars' => 2, 'max_length' => 100], $props['search']);
+        $this->assertSame(
+            ['min_chars' => 2, 'max_length' => 100, 'debounce' => 250, 'cache_ttl' => 30, 'cache_entries' => 100],
+            $props['search'],
+        );
+
+        config()->set('kinetix.search.client', ['debounce' => 400, 'cache_ttl' => 0, 'cache_entries' => 'x']);
+        $this->assertSame(
+            ['debounce' => 400, 'cache_ttl' => 0, 'cache_entries' => 100],
+            SearchTerm::clientSettings(),
+        );
+        config()->set('kinetix.search.client', null);
 
         config()->set('kinetix.search.max_length', null);
         $this->assertNull($this->sharedConfig()['search']['max_length']);

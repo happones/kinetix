@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
+import { Loader2 } from '@lucide/vue';
 import { computed, onBeforeUnmount, ref, useId, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import {
-    KINETIX_SUPERSEDED,
-    createKinetixLatest,
-    kinetixLookupErrorMessage,
-} from '@/composables/kinetixLatest';
 import { kinetixOptionList } from '@/composables/kinetixOptions';
 import type { KinetixOptions } from '@/composables/kinetixOptions';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
+import {
+    useKinetixSearch,
+    useKinetixSearchAnnouncer,
+} from '@/composables/useKinetixSearch';
 import { useKinetixSearchLimits } from '@/composables/useKinetixSearchLimits';
 import type {
     KinetixLookupMeta,
@@ -49,15 +49,61 @@ const page = usePage<KinetixSharedProps>();
 const { t } = useI18n();
 
 const searchQuery = ref('');
-const latest = createKinetixLatest();
-const loading = latest.pending;
-const remoteError = ref<string | null>(null);
-const hintCount = ref<number | null>(null);
 const limits = useKinetixSearchLimits();
 const hintId = `kinetix-checkbox-list-hint-${useId()}`;
 const remote = computed(() => !!props.searchToken);
 
-const remoteItems = ref<KinetixOption[]>([]);
+const search = useKinetixSearch<KinetixOption[]>({
+    fetcher: async (query, { signal }) => {
+        const result = await kinetixFetch<{
+            options: KinetixOptions;
+            meta?: KinetixLookupMeta;
+        }>(`/${kinetixRoutePrefix(page)}/forms/search`, {
+            method: 'POST',
+            body: { token: props.searchToken, q: query },
+            signal,
+        });
+
+        return {
+            value: kinetixOptionList(result?.options),
+            meta: result?.meta,
+        };
+    },
+    minChars: () => limits.minChars.value,
+    // Route prefix (team segment) + endpoint + signed token: never across teams.
+    cacheKey: () =>
+        props.searchToken
+            ? `${kinetixRoutePrefix(page)}:forms.search:${props.searchToken}`
+            : null,
+    onSettled: useKinetixSearchAnnouncer<KinetixOption[]>({
+        count: (list) => list.length,
+        tooShort: false,
+    }),
+});
+
+const loading = search.loading;
+const remoteItems = computed<KinetixOption[]>(() => search.results.value ?? []);
+const hintCount = computed<number | null>(() =>
+    search.status.value === 'tooShort'
+        ? limits.hintCount(search.meta.value)
+        : null,
+);
+// A throttle that is out of retries is a failure the user has to hear about.
+const remoteError = computed<string | null>(() =>
+    search.status.value === 'error' ||
+    search.status.value === 'expired' ||
+    (search.status.value === 'throttled' && !search.retrying.value)
+        ? (search.message.value ?? t('kinetix.action_failed'))
+        : null,
+);
+const statusNote = computed<string | null>(() =>
+    search.status.value === 'throttled' && search.retrying.value
+        ? t('kinetix.search_throttled_retrying')
+        : search.status.value === 'timedOut'
+          ? t('kinetix.search_timed_out')
+          : null,
+);
+
 const labelMap = ref<Record<string, string>>({});
 
 const remember = (list: KinetixOption[]): void => {
@@ -70,6 +116,7 @@ const remember = (list: KinetixOption[]): void => {
 const localItems = computed(() => kinetixOptionList(props.options));
 
 watch(localItems, remember, { immediate: true });
+watch(remoteItems, remember);
 
 const baseItems = computed<KinetixOption[]>(() =>
     remote.value ? remoteItems.value : localItems.value,
@@ -115,60 +162,7 @@ const itemsToRender = computed<Array<{ value: string; label: string }>>(() => {
     return list;
 });
 
-let debounce: ReturnType<typeof setTimeout> | undefined;
-onBeforeUnmount(() => {
-    clearTimeout(debounce);
-    latest.cancel();
-});
-
-async function fetchRemote(query: string): Promise<void> {
-    if (!props.searchToken) {
-        return;
-    }
-
-    remoteError.value = null;
-
-    // A typed term the server would refuse as too short is not sent.
-    if (limits.isTooShort(query)) {
-        latest.cancel();
-        remoteItems.value = [];
-        hintCount.value = limits.minChars.value;
-
-        return;
-    }
-
-    hintCount.value = null;
-
-    try {
-        const result = await latest.run((signal) =>
-            kinetixFetch<{ options: KinetixOptions; meta?: KinetixLookupMeta }>(
-                `/${kinetixRoutePrefix(page)}/forms/search`,
-                {
-                    method: 'POST',
-                    body: { token: props.searchToken, q: query },
-                    signal,
-                },
-            ),
-        );
-
-        if (result === KINETIX_SUPERSEDED) {
-            return;
-        }
-
-        hintCount.value = result?.meta?.below_min
-            ? limits.hintCount(result.meta)
-            : null;
-        remoteItems.value = kinetixOptionList(result?.options);
-        remember(remoteItems.value);
-    } catch (error) {
-        remoteItems.value = [];
-        hintCount.value = null;
-        remoteError.value = kinetixLookupErrorMessage(
-            error,
-            t('kinetix.action_failed'),
-        );
-    }
-}
+onBeforeUnmount(() => search.cancel());
 
 function onSearchInput(event: Event): void {
     const query = (event.target as HTMLInputElement).value;
@@ -178,8 +172,7 @@ function onSearchInput(event: Event): void {
         return;
     }
 
-    clearTimeout(debounce);
-    debounce = setTimeout(() => fetchRemote(query), 250);
+    void search.search(query);
 }
 
 // Initial fetch for remote items
@@ -187,7 +180,8 @@ watch(
     remote,
     (isRemote) => {
         if (isRemote && remoteItems.value.length === 0) {
-            fetchRemote('');
+            // The first page loads with the list: nothing to announce.
+            void search.search('', { immediate: true, silent: true });
         }
     },
     { immediate: true },
@@ -256,8 +250,12 @@ function toggleValue(val: string, checked: boolean): void {
             />
             <span
                 v-if="loading"
-                class="right-2.5 animate-pulse absolute top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground"
+                class="right-2.5 gap-1 absolute top-1/2 flex -translate-y-1/2 items-center text-[10px] text-muted-foreground"
             >
+                <Loader2
+                    aria-hidden="true"
+                    class="size-3 animate-spin motion-reduce:animate-none"
+                />
                 {{ t('kinetix.checkbox_list_loading') }}
             </span>
         </div>
@@ -273,6 +271,15 @@ function toggleValue(val: string, checked: boolean): void {
             <template v-if="hintCount !== null">
                 {{ t('kinetix.search_min_chars', { count: hintCount }) }}
             </template>
+        </p>
+
+        <!-- Visual only: the announcer tells screen readers. -->
+        <p
+            v-if="statusNote"
+            aria-hidden="true"
+            class="text-xs text-muted-foreground"
+        >
+            {{ statusNote }}
         </p>
 
         <p
@@ -307,6 +314,7 @@ function toggleValue(val: string, checked: boolean): void {
         <!-- Checkbox list items -->
         <div
             class="gap-1.5 flex"
+            :aria-busy="loading"
             :class="
                 inline
                     ? 'gap-4 flex-wrap items-center'

@@ -1,7 +1,8 @@
 import { router, usePage } from '@inertiajs/vue3';
-import { computed, getCurrentScope, onScopeDispose, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { Ref } from 'vue';
-import { isKinetixAbort, kinetixFetch } from '@/composables/useKinetixHttp';
+import { kinetixFetch } from '@/composables/useKinetixHttp';
+import { useKinetixSearch } from '@/composables/useKinetixSearch';
 import type {
     KinetixSharedProps,
     KinetixTeamOption,
@@ -182,96 +183,98 @@ export function useKinetixTeamSearch(
     const searching = ref(false);
     const error = ref<string | null>(null);
 
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let controller: AbortController | null = null;
+    const link = (url: string, term: string): string =>
+        `${url}${url.includes('?') ? '&' : '?'}q=${encodeURIComponent(term)}`;
 
-    function cancel(): void {
-        if (timer !== null) {
-            clearTimeout(timer);
-            timer = null;
-        }
+    const searcher = useKinetixSearch<KinetixTeamSearchResult | null>({
+        fetcher: async (term, { signal }) => {
+            const url = options.url();
 
-        controller?.abort();
-        controller = null;
-    }
+            return {
+                value: url
+                    ? await kinetixFetch<KinetixTeamSearchResult>(
+                          link(url, term),
+                          { signal },
+                      )
+                    : null,
+            };
+        },
+        debounce: options.debounce,
+        maxLength: 100,
+        // The endpoint's own URL carries the team: answers never cross teams.
+        cacheKey: () => {
+            const url = options.url();
 
-    async function run(term: string): Promise<void> {
-        const url = options.url();
+            return url ? `teams.search:${url}` : null;
+        },
+        // Every failure (a throttle too) is shown as it is, not retried.
+        retryOnThrottle: false,
+        onSettled: (state) => {
+            if (state.status === 'success') {
+                const currentId = options.currentId();
 
-        if (!url) {
-            return;
-        }
+                results.value = (state.results?.teams ?? []).map((team) => ({
+                    ...team,
+                    current: currentId != null && team.id === currentId,
+                }));
+                moreResults.value = state.results?.truncated === true;
+                error.value = null;
+                options.onResults?.(results.value.length);
 
-        controller?.abort();
-        const mine = new AbortController();
-        controller = mine;
-        searching.value = true;
+                return;
+            }
 
-        try {
-            const data = await kinetixFetch<KinetixTeamSearchResult>(
-                `${url}${url.includes('?') ? '&' : '?'}q=${encodeURIComponent(term)}`,
-                { signal: mine.signal },
-            );
-            const currentId = options.currentId();
-
-            results.value = (data?.teams ?? []).map((team) => ({
-                ...team,
-                current: currentId != null && team.id === currentId,
-            }));
-            moreResults.value = data?.truncated === true;
-            error.value = null;
-            options.onResults?.(results.value.length);
-        } catch (e) {
-            if (isKinetixAbort(e)) {
+            if (state.status === 'idle') {
                 return;
             }
 
             results.value = [];
             moreResults.value = false;
-            error.value = e instanceof Error && e.message ? e.message : null;
+            error.value = state.message;
 
             if (error.value !== null) {
                 options.onError?.(error.value);
             }
-        } finally {
-            if (controller === mine) {
-                controller = null;
-                searching.value = false;
-            }
-        }
+        },
+    });
+
+    watch(
+        searcher.loading,
+        (loading) => {
+            searching.value = loading;
+        },
+        { flush: 'sync' },
+    );
+
+    function clear(): void {
+        results.value = null;
+        moreResults.value = false;
+        error.value = null;
     }
 
     watch(query, (value) => {
-        cancel();
-
         const term = value.trim();
 
         if (term === '') {
-            results.value = null;
-            moreResults.value = false;
-            error.value = null;
-            searching.value = false;
+            searcher.reset();
+            clear();
 
             return;
         }
 
-        timer = setTimeout(() => {
-            timer = null;
-            void run(term.slice(0, 100));
-        }, options.debounce ?? 250);
+        if (!options.url()) {
+            searcher.cancel();
+
+            return;
+        }
+
+        void searcher.search(term);
     });
 
     function reset(): void {
-        cancel();
+        searcher.reset();
         query.value = '';
-        results.value = null;
-        moreResults.value = false;
-        error.value = null;
-        searching.value = false;
-    }
-
-    if (getCurrentScope()) {
-        onScopeDispose(cancel);
+        clear();
     }
 
     return { query, results, moreResults, searching, error, reset };

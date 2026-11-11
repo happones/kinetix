@@ -1,14 +1,18 @@
 <script setup lang="ts">
+import { usePage } from '@inertiajs/vue3';
 import { X } from '@lucide/vue';
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
+import { clearKinetixSearchCache } from '@/composables/kinetixSearchCache';
+import { kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import {
-    KINETIX_SUPERSEDED,
-    createKinetixLatest,
-} from '@/composables/kinetixLatest';
+    useKinetixSearch,
+    useKinetixSearchAnnouncer,
+} from '@/composables/useKinetixSearch';
 import { tagRemoveButtonClass } from '@/composables/useKinetixShadcnVariants';
 import { useKinetixTags } from '@/composables/useKinetixTags';
+import type { KinetixSharedProps } from '@/types/kinetix';
 
 /**
  * Drop-in polymorphic tag editor for a taggable model. Shows the current tags as
@@ -44,43 +48,52 @@ onMounted(async () => {
     }
 });
 
+const page = usePage<KinetixSharedProps>();
 const input = ref('');
-const suggestions = ref<string[]>([]);
 const open = ref(false);
-let debounce: ReturnType<typeof setTimeout> | undefined;
 
-const suggestLatest = createKinetixLatest();
+// Suggestions are filed under the route prefix (team segment) and the target;
+// a sync can create a tag, so it drops them.
+const suggestNamespace = (): string =>
+    `${kinetixRoutePrefix(page)}:tags.suggest`;
 
-onBeforeUnmount(() => {
-    clearTimeout(debounce);
-    suggestLatest.cancel();
+const searcher = useKinetixSearch<string[]>({
+    fetcher: async (query, { signal }) => ({
+        value: await suggest(query, { signal }),
+    }),
+    cacheKey: () =>
+        `${suggestNamespace()}:${props.reference ?? `${props.taggableType}:${props.taggableId}`}`,
+    onSettled: useKinetixSearchAnnouncer<string[]>({
+        count: (list) => list.length,
+    }),
 });
 
+// Autocomplete is a convenience: a failed lookup just offers nothing.
+const suggestions = computed<string[]>(() =>
+    (searcher.results.value ?? []).filter((s) => !tags.value.includes(s)),
+);
+
+watch(searcher.results, () => {
+    open.value = suggestions.value.length > 0;
+});
+
+onBeforeUnmount(() => searcher.cancel());
+
+function closeSuggestions(): void {
+    searcher.reset();
+    open.value = false;
+}
+
 function onInput(): void {
-    clearTimeout(debounce);
     const q = input.value.trim();
 
     if (q === '') {
-        suggestLatest.cancel();
-        suggestions.value = [];
-        open.value = false;
+        closeSuggestions();
 
         return;
     }
 
-    debounce = setTimeout(async () => {
-        // Autocomplete is a convenience: a failed lookup just offers nothing.
-        const found = await suggestLatest
-            .run((signal) => suggest(q, { signal }))
-            .catch(() => [] as string[]);
-
-        if (found === KINETIX_SUPERSEDED) {
-            return;
-        }
-
-        suggestions.value = found.filter((s) => !tags.value.includes(s));
-        open.value = suggestions.value.length > 0;
-    }, 200);
+    void searcher.search(q);
 }
 
 async function add(name: string): Promise<void> {
@@ -93,12 +106,11 @@ async function add(name: string): Promise<void> {
     }
 
     input.value = '';
-    suggestLatest.cancel();
-    suggestions.value = [];
-    open.value = false;
+    closeSuggestions();
 
     try {
         await sync([...tags.value, value]);
+        clearKinetixSearchCache(suggestNamespace());
     } catch (e) {
         // Not saved: hand the typed tag back so it isn't lost.
         input.value = value;
@@ -111,6 +123,7 @@ async function removeAt(index: number): Promise<void> {
 
     try {
         await sync(next);
+        clearKinetixSearchCache(suggestNamespace());
     } catch (e) {
         refused(e, 'kinetix.save_failed');
     }
@@ -159,6 +172,7 @@ function onBackspace(): void {
         <ul
             v-if="open"
             class="mt-1 max-h-48 p-1 shadow-md absolute z-50 w-full overflow-y-auto rounded-md border border-border bg-popover"
+            :aria-busy="searcher.loading.value"
         >
             <li
                 v-for="s in suggestions"

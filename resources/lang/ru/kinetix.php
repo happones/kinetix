@@ -933,6 +933,9 @@ return [
     'search_expired'                => 'Сессия поиска истекла. Обновите страницу.',
     'search_min_chars'              => 'Введите не менее {count} символов для поиска.',
     'search_busy'                   => 'Поиск занят. Повторите попытку через мгновение.',
+    'search_results_count'          => 'Результатов: {count}',
+    'search_throttled_retrying'     => 'Повторный поиск через мгновение...',
+    'search_timed_out'              => 'Поиск занял слишком много времени. Уточните запрос.',
 
     // Reports center, repeater rows and permission guardrails
     'repeater_row_not_found'                => 'Строка не найдена.',

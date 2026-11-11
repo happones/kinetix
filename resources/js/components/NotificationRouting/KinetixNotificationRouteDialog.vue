@@ -33,6 +33,7 @@ const props = defineProps<{
     /** Server-side member search (debounced by the picker); without it the members are filtered locally. */
     searchMembers?: (
         query: string,
+        ctx?: { signal?: AbortSignal },
     ) => Promise<Array<{ id: number | string; name: string }>>;
     save: (input: {
         audienceType: KinetixNotificationAudienceType;
@@ -100,8 +101,8 @@ const fetchMembers = computed(() => {
     const search = props.searchMembers;
 
     return kind.value === 'member' && search
-        ? async (query: string) =>
-              (await search(query)).map((a) => ({
+        ? async (query: string, ctx?: { signal: AbortSignal }) =>
+              (await search(query, ctx)).map((a) => ({
                   value: String(a.id),
                   label: a.name,
               }))

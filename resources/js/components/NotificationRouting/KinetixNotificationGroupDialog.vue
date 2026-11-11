@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { KinetixNotificationGroupInput } from '@/composables/useKinetixNotificationRouting';
 import { notificationRoutingErrors } from '@/composables/useKinetixNotificationRouting';
+import {
+    useKinetixSearch,
+    useKinetixSearchAnnouncer,
+} from '@/composables/useKinetixSearch';
 import {
     inputClass,
     textareaClass,
@@ -28,7 +32,10 @@ const props = defineProps<{
     /** The team's people, for the member picker. */
     members: KinetixNotificationAudience[];
     /** Server-side member search; without it the picker filters `members` locally. */
-    searchMembers?: (query: string) => Promise<KinetixNotificationAudience[]>;
+    searchMembers?: (
+        query: string,
+        ctx?: { signal?: AbortSignal },
+    ) => Promise<KinetixNotificationAudience[]>;
     save: (input: KinetixNotificationGroupInput) => Promise<void>;
 }>();
 
@@ -77,11 +84,24 @@ const options = computed(() => {
     return list;
 });
 
-let debounce: ReturnType<typeof setTimeout> | undefined;
-// Bumped by every search and every reopen: a result that lands late is dropped.
-let searchRound = 0;
+// The host's own search (it files its requests under the team); typing is
+// debounced and a late answer never replaces a newer one.
+const searcher = useKinetixSearch<KinetixNotificationAudience[]>({
+    fetcher: async (query, { signal }) => ({
+        value: (await props.searchMembers?.(query.trim(), { signal })) ?? [],
+    }),
+    onSettled: useKinetixSearchAnnouncer<KinetixNotificationAudience[]>({
+        count: (list) => list.length,
+    }),
+});
 
-onBeforeUnmount(() => clearTimeout(debounce));
+// A failed search keeps the previous page: the picker still works on it.
+watch(searcher.results, (result) => {
+    if (result) {
+        remember(result);
+        found.value = result;
+    }
+});
 
 function onSearch(event: Event): void {
     search.value = (event.target as HTMLInputElement).value;
@@ -90,23 +110,7 @@ function onSearch(event: Event): void {
         return;
     }
 
-    clearTimeout(debounce);
-    debounce = setTimeout(() => void runSearch(search.value), 250);
-}
-
-async function runSearch(query: string): Promise<void> {
-    const round = ++searchRound;
-
-    try {
-        const result = await props.searchMembers?.(query.trim());
-
-        if (round === searchRound && result) {
-            remember(result);
-            found.value = result;
-        }
-    } catch {
-        // Keep the previous page: the picker still works on what it has.
-    }
+    void searcher.search(search.value);
 }
 
 watch(
@@ -121,8 +125,7 @@ watch(
         description.value = props.group?.description ?? '';
         memberIds.value = (props.group?.members ?? []).map((m) => String(m.id));
         search.value = '';
-        searchRound++;
-        clearTimeout(debounce);
+        searcher.reset();
         known.value = new Map();
         remember(props.group?.members ?? []);
         remember(props.members);
@@ -262,6 +265,7 @@ async function submit(): Promise<void> {
                 <KinetixCheckboxList
                     :value="memberIds"
                     :options="options"
+                    :aria-busy="searcher.loading.value"
                     @update:value="memberIds = $event.map(String)"
                 />
                 <p

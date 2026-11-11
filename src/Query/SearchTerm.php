@@ -56,6 +56,29 @@ final class SearchTerm
         return (int) $value;
     }
 
+    /**
+     * The client-side tuning the lookups share (`kinetix.search.client`):
+     * the typing debounce in ms, and how long (seconds) and how many answers
+     * the browser keeps per session. Config only, no queries.
+     *
+     * @return array{debounce: int, cache_ttl: int, cache_entries: int}
+     */
+    public static function clientSettings(): array
+    {
+        return [
+            'debounce'      => self::clientInt('debounce', 250),
+            'cache_ttl'     => self::clientInt('cache_ttl', 30),
+            'cache_entries' => self::clientInt('cache_entries', 100),
+        ];
+    }
+
+    private static function clientInt(string $key, int $default): int
+    {
+        $value = config("kinetix.search.client.{$key}", $default);
+
+        return is_numeric($value) ? max(0, (int) $value) : $default;
+    }
+
     /** Whether a term is non-empty yet shorter than the minimum. */
     public static function isBelowMinimum(string $term): bool
     {

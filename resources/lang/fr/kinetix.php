@@ -998,6 +998,9 @@ return [
     'search_expired'                => 'Cette session de recherche a expiré. Veuillez recharger la page.',
     'search_min_chars'              => 'Saisissez au moins {count} caractères pour rechercher.',
     'search_busy'                   => 'La recherche est occupée. Réessayez dans un instant.',
+    'search_results_count'          => '{count} résultat | {count} résultats',
+    'search_throttled_retrying'     => 'Nouvelle recherche dans un instant...',
+    'search_timed_out'              => 'La recherche a pris trop de temps. Essayez un terme plus précis.',
 
     // Reports center, repeater rows and permission guardrails
     'repeater_row_not_found'                => 'Ligne introuvable.',

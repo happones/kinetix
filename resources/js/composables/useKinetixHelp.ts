@@ -2,12 +2,12 @@ import { usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import type { Ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import {
-    KINETIX_SUPERSEDED,
-    createKinetixLatest,
-    kinetixLookupErrorMessage,
-} from '@/composables/kinetixLatest';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
+import {
+    useKinetixSearch,
+    useKinetixSearchAnnouncer,
+} from '@/composables/useKinetixSearch';
+import { useKinetixSearchLimits } from '@/composables/useKinetixSearchLimits';
 import type {
     KinetixHelpArticleDetail,
     KinetixHelpArticleSummary,
@@ -69,11 +69,43 @@ export function useKinetixHelp() {
     const articleLoading = ref(false);
     const articleError = ref(false);
 
-    const results = ref<KinetixHelpSearchResult[]>([]);
-    const searchLatest = createKinetixLatest();
-    const searching = searchLatest.pending;
+    const limits = useKinetixSearchLimits();
+    const searcher = useKinetixSearch<KinetixHelpSearchResult[]>({
+        fetcher: async (query, { signal }) => {
+            const data = await kinetixFetch<{
+                results: KinetixHelpSearchResult[];
+            }>(
+                withLocale(
+                    `${base()}/search?q=${encodeURIComponent(query.trim())}`,
+                    locale.value,
+                ),
+                { signal },
+            );
+
+            return { value: data?.results ?? [] };
+        },
+        // The index needs two characters at least, the server may want more.
+        minChars: () => Math.max(2, limits.minChars.value),
+        cacheKey: () =>
+            `${kinetixRoutePrefix(page)}:help.search:${locale.value}`,
+        onSettled: useKinetixSearchAnnouncer<KinetixHelpSearchResult[]>({
+            count: (list) => list.length,
+            tooShort: false,
+        }),
+    });
+
+    const results = computed<KinetixHelpSearchResult[]>(
+        () => searcher.results.value ?? [],
+    );
+    const searching = searcher.loading;
     /** Message of a failed search (newest request only); null otherwise. */
-    const searchError = ref<string | null>(null);
+    const searchError = computed<string | null>(() =>
+        searcher.status.value === 'error' ||
+        searcher.status.value === 'expired' ||
+        (searcher.status.value === 'throttled' && !searcher.retrying.value)
+            ? (searcher.message.value ?? t('kinetix.action_failed'))
+            : null,
+    );
 
     /** What has been asked for, so a locale switch can replay it. */
     const loadedSlug: Ref<string | null> = ref(null);
@@ -152,44 +184,27 @@ export function useKinetixHelp() {
         }
     }
 
+    /** Searches now; dropping under the minimum cancels the request in flight. */
     async function search(query: string): Promise<void> {
-        const term = query.trim();
-
-        if (term.length < 2) {
-            // Dropping under the minimum cancels the in-flight request, so its
-            // answer can't reappear after the box was cleared.
-            searchLatest.cancel();
-            results.value = [];
-            searchError.value = null;
+        // Nothing typed (or only spaces): no request, no announcement.
+        if (query.trim() === '') {
+            searcher.reset();
 
             return;
         }
 
-        searchError.value = null;
+        await searcher.search(query, { immediate: true });
+    }
 
-        try {
-            const data = await searchLatest.run((signal) =>
-                kinetixFetch<{
-                    results: KinetixHelpSearchResult[];
-                }>(
-                    withLocale(
-                        `${base()}/search?q=${encodeURIComponent(term)}`,
-                        locale.value,
-                    ),
-                    { signal },
-                ),
-            );
+    /** The same, after the shared quiet-typing delay: bind it to an input. */
+    function searchDebounced(query: string): void {
+        if (query.trim() === '') {
+            searcher.reset();
 
-            if (data !== KINETIX_SUPERSEDED) {
-                results.value = data?.results ?? [];
-            }
-        } catch (error) {
-            results.value = [];
-            searchError.value = kinetixLookupErrorMessage(
-                error,
-                t('kinetix.action_failed'),
-            );
+            return;
         }
+
+        void searcher.search(query);
     }
 
     // The app language changed (language switcher): re-fetch whatever this
@@ -197,9 +212,7 @@ export function useKinetixHelp() {
     // the previous language until a full page load, because an Inertia reload
     // re-renders the page component without re-running onMounted.
     watch(locale, () => {
-        searchLatest.cancel();
-        results.value = [];
-        searchError.value = null;
+        searcher.reset();
 
         if (listLoaded.value) {
             void loadArticles();
@@ -224,5 +237,6 @@ export function useKinetixHelp() {
         loadArticles,
         loadArticle,
         search,
+        searchDebounced,
     };
 }

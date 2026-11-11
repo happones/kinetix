@@ -7,6 +7,8 @@ namespace Happones\Kinetix\Resources;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Query\KinetixQuery;
+use Happones\Kinetix\Query\QueryBudget;
+use Happones\Kinetix\Query\QueryBudgetExceeded;
 use Happones\Kinetix\Query\SearchTerm;
 use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\DescriptorRejection;
@@ -391,9 +393,17 @@ class RelationManagerController
             $query->orderBy($model->qualifyColumn($column));
         }
 
-        $options = $query
-            ->limit(50)
-            ->get()
+        try {
+            $records = QueryBudget::run(
+                $model->getConnection(),
+                QueryBudget::configured(),
+                fn () => $query->limit(50)->get(),
+            );
+        } catch (QueryBudgetExceeded) {
+            return response()->json(['options' => [], 'meta' => ['timed_out' => true]]);
+        }
+
+        $options = $records
             ->map(fn (Model $record): array => [
                 'id'    => $record->getKey(),
                 'label' => (string) data_get($record, $title),

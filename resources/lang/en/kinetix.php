@@ -1024,6 +1024,9 @@ return [
     'search_expired'                => 'This search session expired. Please reload the page.',
     'search_min_chars'              => 'Type at least {count} characters to search.',
     'search_busy'                   => 'The search is busy. Try again in a moment.',
+    'search_results_count'          => '{count} result | {count} results',
+    'search_throttled_retrying'     => 'Searching again in a moment...',
+    'search_timed_out'              => 'The search took too long. Try a more specific term.',
 
     // Reports center, repeater rows and permission guardrails
     'repeater_row_not_found'                => 'Row not found.',

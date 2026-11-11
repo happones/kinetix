@@ -13,6 +13,116 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.285.0] - 2026-11-11
+
+### Added
+
+- **Concurrency cap for lookups (`kinetix.search.concurrency`).** Off by
+  default. Set `KINETIX_SEARCH_CONCURRENCY=3` to let one user have that many
+  lookups running at once; the next answers `429` with
+  `{message, code: 'busy', retry_after: 1}` and the browser retries the
+  latest term once. Plain cache locks, so it needs a store that supports them
+  (Redis recommended) and does nothing on one without; `concurrency_ttl`
+  (15 s) frees a slot a crashed worker never released. Applies to select and
+  filter search, tag suggestions, help search and the relation pickers.
+- **Query timeout for lookups (`kinetix.search.timeout`).** Off by default.
+  `KINETIX_SEARCH_TIMEOUT_MS=1500` gives the searchable select and relation
+  picker queries a statement budget on MySQL, MariaDB and PostgreSQL (no-op on
+  SQLite and SQL Server); a query that runs out answers
+  `{options: [], meta: {timed_out: true}}`. The session limit is always
+  restored, and PostgreSQL skips it inside your own transaction. With a
+  read/write split MySQL and MariaDB limit the read connection; PostgreSQL
+  budgeted lookups go to the primary (transactions run on the write side).
+  If the limit cannot be set the lookup runs without a budget.
+- **`kinetix.search.client`** (`debounce` 250 ms, `cache_ttl` 30 s,
+  `cache_entries` 100) and the shared `kinetix_config.search` prop now carries
+  `{min_chars, max_length, debounce, cache_ttl, cache_entries}` (still no
+  queries).
+- **`Table::searchMinLength(int)`** and `TableData.searchMinLength`: the
+  fewest characters the toolbar search needs before it reloads (0 = every
+  keystroke; a UI hint, not a server rule).
+- **`kinetix:doctor`** warns when `search.concurrency` is set and the cache
+  store cannot lock or is the `database` store, and when `search.timeout` is
+  set on a driver without a statement timeout or on a read/write split
+  connection. It also warns about the `array` cache store, which does nothing
+  under PHP-FPM.
+- New translation keys `search_results_count` (plural),
+  `search_throttled_retrying` and `search_timed_out` in all locales.
+- **(published)** **`useKinetixSearch`**: a shared composable for typed
+  lookups. It debounces, lets the latest answer win, joins an identical
+  in-flight query, answers repeats from a small client cache, never sends a
+  term below the minimum, and turns 429 (`throttled` or `busy`), timeouts and
+  expired tokens into a status instead of an exception. A throttled search
+  keeps its last results and is retried once.
+- **(published)** **`kinetixSearchCache`** with `clearKinetixSearchCache(namespace?)`:
+  an LRU + TTL cache for lookup answers, keyed by endpoint and signed
+  token plus who is asking (user, impersonation, team, language): a change of
+  that empties it, so one user never sees another's answers. Disabled under
+  SSR.
+- **(published)** **`useKinetixSearchAnnouncer`**: tells screen readers how a
+  lookup ended (result count, retrying, timed out), once per settled search
+  and never per keystroke.
+- **(published)** The table toolbar search honours `Table::searchMinLength()`:
+  no reload while the term is below it, with a polite hint. Clearing the box
+  always reloads.
+
+### Changed
+
+- **(published)** KinetixCombobox, KinetixCheckboxList, the relation manager
+  picker, KinetixTags, the Help Center, the notification group and route
+  dialogs, and the team switcher search now run on `useKinetixSearch`. Lists
+  set `aria-busy` and show a spinner (static under reduced motion).
+  Throttled and timed-out searches say so inline. A custom `fetchOptions` is
+  still never cut by the minimum or cached.
+- **(published)** The table search no longer reloads when the term equals what
+  the table already shows.
+- **(published)** `useKinetixHelp` gains `searchDebounced`; its `results` is
+  now a read-only computed.
+- **(published)** `searchMembers` of `useKinetixNotificationRouting` aborts
+  the superseded request and accepts `ctx.signal`.
+
+### Fixed
+
+- **(published)** After attach, associate, detach or dissociate, the relation
+  picker no longer offers a cached list that predates the write.
+- **(published)** The lookup cache never serves one user's answers to another
+  in the same tab (logout and login, impersonation, another team or
+  language).
+- **(published)** A failed or cancelled table search visit no longer blocks
+  sending the same term again.
+- **(published)** The Help Center sends nothing for an empty or blank search
+  and no longer announces "0 results" for it.
+
+### Tests
+
+- `tests/js/lookupRequests.spec.ts` fails when a component or composable pairs
+  a debounce timer with a request without `createKinetixLatest` or
+  `useKinetixSearch`.
+
+### Fixed
+
+- A MySQL filesort cancelled by the statement limit (error 1028 naming the
+  maximum statement execution time) is recognised as a timeout.
+
+### Upgrade notes
+
+- A guest is counted by IP, so configure `TrustProxies` behind a proxy, and
+  keep `concurrency_ttl` at or above `timeout`.
+
+- Nothing changes until you opt in: concurrency and timeout are off. If you
+  turn the cap on, point it at Redis; on the `database` cache store every
+  lookup takes database locks.
+- Config merges automatically, so the new `search` keys need no
+  re-publishing.
+- `useKinetixHelp().results` is now read-only (a computed); read it, do not
+  assign it.
+- A bare 429 on a lookup now retries once after its `retry_after` (up to
+  10 s), so a custom spec that rejects with a plain 429 and expects the error
+  at once should send `retryAfter: 60`.
+- The lookup cache lives at module level. A host with its own lookup specs
+  should call `clearKinetixSearchCache()` between tests, or a spec answers
+  from what the previous one fetched.
+
 ## [0.284.0] - 2026-11-11
 
 ### Added

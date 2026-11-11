@@ -10,6 +10,7 @@ use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Auth\GenericUser;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -111,6 +112,28 @@ class SelectSearchableTest extends TestCase
         $this->postJson('/_kinetix/forms/search', ['token' => $token, 'q' => 'ada'])
             ->assertOk()
             ->assertJsonFragment(['options' => ['1' => 'Ada Lovelace']]);
+    }
+
+    public function test_a_query_over_its_budget_answers_a_timed_out_hint(): void
+    {
+        config()->set('kinetix.search.timeout', 500);
+
+        SearchAuthor::addGlobalScope('slow', static function (): void {
+            $pdo            = new \PDOException('cancelled');
+            $pdo->errorInfo = ['HY000', 3024, 'cancelled'];
+
+            throw new QueryException('testing', 'select 1', [], $pdo);
+        });
+
+        $token = SignedDescriptor::seal(['model' => SearchAuthor::class, 'label' => 'name', 'columns' => ['name'], 'value' => 'id'], DescriptorAudience::Search);
+
+        try {
+            $this->postJson('/_kinetix/forms/search', ['token' => $token, 'q' => 'ada'])
+                ->assertOk()
+                ->assertExactJson(['options' => [], 'meta' => ['timed_out' => true]]);
+        } finally {
+            Model::clearBootedModels();
+        }
     }
 
     public function test_search_endpoint_rejects_an_invalid_token(): void

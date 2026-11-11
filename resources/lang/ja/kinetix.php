@@ -933,6 +933,9 @@ return [
     'search_expired'                => '検索セッションが期限切れです。ページを再読み込みしてください。',
     'search_min_chars'              => '検索するには {count} 文字以上入力してください。',
     'search_busy'                   => '検索が混み合っています。しばらくしてからもう一度お試しください。',
+    'search_results_count'          => '{count} 件の結果',
+    'search_throttled_retrying'     => 'まもなく再検索します...',
+    'search_timed_out'              => '検索に時間がかかりすぎました。より具体的な語句をお試しください。',
 
     // Reports center, repeater rows and permission guardrails
     'repeater_row_not_found'                => '行が見つかりません。',

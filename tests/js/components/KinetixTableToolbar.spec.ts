@@ -20,7 +20,14 @@ const i18n = createI18n({
     locale: 'en',
     missingWarn: false,
     fallbackWarn: false,
-    messages: { en: { kinetix: { search_records: 'Search records…' } } },
+    messages: {
+        en: {
+            kinetix: {
+                search_records: 'Search records…',
+                search_min_chars: 'Type at least {count} characters.',
+            },
+        },
+    },
 });
 
 const col = (name: string, extra: Record<string, unknown> = {}) => ({
@@ -157,5 +164,37 @@ describe('KinetixTableToolbar heading', () => {
             '60',
         );
         pageProps.kinetix_config = { route_prefix: '_kinetix' };
+    });
+});
+
+describe('KinetixTableToolbar search minimum', () => {
+    const mountSearch = (searchQuery: string, searchMinLength?: number) =>
+        mount(KinetixTableToolbar, {
+            props: {
+                table: { ...baseTable, searchMinLength } as never,
+                searchQuery,
+                activeFilters: {},
+                currentViewState: {},
+                isColumnVisible: () => true,
+            },
+            global: { plugins: [i18n], stubs: { KinetixSavedViews: true } },
+        });
+
+    it('hints politely while the term is below the minimum', () => {
+        const wrapper = mountSearch('an', 3);
+        const hint = wrapper.get('[role="status"]');
+
+        expect(hint.text()).toBe('Type at least 3 characters.');
+        expect(wrapper.get('input').attributes('aria-describedby')).toBe(
+            hint.attributes('id'),
+        );
+        expect(wrapper.get('input').attributes('disabled')).toBeUndefined();
+    });
+
+    it('is silent once the term reaches the minimum, when empty, or with no minimum', () => {
+        expect(mountSearch('ann', 3).get('[role="status"]').text()).toBe('');
+        expect(mountSearch('', 3).get('[role="status"]').text()).toBe('');
+        expect(mountSearch('a', 0).get('[role="status"]').text()).toBe('');
+        expect(mountSearch('a').get('[role="status"]').text()).toBe('');
     });
 });

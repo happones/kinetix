@@ -181,11 +181,12 @@ describe('KinetixCombobox', () => {
     });
 
     it('says why a lookup failed inside the list instead of failing silently', async () => {
-        const fetchOptions = vi
-            .fn()
-            .mockRejectedValue(
-                Object.assign(new Error('Too many requests'), { status: 429 }),
-            );
+        const fetchOptions = vi.fn().mockRejectedValue(
+            Object.assign(new Error('Too many requests'), {
+                status: 429,
+                retryAfter: 60,
+            }),
+        );
         const unhandled = vi.fn();
         process.on('unhandledRejection', unhandled);
 

@@ -18,6 +18,7 @@ export default defineConfig({
     // Specs live under tests/js (outside the publishable resources/js tree) so
     // they are never copied into a consumer's app by `vendor:publish`.
     include: ["tests/js/**/*.{test,spec}.ts"],
+    setupFiles: ["tests/js/support/clearSearchCache.ts"],
     // The default 5s is not enough for the heaviest specs once the files run in
     // parallel: the timezone picker builds the full IANA zone list and the
     // import mapping mounts two dozen Reka selects, and either can pass alone in

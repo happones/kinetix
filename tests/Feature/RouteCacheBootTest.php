@@ -82,6 +82,7 @@ class RouteCacheBootTest extends TestCase
         $this->assertContains('kinetix.channels', $cached['channels']);
         $this->assertContains('kinetix.inbox.{channel}', $cached['channels']);
         $this->assertContains('kinetix.shared-props', $cached['aliases']);
+        $this->assertContains('kinetix.lookup-slots', $cached['aliases']);
         $this->assertContains('kinetix.permissions.team', $cached['aliases']);
         $this->assertContains('kinetix.plan', $cached['aliases']);
 

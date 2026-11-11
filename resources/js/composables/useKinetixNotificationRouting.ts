@@ -8,6 +8,11 @@ import {
     watch,
 } from 'vue';
 import type { Ref } from 'vue';
+import {
+    KINETIX_SUPERSEDED,
+    createKinetixLatest,
+    kinetixAnySignal,
+} from '@/composables/kinetixLatest';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import type {
     KinetixNotificationAudience,
@@ -175,9 +180,10 @@ export function useKinetixNotificationRouting() {
     let loadRequest = 0;
     let previewRequest = 0;
     let groupsRequest = 0;
-    let memberSearchRequest = 0;
-    let latestMemberSearch: Promise<KinetixNotificationAudience[]> | null =
-        null;
+    const memberSearch = createKinetixLatest();
+    let newestMemberSearch: Promise<
+        KinetixNotificationAudience[] | typeof KINETIX_SUPERSEDED
+    > | null = null;
 
     async function load(): Promise<void> {
         const request = ++loadRequest;
@@ -254,37 +260,42 @@ export function useKinetixNotificationRouting() {
 
     /**
      * Search the team's members by name on the server (a team can be larger
-     * than the 200 the audiences list carries). A superseded search resolves
-     * to the newest search's result, and its failure is swallowed, so a slow
-     * older response never overwrites what the user last typed.
+     * than the 200 the audiences list carries). A newer search aborts the
+     * request of an older one; the older call then resolves to the newest
+     * search's result and its failure is swallowed, so a slow older response
+     * never overwrites what the user last typed. Pass `ctx.signal` to abort
+     * the request from the caller's side too.
      */
     async function searchMembers(
         query: string,
+        ctx: { signal?: AbortSignal } = {},
     ): Promise<KinetixNotificationAudience[]> {
-        const request = ++memberSearchRequest;
-        const pending = kinetixFetch<{
-            members: KinetixNotificationAudience[];
-        }>(`${base()}/audiences?search=${encodeURIComponent(query)}`).then(
-            (data) => data?.members ?? [],
-        );
+        const mine = memberSearch.run(async (signal) => {
+            const data = await kinetixFetch<{
+                members: KinetixNotificationAudience[];
+            }>(`${base()}/audiences?search=${encodeURIComponent(query)}`, {
+                signal: kinetixAnySignal(signal, ctx.signal),
+            });
 
-        latestMemberSearch = pending;
+            return data?.members ?? [];
+        });
 
-        try {
-            const result = await pending;
+        newestMemberSearch = mine;
 
-            if (request === memberSearchRequest) {
-                return result;
+        let current = mine;
+        let result = await current;
+
+        // Superseded: hand back what the newest search found (never its error).
+        while (result === KINETIX_SUPERSEDED) {
+            if (newestMemberSearch === null || newestMemberSearch === current) {
+                return [];
             }
 
-            return await (latestMemberSearch ?? pending).catch(() => result);
-        } catch (error) {
-            if (request === memberSearchRequest) {
-                throw error;
-            }
-
-            return (latestMemberSearch ?? Promise.resolve([])).catch(() => []);
+            current = newestMemberSearch;
+            result = await current.catch(() => []);
         }
+
+        return result;
     }
 
     async function loadGroups(): Promise<void> {
@@ -556,7 +567,7 @@ export function useKinetixNotificationRouting() {
             store.value = acquire(next);
             loadRequest++;
             groupsRequest++;
-            memberSearchRequest++;
+            memberSearch.cancel();
             closePreview();
             loaded.value = false;
             loadFailed.value = false;

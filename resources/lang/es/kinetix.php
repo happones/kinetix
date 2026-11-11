@@ -998,6 +998,9 @@ return [
     'search_expired'                => 'La sesión de búsqueda expiró. Recarga la página.',
     'search_min_chars'              => 'Escribe al menos {count} caracteres para buscar.',
     'search_busy'                   => 'La búsqueda está ocupada. Inténtalo de nuevo en un momento.',
+    'search_results_count'          => '{count} resultado | {count} resultados',
+    'search_throttled_retrying'     => 'Buscando de nuevo en un momento...',
+    'search_timed_out'              => 'La búsqueda tardó demasiado. Prueba con un término más específico.',
 
     // Reports center, repeater rows and permission guardrails
     'repeater_row_not_found'                => 'Fila no encontrada.',

@@ -21,6 +21,7 @@ use Happones\Kinetix\Permissions\AssignableRoles;
 use Happones\Kinetix\Permissions\PermissionRegistry;
 use Happones\Kinetix\Permissions\SuperAdmin;
 use Happones\Kinetix\Permissions\TeamOwner;
+use Happones\Kinetix\Query\QueryBudget;
 use Happones\Kinetix\ReportsCenter\Report;
 use Happones\Kinetix\ReportsCenter\ReportRegistry as ReportsCenterRegistry;
 use Happones\Kinetix\Resources\Resource;
@@ -31,17 +32,23 @@ use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\DiscoveryManifest;
 use Happones\Kinetix\Support\HostKeyColumns;
 use Happones\Kinetix\Support\HostKeys;
+use Happones\Kinetix\Support\KinetixLookupSlots;
 use Happones\Kinetix\Support\KinetixSharedProps;
 use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\KinetixThrottle;
 use Happones\Kinetix\Support\PublishedFiles;
 use Happones\Kinetix\Support\TailwindSourceExclusions;
 use Happones\Kinetix\Webhooks\WebhookEndpoint;
+use Illuminate\Cache\ArrayStore;
+use Illuminate\Cache\DatabaseStore;
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
@@ -108,6 +115,7 @@ class DoctorCommand extends Command
         $this->checkWebhookSecrets();
         $this->checkConfidentialEnvelopes();
         $this->checkThrottles();
+        $this->checkSearchLimits();
         $this->checkSharedProps();
         $this->checkDiscoveryManifest();
         $this->checkHostKeyColumns();
@@ -1711,6 +1719,62 @@ class DoctorCommand extends Command
 
         $this->warn_('Throttles', count($malformed).' rate limit(s) are not "attempts,minutes"',
             'Each falls back to its default. Use a string like "5,1", or false to turn the limit off.', $malformed);
+    }
+
+    /**
+     * The lookup concurrency cap needs a cache store that can lock and share
+     * state between workers; the statement budget only exists on MySQL,
+     * MariaDB and PostgreSQL, and is read from the DEFAULT connection (the
+     * one lookups on your models use unless they name another).
+     */
+    protected function checkSearchLimits(): void
+    {
+        $concurrency = KinetixLookupSlots::configured();
+        $timeout     = QueryBudget::configured();
+
+        if ($concurrency === null && $timeout === null) {
+            return;
+        }
+
+        if ($concurrency !== null) {
+            $store = Cache::getStore();
+
+            if (! $store instanceof LockProvider) {
+                $this->warn_('Search limits', 'kinetix.search.concurrency is set, but the cache store cannot lock',
+                    'The cap does nothing without locks. Use a store that supports them (Redis recommended).');
+            } elseif ($store instanceof ArrayStore) {
+                $this->warn_('Search limits', 'kinetix.search.concurrency runs on the array cache store',
+                    'The array store lives in one process, so under PHP-FPM every request sees free slots and the cap does nothing. Use Redis.');
+            } elseif ($store instanceof DatabaseStore) {
+                $this->warn_('Search limits', 'kinetix.search.concurrency runs on the database cache store',
+                    'Every lookup then takes and frees database locks; Redis is a far better fit.');
+            } else {
+                $this->ok('Search limits', "{$concurrency} concurrent lookup(s) per user");
+            }
+        }
+
+        if ($timeout === null) {
+            return;
+        }
+
+        $name   = (string) config('database.default');
+        $config = config("database.connections.{$name}");
+        $config = is_array($config) ? $config : [];
+        $driver = (string) ($config['driver'] ?? '');
+
+        if (! in_array($driver, ['mysql', 'mariadb', 'pgsql'], true)) {
+            $this->warn_('Search limits', "kinetix.search.timeout is set, but the default connection ({$name}) is {$driver}, which has no statement timeout",
+                'The budget only applies to MySQL, MariaDB and PostgreSQL; here lookups run without one.');
+
+            return;
+        }
+
+        if (isset($config['read']) || isset($config['write'])) {
+            $this->warn_('Search limits', "kinetix.search.timeout is set on a read/write split connection ({$name})",
+                $driver === 'pgsql'
+                    ? 'PostgreSQL can only limit a statement inside a transaction, which runs on the write connection: budgeted lookups go to the primary.'
+                    : 'The limit is set on the read connection the lookup uses; if that is a pooled proxy (ProxySQL, RDS Proxy) the session may not stick, so verify the timeout fires.');
+        }
     }
 
     /**

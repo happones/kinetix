@@ -9,10 +9,13 @@ use Happones\Kinetix\Permissions\PermissionRegistry;
 use Happones\Kinetix\Support\PublishedFiles;
 use Happones\Kinetix\Tests\Concerns\CreatesPermissionTables;
 use Happones\Kinetix\Tests\Fakes\BranchMemberFields;
+use Happones\Kinetix\Tests\Fakes\NoLockCacheStore;
 use Happones\Kinetix\Tests\TestCase;
+use Illuminate\Cache\Repository;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
@@ -549,6 +552,92 @@ class DoctorCommandTest extends TestCase
         $this->assertSame(1, $exit);
         $this->assertGreaterThan(0, $payload['errors']);
         $this->assertContains('Membership', array_column($payload['findings'], 'section'));
+    }
+
+    /**
+     * @return array<int, array{level: string, message: string}>
+     */
+    private function searchLimitFindings(): array
+    {
+        $this->withoutMockingConsoleOutput();
+        Artisan::call('kinetix:doctor', ['--json' => true]);
+
+        /** @var array{findings: array<int, array{section: string, level: string, message: string}>} $payload */
+        $payload = json_decode(Artisan::output(), true);
+
+        return array_values(array_filter($payload['findings'], static fn (array $finding): bool => $finding['section'] === 'Search limits'));
+    }
+
+    public function test_the_search_limits_are_silent_while_off(): void
+    {
+        $this->assertSame([], $this->searchLimitFindings());
+    }
+
+    public function test_a_concurrency_cap_on_the_array_store_is_a_warning(): void
+    {
+        config()->set('kinetix.search.concurrency', 3);
+
+        $findings = $this->searchLimitFindings();
+
+        $this->assertSame('warning', $findings[0]['level']);
+        $this->assertStringContainsString('array cache store', $findings[0]['message']);
+    }
+
+    public function test_a_concurrency_cap_on_a_shared_lock_store_is_fine(): void
+    {
+        config(['cache.default' => 'file', 'kinetix.search.concurrency' => 3]);
+        Cache::purge('file');
+
+        $findings = $this->searchLimitFindings();
+
+        $this->assertSame('ok', $findings[0]['level']);
+    }
+
+    public function test_a_timeout_on_a_read_write_split_is_a_warning(): void
+    {
+        config([
+            'kinetix.search.timeout'     => 500,
+            'database.default'           => 'split',
+            'database.connections.split' => ['driver' => 'pgsql', 'read' => ['host' => 'replica'], 'write' => ['host' => 'primary']],
+        ]);
+
+        $findings = $this->searchLimitFindings();
+
+        $this->assertSame('warning', $findings[0]['level']);
+        $this->assertStringContainsString('read/write split', $findings[0]['message']);
+    }
+
+    public function test_a_concurrency_cap_without_locks_is_a_warning(): void
+    {
+        Cache::extend('nolock', fn (): Repository => new Repository(new NoLockCacheStore));
+        config(['cache.stores.nolock' => ['driver' => 'nolock'], 'cache.default' => 'nolock', 'kinetix.search.concurrency' => 3]);
+        Cache::purge('nolock');
+
+        $findings = $this->searchLimitFindings();
+
+        $this->assertSame('warning', $findings[0]['level']);
+        $this->assertStringContainsString('cannot lock', $findings[0]['message']);
+    }
+
+    public function test_a_concurrency_cap_on_the_database_store_is_a_warning(): void
+    {
+        config(['cache.default' => 'database', 'kinetix.search.concurrency' => 3]);
+        Cache::purge('database');
+
+        $findings = $this->searchLimitFindings();
+
+        $this->assertSame('warning', $findings[0]['level']);
+        $this->assertStringContainsString('database cache store', $findings[0]['message']);
+    }
+
+    public function test_a_timeout_on_a_driver_without_one_is_a_warning(): void
+    {
+        config()->set('kinetix.search.timeout', 500);
+
+        $findings = $this->searchLimitFindings();
+
+        $this->assertSame('warning', $findings[0]['level']);
+        $this->assertStringContainsString('has no statement timeout', $findings[0]['message']);
     }
 
     public function test_drifted_icon_map_is_pointed_at_register_icons_instead_of_generic_advice(): void

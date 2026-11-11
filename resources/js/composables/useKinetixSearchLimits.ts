@@ -12,12 +12,18 @@ export interface KinetixSearchLimits {
     isTooShort: (term: string) => boolean;
     /** The `min_chars` to show in the hint: the server's, else the shared one. */
     hintCount: (meta?: KinetixLookupMeta | null) => number;
+    /** Milliseconds of quiet typing before a lookup (250 when not shared). */
+    debounce: ComputedRef<number>;
+    /** Seconds a lookup answer is kept client-side (30 when not shared). */
+    cacheTtl: ComputedRef<number>;
+    /** How many lookup answers the client keeps (100 when not shared). */
+    cacheEntries: ComputedRef<number>;
 }
 
 /**
  * The search limits the server shares with the page
  * (`kinetix_config.search`). Both are optional: an older server just means no
- * `maxlength` and a minimum of 1.
+ * `maxlength`, a minimum of 1 and the default debounce and cache sizes.
  */
 export function useKinetixSearchLimits(): KinetixSearchLimits {
     const page = usePage<KinetixSharedProps>();
@@ -46,5 +52,24 @@ export function useKinetixSearchLimits(): KinetixSearchLimits {
     const hintCount = (meta?: KinetixLookupMeta | null): number =>
         meta?.min_chars ?? minChars.value;
 
-    return { maxLength, minChars, isTooShort, hintCount };
+    const nonNegative = (value: unknown, fallback: number): number =>
+        typeof value === 'number' && Number.isFinite(value) && value >= 0
+            ? value
+            : fallback;
+
+    const debounce = computed(() => nonNegative(config.value?.debounce, 250));
+    const cacheTtl = computed(() => nonNegative(config.value?.cache_ttl, 30));
+    const cacheEntries = computed(() =>
+        nonNegative(config.value?.cache_entries, 100),
+    );
+
+    return {
+        maxLength,
+        minChars,
+        isTooShort,
+        hintCount,
+        debounce,
+        cacheTtl,
+        cacheEntries,
+    };
 }

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Forms;
 
 use Happones\Kinetix\Query\KinetixQuery;
+use Happones\Kinetix\Query\QueryBudget;
+use Happones\Kinetix\Query\QueryBudgetExceeded;
 use Happones\Kinetix\Query\SearchTerm;
 use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\DescriptorRejection;
@@ -70,10 +72,18 @@ class SearchController
             $descriptor['modifier'] ?? null,
         );
 
-        $rows = $builder
-            ->when($query !== '', fn ($b) => KinetixQuery::search($b, $query, $searchColumns))
-            ->limit(20)
-            ->get();
+        try {
+            $rows = QueryBudget::run(
+                $builder->getModel()->getConnection(),
+                QueryBudget::configured(),
+                fn () => $builder
+                    ->when($query !== '', fn ($b) => KinetixQuery::search($b, $query, $searchColumns))
+                    ->limit(20)
+                    ->get(),
+            );
+        } catch (QueryBudgetExceeded) {
+            return response()->json(['options' => [], 'meta' => ['timed_out' => true]]);
+        }
 
         $options = [];
 

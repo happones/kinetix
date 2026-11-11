@@ -933,6 +933,9 @@ return [
     'search_expired'                => '搜索会话已过期，请重新加载页面。',
     'search_min_chars'              => '请至少输入 {count} 个字符进行搜索。',
     'search_busy'                   => '搜索繁忙，请稍后再试。',
+    'search_results_count'          => '{count} 条结果',
+    'search_throttled_retrying'     => '稍后将重新搜索...',
+    'search_timed_out'              => '搜索耗时过长，请尝试更具体的关键词。',
 
     // Reports center, repeater rows and permission guardrails
     'repeater_row_not_found'                => '未找到该行。',

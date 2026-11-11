@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
 import { BookOpen, LayoutGrid, List, Search } from '@lucide/vue';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useKinetixHelp } from '@/composables/useKinetixHelp';
 import { resolveIcon } from '@/composables/useKinetixIcons';
@@ -47,7 +47,7 @@ const {
     searching,
     searchError,
     loadArticles,
-    search,
+    searchDebounced,
 } = useKinetixHelp();
 
 onMounted(loadArticles);
@@ -70,21 +70,8 @@ const open = (slug: string): void => {
 
 // --- Debounced server-side search ------------------------------------------
 const query = ref('');
-let debounce: ReturnType<typeof setTimeout> | null = null;
 
-const onSearchInput = (): void => {
-    if (debounce) {
-        clearTimeout(debounce);
-    }
-
-    debounce = setTimeout(() => void search(query.value), 250);
-};
-
-onBeforeUnmount(() => {
-    if (debounce) {
-        clearTimeout(debounce);
-    }
-});
+const onSearchInput = (): void => searchDebounced(query.value);
 
 const isSearching = computed(() => query.value.trim().length >= 2);
 
@@ -153,7 +140,7 @@ const groups = computed(() => {
         </div>
 
         <!-- Search results -->
-        <div v-if="isSearching" class="space-y-2">
+        <div v-if="isSearching" class="space-y-2" :aria-busy="searching">
             <div v-if="searching" class="space-y-2">
                 <div
                     v-for="i in 3"

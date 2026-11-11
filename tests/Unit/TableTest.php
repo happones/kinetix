@@ -84,6 +84,18 @@ class TableTest extends TestCase
         $this->assertTrue($sticky['stickyActions']);
     }
 
+    public function test_search_min_length_serializes(): void
+    {
+        $default = Table::make(TblItem::query())->columns([TextColumn::make('name')])->toArray();
+        $this->assertSame(0, $default['searchMinLength']);
+
+        $table = Table::make(TblItem::query())->columns([TextColumn::make('name')])->searchMinLength(3)->toArray();
+        $this->assertSame(3, $table['searchMinLength']);
+
+        $negative = Table::make(TblItem::query())->columns([TextColumn::make('name')])->searchMinLength(-2)->toArray();
+        $this->assertSame(0, $negative['searchMinLength']);
+    }
+
     public function test_string_poll_serializes(): void
     {
         // Regression: TableData::$poll was ?int but the setter accepts a string.

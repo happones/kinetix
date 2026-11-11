@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3';
-import { ChevronDown } from '@lucide/vue';
+import { ChevronDown, Loader2 } from '@lucide/vue';
 import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
-import {
-    KINETIX_SUPERSEDED,
-    createKinetixLatest,
-} from '@/composables/kinetixLatest';
 import { kinetixComponentOf } from '@/composables/kinetixLazy';
+import { clearKinetixSearchCache } from '@/composables/kinetixSearchCache';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
+import {
+    useKinetixSearch,
+    useKinetixSearchAnnouncer,
+} from '@/composables/useKinetixSearch';
+import type { KinetixSearchSettled } from '@/composables/useKinetixSearch';
 import { useKinetixSearchLimits } from '@/composables/useKinetixSearchLimits';
 import type {
     KinetixLookupMeta,
@@ -75,14 +77,10 @@ type PickerMode = 'attach' | 'associate';
 
 const pickerMode = ref<PickerMode>('attach');
 const isAttachOpen = ref(false);
-const attachOptions = ref<AttachOption[]>([]);
 const attachSelected = ref<Set<number | string>>(new Set());
 const attachSearch = ref('');
-const attachHintCount = ref<number | null>(null);
 const searchLimits = useKinetixSearchLimits();
 const attachHintId = `kinetix-attach-hint-${useId()}`;
-const attachLatest = createKinetixLatest();
-const attachLoading = attachLatest.pending;
 const attaching = ref(false);
 const detaching = ref(false);
 
@@ -107,6 +105,71 @@ const picker = {
 const relationsUrl = computed(
     () => `/${kinetixRoutePrefix(page)}/tables/relations`,
 );
+
+// Answers are filed under this manager's own namespace (route prefix + signed
+// descriptor), one sub-namespace per picker mode; a write clears the manager's.
+const searchNamespace = computed(
+    () => `${kinetixRoutePrefix(page)}:relations:${props.manager.descriptor}`,
+);
+
+const announceSettled = useKinetixSearchAnnouncer<AttachOption[]>({
+    count: (list) => list.length,
+    tooShort: false,
+});
+
+const attachSearcher = useKinetixSearch<AttachOption[]>({
+    fetcher: async (term, { signal }) => {
+        const response = await kinetixFetch<{
+            options: AttachOption[];
+            meta?: KinetixLookupMeta;
+        }>(`${relationsUrl.value}/${picker[pickerMode.value].options}`, {
+            method: 'POST',
+            body: { descriptor: props.manager.descriptor, search: term },
+            signal,
+        });
+
+        return { value: response?.options ?? [], meta: response?.meta };
+    },
+    minChars: () => searchLimits.minChars.value,
+    cacheKey: () =>
+        props.manager.descriptor
+            ? `${searchNamespace.value}:${pickerMode.value}`
+            : null,
+    onSettled: (state: KinetixSearchSettled<AttachOption[]>) => {
+        announceSettled(state);
+
+        // The failure the user must hear about: not a superseded request, and
+        // not a throttle that is still going to retry.
+        if (
+            state.status === 'error' ||
+            state.status === 'expired' ||
+            (state.status === 'throttled' && !state.retrying)
+        ) {
+            toast.error(state.message ?? t('kinetix.action_failed'));
+        }
+    },
+});
+
+const attachLoading = attachSearcher.loading;
+const attachOptions = computed<AttachOption[]>(
+    () => attachSearcher.results.value ?? [],
+);
+const attachHintCount = computed<number | null>(() =>
+    attachSearcher.status.value === 'tooShort'
+        ? searchLimits.hintCount(attachSearcher.meta.value)
+        : null,
+);
+const attachStatusNote = computed<string | null>(() =>
+    attachSearcher.status.value === 'throttled' && attachSearcher.retrying.value
+        ? t('kinetix.search_throttled_retrying')
+        : attachSearcher.status.value === 'timedOut'
+          ? t('kinetix.search_timed_out')
+          : null,
+);
+
+/** A write changed what the picker can offer: forget what it has cached. */
+const forgetAttachable = (): void =>
+    clearKinetixSearchCache(searchNamespace.value);
 
 // --- Attach pivot form (AttachAction::form()) --------------------------------
 
@@ -164,79 +227,20 @@ const clearPageErrors = (): void => {
     }
 };
 
-let searchTimer: ReturnType<typeof setTimeout> | null = null;
-
-async function loadAttachable(): Promise<void> {
+function onAttachSearch(event: Event): void {
     if (!props.manager.descriptor) {
         return;
     }
 
-    // A typed term the server would refuse as too short is not sent.
-    if (searchLimits.isTooShort(attachSearch.value)) {
-        attachLatest.cancel();
-        attachOptions.value = [];
-        attachHintCount.value = searchLimits.minChars.value;
-
-        return;
-    }
-
-    attachHintCount.value = null;
-
-    try {
-        const response = await attachLatest.run((signal) =>
-            kinetixFetch<{ options: AttachOption[]; meta?: KinetixLookupMeta }>(
-                `${relationsUrl.value}/${picker[pickerMode.value].options}`,
-                {
-                    method: 'POST',
-                    body: {
-                        descriptor: props.manager.descriptor,
-                        search: attachSearch.value,
-                    },
-                    signal,
-                },
-            ),
-        );
-
-        if (response === KINETIX_SUPERSEDED) {
-            return;
-        }
-
-        attachHintCount.value = response?.meta?.below_min
-            ? searchLimits.hintCount(response.meta)
-            : null;
-        attachOptions.value = response?.options ?? [];
-    } catch (e) {
-        attachOptions.value = [];
-        attachHintCount.value = null;
-        toast.error(
-            e instanceof Error && e.message
-                ? e.message
-                : t('kinetix.action_failed'),
-        );
-    }
+    void attachSearcher.search((event.target as HTMLInputElement).value);
 }
 
 // Closing the picker drops the pending keystroke and the in-flight lookup.
 watch(isAttachOpen, (isOpen) => {
-    if (isOpen) {
-        return;
+    if (!isOpen) {
+        attachSearcher.cancel();
     }
-
-    if (searchTimer) {
-        clearTimeout(searchTimer);
-        searchTimer = null;
-    }
-
-    attachLatest.cancel();
 });
-
-function onAttachSearch(): void {
-    if (searchTimer) {
-        clearTimeout(searchTimer);
-    }
-
-    searchTimer = setTimeout(() => void loadAttachable(), 300);
-}
 
 function toggleAttachOption(id: number | string): void {
     const next = new Set(attachSelected.value);
@@ -271,6 +275,7 @@ async function submitAttach(pivot?: Record<string, any>): Promise<void> {
             },
         );
 
+        forgetAttachable();
         toast.success(t(picker[pickerMode.value].done));
         isAttachOpen.value = false;
         router.reload(reloadOptions());
@@ -295,18 +300,11 @@ async function submitAttach(pivot?: Record<string, any>): Promise<void> {
 
 function openAttach(mode: PickerMode = 'attach'): void {
     // A mode switch must not let the previous list answer into the new one.
-    attachLatest.cancel();
-
-    if (searchTimer) {
-        clearTimeout(searchTimer);
-        searchTimer = null;
-    }
+    attachSearcher.reset();
 
     pickerMode.value = mode;
-    attachOptions.value = [];
     attachSelected.value = new Set();
     attachSearch.value = '';
-    attachHintCount.value = null;
     clearPageErrors();
     attachFormDto.value =
         mode === 'attach' && props.manager.attachForm
@@ -321,7 +319,10 @@ function openAttach(mode: PickerMode = 'attach'): void {
     }
 
     isAttachOpen.value = true;
-    void loadAttachable();
+
+    if (props.manager.descriptor) {
+        void attachSearcher.search('', { immediate: true });
+    }
 }
 
 // --- Detach / dissociate (row / bulk) ----------------------------------------
@@ -342,6 +343,7 @@ async function removeRelation(
             body: { descriptor: props.manager.descriptor, ids },
         });
 
+        forgetAttachable();
         toast.success(
             t(
                 endpoint === 'detach'
@@ -477,11 +479,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-    if (searchTimer) {
-        clearTimeout(searchTimer);
-    }
-
-    attachLatest.cancel();
+    attachSearcher.cancel();
     window.removeEventListener('kinetix:open-attach', onOpenAttach);
     window.removeEventListener('kinetix:open-associate', onOpenAssociate);
     window.removeEventListener('kinetix:detach-relation', onDetachRelation);
@@ -574,13 +572,25 @@ onBeforeUnmount(() => {
                     </template>
                 </p>
 
+                <!-- Visual only: the announcer tells screen readers. -->
+                <p
+                    v-if="attachStatusNote"
+                    aria-hidden="true"
+                    class="text-xs text-muted-foreground"
+                >
+                    {{ attachStatusNote }}
+                </p>
+
                 <ScrollArea type="auto" viewport-class="max-h-64">
-                    <div class="space-y-1">
+                    <div class="space-y-1" :aria-busy="attachLoading">
                         <p
                             v-if="attachLoading"
-                            class="py-4 text-sm text-center text-muted-foreground"
+                            aria-hidden="true"
+                            class="py-4 text-center text-muted-foreground"
                         >
-                            …
+                            <Loader2
+                                class="size-4 animate-spin mx-auto motion-reduce:animate-none"
+                            />
                         </p>
                         <p
                             v-else-if="

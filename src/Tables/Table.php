@@ -161,6 +161,8 @@ class Table implements Arrayable, JsonSerializable
 
     protected bool $stickyActions = false;
 
+    protected int $searchMinLength = 0;
+
     /**
      * When set, rows can be drag-reordered and the new order is persisted to
      * this integer column. Null = not reorderable.
@@ -761,6 +763,18 @@ class Table implements Arrayable, JsonSerializable
     public function striped(bool $condition = true): static
     {
         $this->isStriped = $condition;
+
+        return $this;
+    }
+
+    /**
+     * The fewest characters the toolbar search needs before it reloads the
+     * table (0 = every keystroke). Clearing the box always reloads. A hint
+     * only: a request carrying a shorter `search` is still answered.
+     */
+    public function searchMinLength(int $length): static
+    {
+        $this->searchMinLength = max(0, $length);
 
         return $this;
     }
@@ -1594,6 +1608,7 @@ class Table implements Arrayable, JsonSerializable
             poll: $this->poll,
             isStriped: $this->isStriped,
             stickyActions: $this->stickyActions,
+            searchMinLength: $this->searchMinLength,
             model: $this->buildWriteDescriptor($editableColumns),
             columns: $columnsData,
             filters: $filtersData,

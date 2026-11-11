@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/vue3';
-import { onBeforeUnmount } from 'vue';
+import { onBeforeUnmount, watch } from 'vue';
 import type { Ref } from 'vue';
 import type { KinetixTableData } from '@/types/kinetix';
 
@@ -86,7 +86,11 @@ export interface UseKinetixTableQueryOptions {
 }
 
 export interface UseKinetixTableQuery {
-    triggerReload: (params: KinetixTableQueryParams) => void;
+    /** `hooks.onDone` runs when the visit finishes, fails or is cancelled. */
+    triggerReload: (
+        params: KinetixTableQueryParams,
+        hooks?: { onDone?: () => void },
+    ) => void;
     onSearchInput: () => void;
 }
 
@@ -101,7 +105,10 @@ export function useKinetixTableQuery(
     const { table, searchQuery, activeFilters } = options;
     const debounce = options.searchDebounce ?? 400;
 
-    const triggerReload = (params: KinetixTableQueryParams): void => {
+    const triggerReload = (
+        params: KinetixTableQueryParams,
+        hooks: { onDone?: () => void } = {},
+    ): void => {
         const current = table();
         const prefix = current.queryPrefix ?? '';
 
@@ -146,11 +153,31 @@ export function useKinetixTableQuery(
                 preserveState: true,
                 preserveScroll: true,
                 replace: isRefinement,
+                ...(hooks.onDone
+                    ? {
+                          onFinish: hooks.onDone,
+                          onCancel: hooks.onDone,
+                          onError: hooks.onDone,
+                      }
+                    : {}),
             },
         );
     };
 
     let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    // The term a reload is already on its way with: typing back to what the
+    // table shows must not skip the visit while another term is in flight.
+    // Dropped as soon as the table reports the search it now shows.
+    let requestedSearch: string | null = null;
+    let visit = 0;
+
+    watch(
+        () => table().state?.search,
+        () => {
+            requestedSearch = null;
+        },
+    );
 
     const onSearchInput = (): void => {
         if (searchTimeout) {
@@ -158,7 +185,37 @@ export function useKinetixTableQuery(
         }
 
         searchTimeout = setTimeout(() => {
-            triggerReload({ search: searchQuery.value, page: 1, cursor: null });
+            const term = searchQuery.value.trim();
+            const current = table();
+            const minLength = current.searchMinLength ?? 0;
+
+            // Too short to search (clearing the box always reloads).
+            if (minLength > 0 && term.length > 0 && term.length < minLength) {
+                return;
+            }
+
+            // Already showing (or loading) this very term: nothing to fetch.
+            if (
+                term === (requestedSearch ?? current.state?.search ?? '').trim()
+            ) {
+                return;
+            }
+
+            // A visit that fails or is cancelled must not block sending the
+            // same term again; only the latest visit may forget it.
+            const mine = ++visit;
+
+            requestedSearch = term;
+            triggerReload(
+                { search: searchQuery.value, page: 1, cursor: null },
+                {
+                    onDone: () => {
+                        if (mine === visit) {
+                            requestedSearch = null;
+                        }
+                    },
+                },
+            );
         }, debounce);
     };
 

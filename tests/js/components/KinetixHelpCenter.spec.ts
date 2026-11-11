@@ -29,7 +29,10 @@ vi.mock('@/composables/useKinetixHttp', () => ({
 }));
 
 import KinetixHelpCenter from '@/components/KinetixHelpCenter.vue';
-import { clearKinetixHelpCache } from '@/composables/useKinetixHelp';
+import {
+    clearKinetixHelpCache,
+    useKinetixHelp,
+} from '@/composables/useKinetixHelp';
 
 const i18n = createI18n({
     legacy: false,
@@ -319,7 +322,10 @@ describe('KinetixHelpCenter', () => {
         await vi.advanceTimersByTimeAsync(0);
 
         fetchMock.mockRejectedValueOnce(
-            Object.assign(new Error('Too many searches.'), { status: 429 }),
+            Object.assign(new Error('Too many searches.'), {
+                status: 429,
+                retryAfter: 60,
+            }),
         );
 
         await w.get('input').setValue('drag');
@@ -335,5 +341,46 @@ describe('KinetixHelpCenter', () => {
 
         expect(w.get('[role="alert"]').text()).toBe('kinetix.action_failed');
         vi.useRealTimers();
+    });
+
+    it('sends nothing for an empty or blank term and does not announce "0 results"', async () => {
+        vi.useFakeTimers();
+        const w = mountCenter();
+        await vi.advanceTimersByTimeAsync(0);
+        fetchMock.mockClear();
+        document.getElementById('kinetix-live-region')?.remove();
+
+        await w.get('input').setValue('   ');
+        await w.get('input').trigger('input');
+        await vi.advanceTimersByTimeAsync(600);
+
+        await w.get('input').setValue('');
+        await w.get('input').trigger('input');
+        await vi.advanceTimersByTimeAsync(600);
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(document.getElementById('kinetix-live-region')).toBeNull();
+        vi.useRealTimers();
+    });
+
+    it('useKinetixHelp().search sends nothing for a blank term', async () => {
+        let help!: ReturnType<typeof useKinetixHelp>;
+        mount(
+            {
+                setup() {
+                    help = useKinetixHelp();
+
+                    return () => null;
+                },
+            },
+            { global: { plugins: [i18n] } },
+        );
+        fetchMock.mockClear();
+
+        await help.search('');
+        await help.search('   ');
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(help.results.value).toEqual([]);
     });
 });

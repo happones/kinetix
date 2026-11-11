@@ -1183,6 +1183,19 @@ return [
     | spotlight and the table search have their own rules). The throttles are
     | 'attempts,minutes' per user; null turns one off (an E2E suite can).
     |
+    | `concurrency` caps the lookups one user has in flight (null = off; needs
+    | a cache store that supports locks, Redis recommended; 3 is a good start),
+    | and `concurrency_ttl` frees a slot a crashed worker never released.
+    | `timeout` is a statement budget in milliseconds for the searchable
+    | select and relation picker queries (null = off; MySQL, MariaDB and
+    | PostgreSQL). A query that runs out answers an empty list the UI explains.
+    | With a read/write split, MySQL and MariaDB limit the read connection;
+    | PostgreSQL can only limit inside a transaction, so budgeted lookups go
+    | to the primary. Keep `concurrency_ttl` at or above the timeout (or the
+    | slowest lookup when there is none).
+    | `client` tunes the browser: typing debounce (ms), and how many answers it
+    | keeps for how many seconds (0 entries or 0 seconds = no cache).
+    |
     */
 
     'search' => [
@@ -1190,6 +1203,14 @@ return [
         'min_chars'         => env('KINETIX_SEARCH_MIN_CHARS', 1),
         'throttle'          => env('KINETIX_SEARCH_THROTTLE', '120,1'),
         'relation_throttle' => env('KINETIX_RELATION_PICKER_THROTTLE', '60,1'),
+        'concurrency'       => env('KINETIX_SEARCH_CONCURRENCY'),
+        'concurrency_ttl'   => 15,
+        'timeout'           => env('KINETIX_SEARCH_TIMEOUT_MS'),
+        'client'            => [
+            'debounce'      => 250,
+            'cache_ttl'     => 30,
+            'cache_entries' => 100,
+        ],
     ],
 
     /*

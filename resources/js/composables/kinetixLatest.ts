@@ -91,3 +91,33 @@ export function kinetixLookupErrorMessage(
 
     return fallback;
 }
+
+/**
+ * One signal that aborts when either does: a lookup that is cancelled by its
+ * own "latest wins" guard AND by the caller that asked for it.
+ */
+export function kinetixAnySignal(
+    own: AbortSignal,
+    caller?: AbortSignal,
+): AbortSignal {
+    if (!caller) {
+        return own;
+    }
+
+    if (typeof AbortSignal.any === 'function') {
+        return AbortSignal.any([own, caller]);
+    }
+
+    const merged = new AbortController();
+    const abort = (): void => merged.abort();
+
+    for (const signal of [own, caller]) {
+        if (signal.aborted) {
+            abort();
+        } else {
+            signal.addEventListener('abort', abort, { once: true });
+        }
+    }
+
+    return merged.signal;
+}

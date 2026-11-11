@@ -227,7 +227,10 @@ describe('KinetixCheckboxList', () => {
         process.on('unhandledRejection', unhandled);
         fetchMock.mockReset();
         fetchMock.mockRejectedValue(
-            Object.assign(new Error('Too many requests'), { status: 429 }),
+            Object.assign(new Error('Too many requests'), {
+                status: 429,
+                retryAfter: 60,
+            }),
         );
 
         const w = mountIt({ options: {}, searchToken: 'tok' });

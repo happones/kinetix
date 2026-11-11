@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Search } from '@lucide/vue';
-import { computed } from 'vue';
+import { computed, useId } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { actionAttributes } from '@/composables/kinetixActionAttributes';
 import { resolveIcon } from '@/composables/useKinetixIcons';
@@ -40,6 +40,16 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 const { maxLength: searchMaxLength } = useKinetixSearchLimits();
+
+const searchHintId = `kinetix-table-search-hint-${useId()}`;
+
+/** The fewest characters the search reloads on, while the box is below it. */
+const searchHintCount = computed<number | null>(() => {
+    const min = props.table.searchMinLength ?? 0;
+    const length = props.searchQuery.trim().length;
+
+    return min > 0 && length > 0 && length < min ? min : null;
+});
 
 const hasSearch = computed<boolean>(() =>
     props.table.columns.some((c) => c.isSearchable),
@@ -128,6 +138,7 @@ const layoutClass = computed<string>(() => {
                         :value="searchQuery"
                         type="search"
                         :maxlength="searchMaxLength"
+                        :aria-describedby="searchHintId"
                         :placeholder="t('kinetix.search_records')"
                         class="pl-9 pr-4 py-2 text-sm rounded-lg w-full border border-border bg-muted/40 text-foreground transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                         @input="
@@ -138,6 +149,21 @@ const layoutClass = computed<string>(() => {
                             emit('search-input');
                         "
                     />
+                    <!-- Polite hint (not an error): the term is below the minimum. -->
+                    <p
+                        :id="searchHintId"
+                        role="status"
+                        class="text-xs mt-1 text-muted-foreground"
+                        :class="{ 'sr-only': searchHintCount === null }"
+                    >
+                        <template v-if="searchHintCount !== null">
+                            {{
+                                t('kinetix.search_min_chars', {
+                                    count: searchHintCount,
+                                })
+                            }}
+                        </template>
+                    </p>
                 </div>
 
                 <div class="kinetix-toolbar-buttons">

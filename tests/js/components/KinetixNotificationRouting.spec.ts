@@ -485,6 +485,7 @@ describe('KinetixNotificationRouting', () => {
         ]);
         expect(fetchMock).toHaveBeenLastCalledWith(
             '/_kinetix/notification-routing/audiences?search=gra%20ce',
+            { signal: expect.any(AbortSignal) },
         );
     });
 

@@ -181,6 +181,7 @@ use Happones\Kinetix\Spotlight\SpotlightController;
 use Happones\Kinetix\Spotlight\SpotlightRegistry;
 use Happones\Kinetix\Support\BootWarnings;
 use Happones\Kinetix\Support\ConfigCallback;
+use Happones\Kinetix\Support\KinetixLookupSlots;
 use Happones\Kinetix\Support\KinetixSharedProps;
 use Happones\Kinetix\Support\KinetixStateReset;
 use Happones\Kinetix\Support\KinetixTeams;
@@ -477,6 +478,11 @@ class KinetixServiceProvider extends ServiceProvider
         // Re-sends the kept shared props after a successful Kinetix write
         // (added to the source modules' routes by moduleMiddleware()).
         $this->app['router']->aliasMiddleware('kinetix.shared-props', RefreshKinetixSharedProps::class);
+
+        // Caps the lookups one user has in flight (off unless
+        // `kinetix.search.concurrency` is set). Registered outside the route
+        // groups so a cached route can always resolve the alias.
+        $this->app['router']->aliasMiddleware(KinetixLookupSlots::ALIAS, KinetixLookupSlots::class);
 
         // Weekly business-hours structure (the BusinessHours field seeds it;
         // usable on any host validator too). String-registered so it survives
@@ -1487,7 +1493,7 @@ class KinetixServiceProvider extends ServiceProvider
                         ->name('kinetix.help.index');
 
                     Route::get('search', [HelpController::class, 'search'])
-                        ->middleware(KinetixThrottle::middleware('kinetix-search'))
+                        ->middleware([KinetixThrottle::middleware('kinetix-search'), KinetixLookupSlots::ALIAS])
                         ->name('kinetix.help.search');
 
                     Route::get('article/{slug}', [HelpController::class, 'show'])
@@ -2224,7 +2230,7 @@ class KinetixServiceProvider extends ServiceProvider
                 ->prefix("{$prefix}/tags")
                 ->group(function () {
                     Route::get('/', [TagController::class, 'index'])->name('kinetix.tags.index');
-                    Route::get('suggest', [TagController::class, 'suggest'])->middleware(KinetixThrottle::middleware('kinetix-search'))->name('kinetix.tags.suggest');
+                    Route::get('suggest', [TagController::class, 'suggest'])->middleware([KinetixThrottle::middleware('kinetix-search'), KinetixLookupSlots::ALIAS])->name('kinetix.tags.suggest');
                     Route::post('sync', [TagController::class, 'sync'])->name('kinetix.tags.sync');
                 });
         });
@@ -2709,6 +2715,7 @@ class KinetixServiceProvider extends ServiceProvider
                 'search' => [
                     'min_chars'  => SearchTerm::minChars(),
                     'max_length' => SearchTerm::maxLength(),
+                    ...SearchTerm::clientSettings(),
                 ],
                 // The palette's own gate has to agree with the endpoint's, or
                 // it fires requests the server answers with an empty payload.
@@ -3364,10 +3371,10 @@ class KinetixServiceProvider extends ServiceProvider
 
                 // Relation manager BelongsToMany attach/detach, guarded by the
                 // manager's signed descriptor + the parent's `update` policy.
-                Route::post('relations/attachable', [RelationManagerController::class, 'attachable'])->middleware(KinetixThrottle::middleware('kinetix-relation-picker'))->name('kinetix.relations.attachable');
+                Route::post('relations/attachable', [RelationManagerController::class, 'attachable'])->middleware([KinetixThrottle::middleware('kinetix-relation-picker'), KinetixLookupSlots::ALIAS])->name('kinetix.relations.attachable');
                 Route::post('relations/attach', [RelationManagerController::class, 'attach'])->name('kinetix.relations.attach');
                 Route::post('relations/detach', [RelationManagerController::class, 'detach'])->name('kinetix.relations.detach');
-                Route::post('relations/associable', [RelationManagerController::class, 'associable'])->middleware(KinetixThrottle::middleware('kinetix-relation-picker'))->name('kinetix.relations.associable');
+                Route::post('relations/associable', [RelationManagerController::class, 'associable'])->middleware([KinetixThrottle::middleware('kinetix-relation-picker'), KinetixLookupSlots::ALIAS])->name('kinetix.relations.associable');
                 Route::post('relations/associate', [RelationManagerController::class, 'associate'])->name('kinetix.relations.associate');
                 Route::post('relations/dissociate', [RelationManagerController::class, 'dissociate'])->name('kinetix.relations.dissociate');
 
@@ -3446,7 +3453,7 @@ class KinetixServiceProvider extends ServiceProvider
             ->prefix("{$prefix}/forms")
             ->group(function () {
                 Route::post('search', SearchController::class)
-                    ->middleware(KinetixThrottle::middleware('kinetix-search'))
+                    ->middleware([KinetixThrottle::middleware('kinetix-search'), KinetixLookupSlots::ALIAS])
                     ->name('kinetix.forms.search');
 
                 // States / cities for an AddressPicker in locations mode. GET

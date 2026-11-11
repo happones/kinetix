@@ -76,5 +76,8 @@ class TableData extends Data
         // them from kinetix.tables.aggregates using `aggregatesDescriptor`.
         public bool $deferStats = false,
         public ?string $aggregatesDescriptor = null,
+        // Fewest characters before the toolbar search reloads (0 = every
+        // keystroke; Table::searchMinLength()).
+        public int $searchMinLength = 0,
     ) {}
 }

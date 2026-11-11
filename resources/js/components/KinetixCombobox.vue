@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
-import { Check, ChevronsUpDown } from '@lucide/vue';
+import { Check, ChevronsUpDown, Loader2 } from '@lucide/vue';
 import {
     ComboboxAnchor,
     ComboboxContent,
@@ -15,14 +15,13 @@ import {
 } from 'reka-ui';
 import { computed, onBeforeUnmount, ref, useId, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import {
-    KINETIX_SUPERSEDED,
-    createKinetixLatest,
-    kinetixLookupErrorMessage,
-} from '@/composables/kinetixLatest';
 import { kinetixOptionList } from '@/composables/kinetixOptions';
 import type { KinetixOptions } from '@/composables/kinetixOptions';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
+import {
+    useKinetixSearch,
+    useKinetixSearchAnnouncer,
+} from '@/composables/useKinetixSearch';
 import { useKinetixSearchLimits } from '@/composables/useKinetixSearchLimits';
 import type {
     KinetixLookupMeta,
@@ -79,10 +78,6 @@ const { t } = useI18n();
 const page = usePage<KinetixSharedProps>();
 
 const open = ref(false);
-const latest = createKinetixLatest();
-const loading = latest.pending;
-const remoteError = ref<string | null>(null);
-const hintCount = ref<number | null>(null);
 const limits = useKinetixSearchLimits();
 const hintId = `kinetix-combobox-hint-${useId()}`;
 const remote = computed(() => !!props.searchToken || !!props.fetchOptions);
@@ -104,7 +99,66 @@ watch(localItems, (next) => {
     labelMap.value = { ...labelMap.value, ...toMap(next) };
 });
 
-const remoteItems = ref<KinetixOption[]>([]);
+// Only the forms endpoint is keyed (route prefix, so never across teams, plus
+// the signed token); a custom source is the host's and is never cached or cut.
+const serverSearch = computed(() => !!props.searchToken && !props.fetchOptions);
+
+const search = useKinetixSearch<KinetixOption[]>({
+    fetcher: async (query, { signal }) => {
+        if (props.fetchOptions) {
+            return { value: await props.fetchOptions(query, { signal }) };
+        }
+
+        const result = await kinetixFetch<{
+            options: KinetixOptions;
+            meta?: KinetixLookupMeta;
+        }>(`/${kinetixRoutePrefix(page)}/forms/search`, {
+            method: 'POST',
+            body: { token: props.searchToken, q: query },
+            signal,
+        });
+
+        return { value: toList(result?.options), meta: result?.meta };
+    },
+    minChars: () => (serverSearch.value ? limits.minChars.value : 0),
+    cacheKey: () =>
+        serverSearch.value
+            ? `${kinetixRoutePrefix(page)}:forms.search:${props.searchToken}`
+            : null,
+    onSettled: useKinetixSearchAnnouncer<KinetixOption[]>({
+        count: (list) => list.length,
+        tooShort: false,
+    }),
+});
+
+const loading = search.loading;
+const remoteItems = computed<KinetixOption[]>(() => search.results.value ?? []);
+const hintCount = computed<number | null>(() =>
+    search.status.value === 'tooShort'
+        ? limits.hintCount(search.meta.value)
+        : null,
+);
+// A throttle that is out of retries is a failure the user has to hear about.
+const remoteError = computed<string | null>(() =>
+    search.status.value === 'error' || search.status.value === 'expired'
+        ? (search.message.value ?? t('kinetix.action_failed'))
+        : search.status.value === 'throttled' && !search.retrying.value
+          ? (search.message.value ?? t('kinetix.action_failed'))
+          : null,
+);
+// Not a failure: the answer is on its way or partial.
+const statusNote = computed<string | null>(() =>
+    search.status.value === 'throttled' && search.retrying.value
+        ? t('kinetix.search_throttled_retrying')
+        : search.status.value === 'timedOut'
+          ? t('kinetix.search_timed_out')
+          : null,
+);
+
+watch(remoteItems, (list) => {
+    labelMap.value = { ...labelMap.value, ...toMap(list) };
+});
+
 const items = computed<KinetixOption[]>(() =>
     remote.value ? remoteItems.value : localItems.value,
 );
@@ -120,108 +174,33 @@ const selectedLabel = computed(
         (selectedValue.value !== '' ? (props.valueLabel ?? '') : ''),
 );
 
-let debounce: ReturnType<typeof setTimeout> | undefined;
-onBeforeUnmount(() => {
-    clearTimeout(debounce);
-    latest.cancel();
-});
-
-async function fetchRemote(query: string): Promise<void> {
-    if (!props.searchToken && !props.fetchOptions) {
-        return;
-    }
-
-    remoteError.value = null;
-
-    // A typed term the server would refuse as too short is not sent.
-    if (props.searchToken && !props.fetchOptions && limits.isTooShort(query)) {
-        latest.cancel();
-        remoteItems.value = [];
-        hintCount.value = limits.minChars.value;
-
-        return;
-    }
-
-    hintCount.value = null;
-
-    try {
-        const items = await latest.run(async (signal) => {
-            if (props.fetchOptions) {
-                return {
-                    list: await props.fetchOptions(query, { signal }),
-                    below: null,
-                };
-            }
-
-            const result = await kinetixFetch<{
-                options: KinetixOptions;
-                meta?: KinetixLookupMeta;
-            }>(`/${kinetixRoutePrefix(page)}/forms/search`, {
-                method: 'POST',
-                body: { token: props.searchToken, q: query },
-                signal,
-            });
-
-            return {
-                list: toList(result?.options),
-                below: result?.meta?.below_min
-                    ? limits.hintCount(result.meta)
-                    : null,
-            };
-        });
-
-        if (items === KINETIX_SUPERSEDED) {
-            return;
-        }
-
-        hintCount.value = items.below;
-        remoteItems.value = items.list;
-        labelMap.value = { ...labelMap.value, ...toMap(items.list) };
-
-        return;
-    } catch (error) {
-        remoteItems.value = [];
-        hintCount.value = null;
-        remoteError.value = kinetixLookupErrorMessage(
-            error,
-            t('kinetix.action_failed'),
-        );
-    }
-}
+onBeforeUnmount(() => search.cancel());
 
 function onInput(event: Event): void {
     if (!remote.value) {
         return; // local mode: Reka filters by the input automatically
     }
 
-    const query = (event.target as HTMLInputElement).value;
-    clearTimeout(debounce);
-    debounce = setTimeout(() => fetchRemote(query), 250);
+    void search.search((event.target as HTMLInputElement).value);
 }
 
 // Lazy: load the first page only when a remote combobox is opened.
 watch(open, (isOpen) => {
     if (!isOpen) {
-        clearTimeout(debounce);
-        latest.cancel();
+        search.cancel();
 
         return;
     }
 
     if (remote.value && remoteItems.value.length === 0) {
-        fetchRemote('');
+        void search.search('', { immediate: true });
     }
 });
 
 // A new source (the state behind a city list changed) starts from scratch.
 watch(
     () => props.fetchOptions,
-    () => {
-        latest.cancel();
-        remoteItems.value = [];
-        remoteError.value = null;
-        hintCount.value = null;
-    },
+    () => search.reset(),
 );
 
 function onSelect(value: unknown): void {
@@ -302,6 +281,15 @@ const triggerClass =
                     {{ t('kinetix.search_min_chars', { count: hintCount }) }}
                 </p>
 
+                <!-- Visual only: the announcer tells screen readers. -->
+                <p
+                    v-if="statusNote"
+                    aria-hidden="true"
+                    class="px-3 py-1.5 text-xs text-muted-foreground"
+                >
+                    {{ statusNote }}
+                </p>
+
                 <ComboboxEmpty
                     class="py-6 text-sm text-center text-muted-foreground"
                 >
@@ -309,17 +297,25 @@ const triggerClass =
                         {{ remoteError }}
                     </span>
                     <template v-else>
-                        {{
-                            loading
-                                ? '…'
-                                : hintCount !== null
-                                  ? ''
-                                  : t('kinetix.spotlight_empty')
-                        }}
+                        <Loader2
+                            v-if="loading"
+                            aria-hidden="true"
+                            class="size-4 animate-spin mx-auto motion-reduce:animate-none"
+                        />
+                        <template v-else>
+                            {{
+                                hintCount !== null
+                                    ? ''
+                                    : t('kinetix.spotlight_empty')
+                            }}
+                        </template>
                     </template>
                 </ComboboxEmpty>
 
-                <ComboboxViewport class="max-h-60 p-1 overflow-y-auto">
+                <ComboboxViewport
+                    class="max-h-60 p-1 overflow-y-auto"
+                    :aria-busy="loading"
+                >
                     <ComboboxItem
                         v-for="item in items"
                         :key="item.value"

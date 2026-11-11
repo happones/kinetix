@@ -21,6 +21,7 @@ use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\DB;
@@ -309,6 +310,31 @@ class RelationManagerScopingTest extends TestCase
         $this->assertSame([], $labels('Carla'));
         // LIKE wildcards are literal, not "match everything".
         $this->assertSame([], $labels('%'));
+    }
+
+    public function test_a_picker_query_over_its_budget_answers_a_timed_out_hint(): void
+    {
+        config()->set('kinetix.search.timeout', 500);
+
+        $user    = RmsUser::create(['team_id' => 1]);
+        $student = RmsStudent::create(['team_id' => 1, 'name' => 'Leo']);
+
+        $descriptor = $this->descriptorFor(RmsTutorsManager::class, $student, $user);
+
+        RmsTutor::addGlobalScope('slow', static function (): void {
+            $pdo            = new \PDOException('cancelled');
+            $pdo->errorInfo = ['HY000', 3024, 'cancelled'];
+
+            throw new QueryException('testing', 'select 1', [], $pdo);
+        });
+
+        try {
+            $this->postJson(route('kinetix.relations.attachable'), ['descriptor' => $descriptor, 'search' => 'a'])
+                ->assertOk()
+                ->assertExactJson(['options' => [], 'meta' => ['timed_out' => true]]);
+        } finally {
+            Model::clearBootedModels();
+        }
     }
 
     public function test_attach_ignores_ids_outside_the_related_resources_query(): void
