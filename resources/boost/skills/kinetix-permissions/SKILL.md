@@ -132,6 +132,7 @@ Ensure the permissions module is enabled in `config/kinetix.php` (opt-in, defaul
     ],
     'guard'            => env('KINETIX_PERMISSIONS_GUARD', 'web'),
     'protected_roles'  => null, // null = protect the super_admin_role; or ['super-admin', 'owner']
+    'role_label'       => null, // [Class::class, 'method'] fn (string $name, $teamId): ?string; then translated admin/editor/viewer presets, then the name
     // How `kinetix_permissions` finds abilities the Gate grants with no stored
     // row: 'auto' (default) | 'sweep' | 'off' — see below.
     'dynamic_grants'   => env('KINETIX_PERMISSIONS_DYNAMIC_GRANTS', 'auto'),

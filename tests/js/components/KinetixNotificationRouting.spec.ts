@@ -458,7 +458,147 @@ describe('KinetixNotificationRouting', () => {
         await flushPromises();
 
         expect(w.find('[data-test="preview-no-rules"]').exists()).toBe(true);
+        expect(w.text()).toContain('notification_routing_preview_no_rules');
+        expect(w.text()).not.toContain('notification_routing_preview_nobody');
+    });
+
+    const serveSecurity = (
+        type: Record<string, unknown>,
+        recipients: Record<string, unknown>,
+    ) => {
+        const data = index();
+        data.types[1] = { ...data.types[1], ...type } as never;
+        serve({
+            [`${base}/audiences`]: () => audiences,
+            [`${base}/recipients?type=security`]: () => ({
+                recipients: [],
+                skipped: [],
+                skippedCount: 0,
+                hasRules: false,
+                truncated: false,
+                fellBack: false,
+                ...recipients,
+            }),
+            [base]: () => data,
+        });
+    };
+
+    const security = (w: Awaited<ReturnType<typeof mountIt>>) =>
+        w.get('[data-test="routing-type-security"]');
+
+    const openPreview = async (w: Awaited<ReturnType<typeof mountIt>>) => {
+        await security(w).get('[data-test="routing-preview"]').trigger('click');
+        await flushPromises();
+    };
+
+    it('explains the no-routes state per fallback: description, default recipients, neutral', async () => {
+        serveSecurity(
+            { fallback: 'Sent to the HR team.', hasFallback: true },
+            {},
+        );
+        let w = await mountIt();
+        expect(security(w).text()).toContain('Sent to the HR team.');
+
+        serveSecurity({ fallback: null, hasFallback: true }, {});
+        resetKinetixNotificationRoutingState();
+        w = await mountIt();
+        expect(security(w).text()).toContain(
+            'notification_routing_no_routes_fallback',
+        );
+
+        serveSecurity({ fallback: null, hasFallback: false }, {});
+        resetKinetixNotificationRoutingState();
+        w = await mountIt();
+        expect(security(w).text()).toContain('notification_routing_no_routes');
+        expect(security(w).text()).not.toContain('_no_routes_fallback');
+    });
+
+    it('lists the default recipients under the fallback copy when none was chosen', async () => {
+        serveSecurity(
+            { fallback: 'The HR team.', hasFallback: true },
+            {
+                fellBack: true,
+                recipients: [{ id: 'u|1', name: 'Ada', channels: ['mail'] }],
+            },
+        );
+        const w = await mountIt();
+        await openPreview(w);
+
+        expect(w.get('[data-test="preview-fallback"]').text()).toContain(
+            'notification_routing_preview_fallback',
+        );
+        expect(w.get('[data-test="preview-fallback"]').text()).toContain(
+            'The HR team.',
+        );
+        expect(w.get('[data-test="preview-recipients"]').text()).toContain(
+            'Ada',
+        );
+        expect(w.find('[data-test="preview-no-rules"]').exists()).toBe(false);
+    });
+
+    it('shows the description, not "nobody", when the type declares no fallback', async () => {
+        serveSecurity(
+            { fallback: 'Goes to the owner.', hasFallback: false },
+            {},
+        );
+        const w = await mountIt();
+        await openPreview(w);
+
+        expect(w.get('[data-test="preview-no-rules"]').text()).toBe(
+            'Goes to the owner.',
+        );
+        expect(w.find('[data-test="preview-recipients"]').exists()).toBe(false);
+        expect(w.text()).not.toContain('notification_routing_preview_nobody');
+    });
+
+    it('warns that nobody would get it when the declared fallback resolves to no one', async () => {
+        serveSecurity(
+            { fallback: 'Goes to the owner.', hasFallback: true },
+            {},
+        );
+        const w = await mountIt();
+        await openPreview(w);
+
+        const alert = w.get('[data-test="preview-fallback-empty"]');
+        expect(alert.text()).toContain('notification_routing_preview_nobody');
+        expect(alert.text()).toContain('Goes to the owner.');
+        expect(w.find('[data-test="preview-no-rules"]').exists()).toBe(false);
+    });
+
+    it('says nobody would be notified when rules exist but match no one', async () => {
+        serveSecurity({}, { hasRules: true });
+        const w = await mountIt();
+        await openPreview(w);
+
         expect(w.text()).toContain('notification_routing_preview_nobody');
+    });
+
+    it('labels role options with the server label, falling back to the name', async () => {
+        serve({
+            [`${base}/audiences`]: () => ({
+                ...audiences,
+                roles: [
+                    { id: 'admin', name: 'Administrador' },
+                    { id: 'qa', name: 'qa-lead' },
+                ],
+            }),
+            [base]: index,
+        });
+        const w = await mountIt();
+        await w
+            .get('[data-test="routing-type-orders"] [data-test="routing-add"]')
+            .trigger('click');
+        await flushPromises();
+        w.findComponent(KinetixSelect).vm.$emit('update:value', 'role');
+        await flushPromises();
+
+        const options = (
+            w.findComponent(KinetixCombobox).props('options') as Array<{
+                label: string;
+            }>
+        ).map((o) => o.label);
+        expect(options).toContain('Administrador');
+        expect(options).toContain('qa-lead');
     });
 
     it('feeds the member picker from the server search, with opaque string ids', async () => {

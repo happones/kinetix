@@ -12,6 +12,7 @@ use Happones\Kinetix\Data\NotificationRoutingTypeData;
 use Happones\Kinetix\NotificationPreferences\NotificationPreferenceManager;
 use Happones\Kinetix\NotificationPreferences\NotificationTypeRegistry;
 use Happones\Kinetix\NotificationRouting\Events\NotificationRouteChanged;
+use Happones\Kinetix\Support\Memo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
@@ -53,6 +54,8 @@ class NotificationRoutingController
                 array_values(array_intersect($this->registry->mandatoryOf($key), $this->preferences->channelsOf($key))),
                 $this->registry->requirementOf($key),
                 ($routes[$key] ?? new Collection)->map(fn (NotificationRoute $route): NotificationRouteData => $this->payload($route, $labels))->values()->all(),
+                $this->fallbackDescription($key),
+                $this->registry->hasFallback($key),
             );
         }
 
@@ -174,6 +177,9 @@ class NotificationRoutingController
 
         $route = $this->find($request);
 
+        // A type that is no longer offered to the team can't be edited.
+        abort_unless(array_key_exists($route->type, $this->routable()), 404);
+
         $data = $request->validate([
             'channels'   => ['required', 'array', 'min:1'],
             'channels.*' => ['required', 'string', 'distinct', Rule::in($this->preferences->channelsOf($route->type))],
@@ -219,22 +225,44 @@ class NotificationRoutingController
             $plan->skippedCount,
             $plan->hasRules,
             $plan->truncated,
+            $plan->fellBack,
         ));
     }
 
     /**
-     * The types a team routes: every registered one except Kinetix's own,
-     * which go to the person who started the export or import.
+     * The types the team routes: registered, routable and offered to it (the
+     * host's availability callback). Kinetix's own types are not routable by
+     * default: they go to the person who started the export or import. Worked
+     * out once per request.
      *
      * @return array<string, string>
      */
     protected function routable(): array
     {
-        return array_filter(
-            $this->registry->all(),
-            static fn (string $label, string $key): bool => ! str_starts_with($key, 'kinetix.'),
-            ARRAY_FILTER_USE_BOTH,
+        $team = $this->audiences->team();
+
+        /** @var array<string, string> */
+        return Memo::remember(
+            AudienceResolver::MEMO,
+            request(),
+            'routable:'.($team ?? '-'),
+            fn (): array => array_filter(
+                $this->registry->all(),
+                fn (string $label, string $key): bool => $this->registry->isAvailable($key, $team),
+                ARRAY_FILTER_USE_BOTH,
+            ),
         );
+    }
+
+    /**
+     * Who gets the type while the team has chosen nobody, when the host said
+     * so; translated for this request.
+     */
+    protected function fallbackDescription(string $type): ?string
+    {
+        $description = $this->registry->fallbackDescriptionOf($type);
+
+        return $description === null ? null : (string) __($description);
     }
 
     /**

@@ -12,6 +12,7 @@ use Happones\Kinetix\Membership\Events\MemberActivated;
 use Happones\Kinetix\Membership\Events\MemberProvisioned;
 use Happones\Kinetix\Membership\Events\MemberUpdated;
 use Happones\Kinetix\Permissions\AssignableRoles;
+use Happones\Kinetix\Permissions\RoleLabels;
 use Happones\Kinetix\Permissions\SuperAdmin;
 use Happones\Kinetix\Permissions\TakeoverGuard;
 use Happones\Kinetix\Support\ConfigCallback;
@@ -727,7 +728,7 @@ class MembershipController
         return array_map(
             static fn (string $name): array => [
                 'name'        => $name,
-                'label'       => $catalog[$name]['label']       ?? null,
+                'label'       => $catalog[$name]['label']       ?? RoleLabels::label($name, $teamId),
                 'description' => $catalog[$name]['description'] ?? null,
                 'permissions' => $rows[$name]['permissions']    ?? null,
                 'global'      => $rows[$name]['global']         ?? false,

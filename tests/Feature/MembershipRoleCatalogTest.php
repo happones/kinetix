@@ -113,7 +113,8 @@ class MembershipRoleCatalogTest extends TestCase
 
         $this->assertSame(2, $roles['editor']['permissions']);
         $this->assertSame(1, $roles['viewer']['permissions']);
-        $this->assertNull($roles['editor']['label']);
+        $this->assertSame('Editor', $roles['editor']['label']);
+        $this->assertNull($roles['auditor']['label'] ?? null);
         $response->assertJsonPath('identifier_field', 'email');
     }
 

@@ -376,7 +376,14 @@ const idFor = (type: KinetixNotificationRoutingType, part: string): string =>
                         v-if="type.routes.length === 0"
                         class="px-4 py-3 text-sm border-t border-border text-muted-foreground"
                     >
-                        {{ t('kinetix.notification_routing_no_routes') }}
+                        {{
+                            type.fallback ||
+                            t(
+                                type.hasFallback
+                                    ? 'kinetix.notification_routing_no_routes_fallback'
+                                    : 'kinetix.notification_routing_no_routes',
+                            )
+                        }}
                     </p>
 
                     <ul
@@ -489,6 +496,8 @@ const idFor = (type: KinetixNotificationRoutingType, part: string): string =>
                         :loading="previewLoading"
                         :failed="previewFailed"
                         :channel-labels="channelLabels"
+                        :fallback="type.fallback"
+                        :has-fallback="type.hasFallback"
                         @close="closePreviewFor(type)"
                     />
                 </section>

@@ -47,7 +47,13 @@ KinetixNotificationRouting::type('inventory.low-stock')->requires('products.view
 KinetixNotificationRouting::for('inventory.low-stock', $team->getKey())
     ->fallback($team->owners)->notify(new LowStockAlert($product)); // notifyNow() = in-process
 KinetixNotificationRouting::for(...)->send(Notification::make()->title('...'));  // Kinetix in-app
-KinetixNotificationRouting::for(...)->recipients();                              // dry run
+KinetixNotificationRouting::for(...)->recipients();                              // dry run (->fellBack)
+
+KinetixNotificationRouting::type('x')
+    ->routable(false)                                   // hidden, 422, saved rules ignored at send
+    ->availableWhen([C::class, 'm'])                    // fn ($teamKey|null, $type): bool, per team
+    ->fallbackDescription('lang.key')                   // shown while nobody is chosen (per request)
+    ->fallbackUsing([C::class, 'm']);                   // fn ($teamKey|null, ?$notification): iterable<Model>
 ```
 
 ## Rules
@@ -71,7 +77,16 @@ KinetixNotificationRouting::for(...)->recipients();                             
 - **Fixed query count** whatever the audience; only `requires` is per person.
 - **Database channel** is `TeamStampedDatabaseChannel`: stamps `data.team` so a
   host notification stays in its team's bell.
-- **Callbacks are callable arrays**, never closures (`config:cache`).
+- **Callbacks are callable arrays**, never closures (`config:cache`); an
+  unresolvable one throws `InvalidArgumentException` at registration.
+  `availableWhen` gets a NULL team key when teams are off.
+- **Fallback order:** sender `->fallback()` > `fallbackUsing` (only when no rule
+  applies, pinned team, intersected with members) > nobody + warning.
+- **Not routable/unavailable = ignored everywhere:** hidden, 422 on store/preview,
+  404 on update, and saved rules are skipped at send time (fallback applies).
+- **Roles:** only `SuperAdmin::role()` is excluded (not every protected role);
+  labels via `RoleLabels::label()` (`permissions.role_label` > translated
+  presets > name).
 - Endpoints (`kinetix.notification-routing.*`) need `notification_routing.manage`.
 - Events: `AudienceResolved` (counts only), `RoutedNotificationSent`,
   `NotificationRouteChanged`; `GdprPurged` removes a purged account from groups
@@ -84,7 +99,7 @@ Components: `KinetixNotificationRouting`, `KinetixNotificationGroups` (both take
 Payload types in `resources/js/types/kinetix.ts`
 (`KinetixNotificationRoutingType`, `KinetixNotificationRoute`,
 `KinetixNotificationGroup`, `KinetixNotificationAudience`,
-`KinetixNotificationRecipients`).
+`KinetixNotificationRecipients`); a type carries `fallback`/`hasFallback`, a preview `fellBack`.
 
 ## UUID / ULID Host Models
 

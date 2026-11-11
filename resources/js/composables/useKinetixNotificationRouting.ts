@@ -409,6 +409,7 @@ export function useKinetixNotificationRouting() {
                     skippedCount: 0,
                     hasRules: false,
                     truncated: false,
+                    fellBack: false,
                 };
             }
         } catch {

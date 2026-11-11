@@ -20,6 +20,10 @@ const props = defineProps<{
     failed: boolean;
     /** Channel key → label. */
     channelLabels: Record<string, string>;
+    /** The type's own description of its default recipients, already translated. */
+    fallback?: string | null;
+    /** The app delivers to default recipients when no rule applies. */
+    hasFallback?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -40,6 +44,14 @@ const summary = computed(() =>
               skipped: skippedTotal.value,
           })
         : '',
+);
+
+/** No rule applied and the app's default recipients were used. */
+const fellBack = computed(() => props.preview?.fellBack === true);
+
+/** Nothing chosen and no default: there is no list to show, only an explanation. */
+const unrouted = computed(
+    () => props.preview !== null && !props.preview.hasRules && !fellBack.value,
 );
 
 const reasonLabel = (reason: string | null): string =>
@@ -88,12 +100,40 @@ const reasonLabel = (reason: string | null): string =>
             <template v-else-if="preview">
                 <p class="sr-only">{{ summary }}</p>
 
+                <div
+                    v-if="fellBack"
+                    class="space-y-1 text-sm text-muted-foreground"
+                    data-test="preview-fallback"
+                >
+                    <p>
+                        {{ t('kinetix.notification_routing_preview_fallback') }}
+                    </p>
+                    <p v-if="fallback">{{ fallback }}</p>
+                </div>
+
+                <KinetixAlert
+                    v-else-if="unrouted && hasFallback"
+                    color="warning"
+                    :description="
+                        [
+                            t('kinetix.notification_routing_preview_nobody'),
+                            fallback,
+                        ]
+                            .filter(Boolean)
+                            .join(' ')
+                    "
+                    data-test="preview-fallback-empty"
+                />
+
                 <p
-                    v-if="!preview.hasRules"
+                    v-else-if="unrouted"
                     class="text-sm text-muted-foreground"
                     data-test="preview-no-rules"
                 >
-                    {{ t('kinetix.notification_routing_preview_no_rules') }}
+                    {{
+                        fallback ||
+                        t('kinetix.notification_routing_preview_no_rules')
+                    }}
                 </p>
 
                 <KinetixAlert
@@ -105,7 +145,7 @@ const reasonLabel = (reason: string | null): string =>
                     data-test="preview-truncated"
                 />
 
-                <div class="space-y-1.5">
+                <div v-if="!unrouted" class="space-y-1.5">
                     <h5 class="text-xs font-medium text-muted-foreground">
                         {{
                             t('kinetix.notification_routing_preview_notified', {

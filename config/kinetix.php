@@ -614,6 +614,13 @@ return [
         // set an explicit array to protect more (e.g. ['super-admin', 'owner']).
         'protected_roles' => null,
 
+        // Optional label for a role name wherever roles are listed for people
+        // (routing audiences, the member roles picker):
+        // [App\Support\RoleLabels::class, 'for'], called as
+        // fn (string $name, int|string|null $teamId): ?string. Null falls back
+        // to the translated admin/editor/viewer presets, then the role name.
+        'role_label' => null,
+
         // Directory (+ namespace) auto-scanned for `Resource` subclasses whose
         // CRUD abilities are derived automatically — no per-resource
         // registration needed. Set `discover_path` to null to disable and

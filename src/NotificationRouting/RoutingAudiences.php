@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Happones\Kinetix\NotificationRouting;
 
 use Happones\Kinetix\Permissions\AssignableRoles;
+use Happones\Kinetix\Permissions\RoleLabels;
+use Happones\Kinetix\Permissions\SuperAdmin;
 use Happones\Kinetix\Support\KinetixTeams;
+use Happones\Kinetix\Support\Memo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Spatie\Permission\PermissionRegistrar;
@@ -60,8 +63,10 @@ class RoutingAudiences
     }
 
     /**
-     * The roles the team can see (its own and the global ones), keyed by id.
-     * Empty without spatie/laravel-permission.
+     * The roles the team can see (its own and the global ones), keyed by id,
+     * with their label (the name when there is none), by label. The
+     * super-admin role is left out: it bypasses every check, so a rule for it
+     * would mean nothing. Empty without spatie/laravel-permission.
      *
      * @return Collection<string, string>
      */
@@ -71,10 +76,27 @@ class RoutingAudiences
             return new Collection;
         }
 
-        return AssignableRoles::query($this->team())
+        $team = $this->team();
+
+        /** @var Collection<string, string> */
+        return Memo::remember(AudienceResolver::MEMO, request(), 'roles:'.($team ?? '-'), static fn (): Collection => static::loadRoles($team));
+    }
+
+    /**
+     * @return Collection<string, string>
+     */
+    protected static function loadRoles(int|string|null $team): Collection
+    {
+        return AssignableRoles::query($team)
+            ->where('name', '!=', SuperAdmin::role())
             ->orderBy('name')
             ->get(['id', 'name'])
-            ->mapWithKeys(static fn (Model $role): array => [(string) $role->getKey() => (string) $role->getAttribute('name')]);
+            ->mapWithKeys(static function (Model $role) use ($team): array {
+                $name = (string) $role->getAttribute('name');
+
+                return [(string) $role->getKey() => RoleLabels::label($name, $team) ?? $name];
+            })
+            ->sortBy(static fn (string $label): string => mb_strtolower($label));
     }
 
     /**

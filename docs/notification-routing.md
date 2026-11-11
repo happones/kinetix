@@ -89,6 +89,62 @@ KinetixNotificationRouting::type('inventory.low-stock')
 Kinetix's own types (`kinetix.*`) go to the person who started the export or
 import and are not routable.
 
+### What can be routed
+
+By default every registered type except `kinetix.*` is offered. Narrow that in
+code, per type:
+
+```php
+KinetixNotificationRouting::type('personal.document')->routable(false);
+
+KinetixNotificationRouting::type('job_board_applications')
+    ->requires('candidates.viewAny')
+    ->availableWhen([Content::class, 'routingAvailable']);
+```
+
+- **`routable(false)`** hides the type from the screen, answers a rule or a
+  preview for it with a 422 and **ignores rules already saved** for it when
+  sending (the fallback applies). `routable()` opts a `kinetix.*` type in.
+- **`availableWhen($callback)`** decides per team:
+  `fn (int|string|null $teamKey, string $type): bool`. The team key is the
+  team's primary key, and **null when the app has no teams**, so handle it.
+  False hides the type, refuses new rules (422), answers an edit of an existing
+  rule with a 404 (deleting stays possible) and ignores the saved rules when
+  sending. It is asked for every routable type on the screen request (a
+  preview asks again for the previewed type) and once per delivery, with the
+  team's real key even when
+  `notification_routing.teams` is off.
+- Keep both callbacks cheap: `availableWhen` runs on every screen load and
+  send, `fallbackUsing` on every send without rules. They are resolved on each
+  call (a class is not kept alive between requests).
+- Callbacks are callable arrays, invokable class-strings or closures (arrays
+  in files you may `config:cache`). One that cannot be resolved throws
+  `InvalidArgumentException` when registered.
+
+### Who gets it when nobody is chosen
+
+A type with no rule goes to the fallback. Three ways to give one, first match
+wins:
+
+1. `->fallback($users)` on the sender (see below).
+2. `fallbackUsing($callback)` on the type:
+   `fn (int|string|null $teamKey, ?object $notification): iterable<Model>`.
+   Called only when no rule applies, with the team pinned for the ability
+   checks. Its users are held to the team's members (someone from another team
+   is dropped, with teams on). The notification is `null` in the preview.
+3. Nothing: nobody is notified and a warning is logged.
+
+```php
+KinetixNotificationRouting::type('job_board_applications')
+    ->fallbackDescription('notifications.fallback.job_board') // key or text, translated per request
+    ->fallbackUsing([Fallbacks::class, 'jobBoard']);
+```
+
+`fallbackDescription()` is the sentence the screen shows under the type while
+nobody is chosen (for example "Goes to the hiring managers"). Without it the
+screen says it goes to the app's default recipients (when `fallbackUsing` is
+set) or asks to add recipients.
+
 ---
 
 ## Sending
@@ -194,6 +250,7 @@ foreach ($plan->skipped as $skipped) {
     $skipped->user; $skipped->reason; // SkipReason::Ineligible | OptedOut | NoChannels
 }
 $plan->skippedCount; // how many were left out in all
+$plan->fellBack;     // no rule applied: the recipients are the fallback's
 ```
 
 A dry run: nothing is sent. `skipped` is a sample of at most 50 people
@@ -201,6 +258,21 @@ A dry run: nothing is sent. `skipped` is a sample of at most 50 people
 users a `requires` ability rules out are counted while the table is read, not
 kept. Pass a notification to `recipients($notification)`
 to also drop channels it cannot render.
+
+---
+
+## Roles on the screen
+
+The role picker offers the team's roles and the global ones, **without the
+super-admin role** (it bypasses every check, so a rule for it means nothing; a
+rule that names it is a 404). Other protected roles stay valid: "all admins" is
+a fine audience. Rules already stored for super-admin are left alone.
+
+Each role shows a label: your `permissions.role_label` callback first, then the
+translated admin/editor/viewer presets, then the role's own name when it has
+none. Return `null` from the callback for roles it doesn't label so the
+default applies.
+See [Roles & Permissions](permissions.md#role-labels).
 
 ---
 

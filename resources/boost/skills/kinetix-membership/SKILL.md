@@ -257,6 +257,11 @@ still strips the protected roles.
 
 ---
 
+Role labels in the picker: the catalog label, else `permissions.role_label`
+(`[Class::class, 'method']`, `fn (string $name, $teamId): ?string`), else the
+translated admin/editor/viewer presets (`RoleLabels::label()`), else the
+humanized name.
+
 ## Invitation vs Provisioning
 
 This module is an **alternative** to the starter-kit's self-serve team invitations,

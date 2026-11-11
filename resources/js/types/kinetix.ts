@@ -1128,6 +1128,10 @@ export interface KinetixNotificationRoutingType {
     /** The ability a recipient must hold, judged when the notification is sent. */
     requires: string | null;
     routes: KinetixNotificationRoute[];
+    /** Who gets the notification while the team has chosen nobody, when the app said so (translated). */
+    fallback: string | null;
+    /** The app names default recipients (code-defined) for the type. */
+    hasFallback: boolean;
 }
 
 /**
@@ -1137,6 +1141,7 @@ export interface KinetixNotificationRoutingType {
  */
 export interface KinetixNotificationAudience {
     id: number | string;
+    /** What to show: for a role, already its translated label (the role name when it has none). */
     name: string;
 }
 
@@ -1181,6 +1186,8 @@ export interface KinetixNotificationRecipients {
     hasRules: boolean;
     /** More people than `max_recipients`: the rest would not be notified. */
     truncated: boolean;
+    /** No rules apply: `recipients` are the app's default recipients. */
+    fellBack: boolean;
 }
 
 /** A comment (with its threaded replies) on a commentable model. */

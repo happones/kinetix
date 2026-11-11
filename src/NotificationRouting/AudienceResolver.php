@@ -91,6 +91,12 @@ class AudienceResolver
         $fellBack = false;
 
         if ($routes->isEmpty()) {
+            if ($fallback->isEmpty()) {
+                $fallback = collect($this->registry->fallbackFor($type, $teamKey, $notification))
+                    ->filter(static fn (mixed $user): bool => $user instanceof Model)
+                    ->values();
+            }
+
             $fellBack = $fallback->isNotEmpty();
 
             foreach ($fallback as $user) {
@@ -382,6 +388,11 @@ class AudienceResolver
         }
 
         $scope = $this->scopeKey($teamKey);
+
+        // Rules saved for a type that is no longer routable or offered are ignored.
+        if (! $this->registry->isAvailable($type, $teamKey)) {
+            return new Collection;
+        }
 
         /** @var Collection<int, NotificationRoute> */
         return Memo::remember(

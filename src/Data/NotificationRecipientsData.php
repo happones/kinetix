@@ -26,5 +26,7 @@ class NotificationRecipientsData extends Data
         public bool $hasRules,
         /** More people than `max_recipients`: the rest would not be notified. */
         public bool $truncated,
+        /** No rules apply: `recipients` are the app's default recipients. */
+        public bool $fellBack = false,
     ) {}
 }

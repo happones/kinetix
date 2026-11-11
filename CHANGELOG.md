@@ -13,6 +13,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.286.0] - 2026-11-11
+
+Re-publish the translations and the components (`--force`) to pick up the new
+copy; see the upgrade notes.
+
+### Added
+
+- **Routable types.** `KinetixNotificationRouting::type($t)->routable(false)`
+  hides a type from the routing screen, answers rules and previews for it with
+  a 422 and ignores rules already saved for it when sending. `kinetix.*` types
+  stay not routable unless `->routable()` opts them in.
+- **Per-team availability.** `->availableWhen($callback)`, called as
+  `fn (int|string|null $teamKey, string $type): bool` (the team key is null
+  without teams), decides per team whether a type is offered, accepted, editable
+  and honoured when sending.
+- **Default recipients.** `->fallbackUsing($callback)`
+  (`fn ($teamKey, ?object $notification): iterable<Model>`) names who gets a
+  notification while the team has chosen nobody; `->fallback()` on the sender
+  still wins, and the users are held to the team's members. The preview shows
+  them (`fellBack`), and `->fallbackDescription($keyOrText)` explains it on the
+  screen, translated per request.
+- **Role labels.** `permissions.role_label` (`[Class::class, 'method']`,
+  `fn (string $name, $teamId): ?string`) and `RoleLabels::label()`: the routing
+  role picker and the member roles picker show a label instead of the raw name.
+  The seeder's `admin`, `editor` and `viewer` roles are translated in all
+  eight locales.
+- Payloads: `NotificationRoutingTypeData` gains `fallback` and `hasFallback`,
+  `NotificationRecipientsData` gains `fellBack`; the TypeScript types follow
+  (`KinetixNotificationRoutingType`, `KinetixNotificationRecipients`).
+- **(published)** Notification routing: the empty state of a type now explains where the notification goes when no recipients are chosen (the type's own description, the app's default recipients, or a neutral prompt) instead of developer-facing wording.
+- **(published)** The routing recipients preview lists the app's default recipients under their own copy when no rule applies. If the type's default recipients resolve to nobody for the team, it warns that nobody would be notified right now. When a type has no default at all, it shows the type's description instead of 'Nobody would be notified'.
+- **(published)** The routing dialog's role picker shows the role's translated name.
+
+### Changed
+
+- **(published)** `notification_routing_no_routes` and
+  `notification_routing_preview_no_rules` no longer talk about "fallbacks"; new
+  `notification_routing_no_routes_fallback`, `notification_routing_preview_fallback`
+  and `role_preset_admin|editor|viewer` in every locale.
+- The member roles picker labels the `admin`, `editor` and `viewer` roles with
+  their translated presets when the catalog gives no label of its own.
+
+### Fixed
+
+- The routing role picker offered the super-admin role and accepted a rule for
+  it. It now excludes only `permissions.super_admin_role` (other protected roles
+  stay valid) and a rule for it is a 404.
+- `update()` re-checks that the rule's type is still offered (404 otherwise).
+
+### Upgrade notes
+
+- Rules already stored for the super-admin role stay in the table; delete them
+  from the screen if you like. They are no longer offered.
+- Roles named `admin`, `editor` and `viewer` now show translated labels instead
+  of `Admin` / `Editor` / `Viewer`; set `permissions.role_label` to override.
+- Apps that subclassed `RoutingAudiences` to hide super-admin or to label roles
+  can drop the subclass and set `permissions.role_label`. Subclasses that
+  transform `parent::roles()` now receive labels, not raw names.
+- A `role_label` callback should return `null` for roles it doesn't label, so
+  the default (translated preset, else the name) applies.
+- Apps that overrode the screen's copy to describe a fallback can use
+  `->fallbackDescription(...)` and `->fallbackUsing(...)` on the type.
+- Apps that subclassed `NotificationRoutingController` to hide types or to
+  offer routing only to some teams can use `->routable(false)` and
+  `->availableWhen([Content::class, 'method'])` (handle a null team key when
+  teams are off) and delete the subclass.
+
 ## [0.285.1] - 2026-11-11
 
 Re-publish the translations (`--force`) to pick up German.

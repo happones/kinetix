@@ -26,5 +26,9 @@ class NotificationRoutingTypeData extends Data
         /** The ability a recipient must hold, judged when the notification is sent. */
         public ?string $requires,
         public array $routes,
+        /** Who gets the notification while the team has chosen nobody, when the app said so (translated). */
+        public ?string $fallback = null,
+        /** The app names default recipients (code-defined) for the type. */
+        public bool $hasFallback = false,
     ) {}
 }

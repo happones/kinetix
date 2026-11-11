@@ -80,6 +80,10 @@ Enable permissions in your `config/kinetix.php` file:
     // the role-management UI. Defaults to [super_admin_role].
     'protected_roles'  => null,
 
+    // Label of a role wherever roles are listed for people (routing, the
+    // member picker): [Class::class, 'method'], fn (string $name, int|string|null $teamId): ?string.
+    'role_label'       => null,
+
     // Grant a team's OWNER the registered abilities (see §3).
     'owner_bypass'     => [
         // true | [Class, 'method'] | invokable class-string | null (off)
@@ -298,6 +302,26 @@ or as a plain string your JSON lang file translates (`'Billing'` →
 locale. A string with no translation reads as written. Kinetix's own modules
 (roles, members, settings, activity log, users, webhooks) and the `crud()` /
 `access()` / `softDeletes()` presets are translated in every shipped locale.
+
+#### Role labels {#role-labels}
+
+Role names are identifiers (`admin`, `sales-lead`); people read labels. Give
+`permissions.role_label` a callback and the member roles picker and the
+notification routing audiences show what it returns:
+
+```php
+'role_label' => [\App\Support\RoleLabels::class, 'for'],
+
+public static function for(string $name, int|string|null $teamId): ?string
+{
+    return $name === 'sales-lead' ? __('Sales lead') : null;
+}
+```
+
+Return `null` to defer. Next come the seeder's presets, translated in every
+shipped locale (`admin`, `editor`, `viewer`), and finally the name itself
+(headline-cased by the picker). Labels are resolved per request, in the user's
+locale. The Roles screen itself is unchanged.
 
 #### Enforcing a field-level permission (`->can()`)
 

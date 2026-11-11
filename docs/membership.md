@@ -337,6 +337,9 @@ class MemberRoles
   direct provisioning, role change and revoke all go through your callback.
 - The allow-list is still enforced server-side, and the protected roles are
   still removed from it.
+- The picker's label for any role name comes from the catalog above, else from
+  `permissions.role_label` or the translated admin/editor/viewer presets (see
+  [Role labels](permissions.md#role-labels)), else the humanized name.
 
 ---
 
