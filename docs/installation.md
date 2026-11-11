@@ -39,7 +39,7 @@ php artisan vendor:publish --tag=kinetix-config
 # Vue components, stores & TypeScript types → resources/js/
 php artisan vendor:publish --tag=kinetix-components
 
-# Translations → lang/{locale}/kinetix.php (en, es, fr, pt, zh, ja, ru)
+# Translations → lang/{locale}/kinetix.php (en, es, de, fr, pt, zh, ja, ru)
 # English-only app? Select what gets published in config/kinetix.php:
 #   'translations' => ['locales' => ['en']],        // or KINETIX_TRANSLATION_LOCALES=en
 php artisan vendor:publish --tag=kinetix-translations

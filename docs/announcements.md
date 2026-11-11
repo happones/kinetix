@@ -212,7 +212,7 @@ It shows a megaphone icon with an **unread badge**; opening the popover lists th
 published feed (new entries get a dot + the badge clears by marking the feed
 seen). `useKinetixAnnouncements()` exposes `{ announcements, unread, loading,
 load, markSeen }` for a custom UI. Strings are localized (`announcements_*`,
-7 locales).
+8 locales).
 
 ---
 

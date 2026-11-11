@@ -796,6 +796,6 @@ protected static ?string $title = 'app.relation_managers.posts';
 ```
 
 The default (no title) is the headlined relationship name; the table chrome
-(search, pagination, empty state…) is already translated in all 7 locales. The
+(search, pagination, empty state…) is already translated in all 8 locales. The
 default CRUD messages reuse the `kinetix.record_*` keys, so they are translated
 too.

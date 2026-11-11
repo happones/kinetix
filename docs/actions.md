@@ -848,4 +848,4 @@ return inertia('Posts/Edit', [
 
 ## 11. Localization
 
-Default modal labels come from the `kinetix` translation namespace (`confirm`, `cancel`, `confirm_heading`), shipped in English, Spanish, French, and Portuguese.
+Default modal labels come from the `kinetix` translation namespace (`confirm`, `cancel`, `confirm_heading`), shipped in English, Spanish, German, French, Portuguese, Japanese, Russian and Chinese.

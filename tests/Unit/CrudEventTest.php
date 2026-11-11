@@ -21,7 +21,7 @@ class CrudEventTest extends TestCase
 
     public function test_every_message_key_exists_in_every_shipped_locale(): void
     {
-        foreach (['en', 'es', 'fr', 'ja', 'pt', 'ru', 'zh'] as $locale) {
+        foreach (['de', 'en', 'es', 'fr', 'ja', 'pt', 'ru', 'zh'] as $locale) {
             $lines = require __DIR__."/../../resources/lang/{$locale}/kinetix.php";
 
             foreach (CrudEvent::cases() as $event) {

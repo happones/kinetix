@@ -502,7 +502,7 @@ Notification::make()
 
 ## Multilingual Support (i18n)
 
-Kinetix ships with translations for English, Spanish, French, and Portuguese.
+Kinetix ships with translations for English, Spanish, German, French, Portuguese, Japanese, Russian and Chinese.
 
 ### Publish & compile translations
 

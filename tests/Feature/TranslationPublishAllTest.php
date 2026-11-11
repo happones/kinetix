@@ -29,6 +29,6 @@ class TranslationPublishAllTest extends TestCase
         $published = array_map('basename', array_values($paths));
         sort($published);
 
-        $this->assertSame(['en', 'es', 'fr', 'ja', 'pt', 'ru', 'zh'], $published);
+        $this->assertSame(['de', 'en', 'es', 'fr', 'ja', 'pt', 'ru', 'zh'], $published);
     }
 }

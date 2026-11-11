@@ -8,7 +8,7 @@ use Happones\Kinetix\Tests\TestCase;
 
 class TranslationParityTest extends TestCase
 {
-    private const LOCALES = ['en', 'es', 'fr', 'pt', 'zh', 'ja', 'ru'];
+    private const LOCALES = ['en', 'es', 'de', 'fr', 'pt', 'zh', 'ja', 'ru'];
 
     /**
      * @return array<string, mixed>

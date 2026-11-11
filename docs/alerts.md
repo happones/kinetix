@@ -406,4 +406,4 @@ The close logic is available without the component, too.
 per-user ledger underneath it (`isDismissed`, `remember`, `forget`), for a
 component that tracks many keys at once.
 
-Strings are localized (`alert_*`, 7 locales).
+Strings are localized (`alert_*`, 8 locales).

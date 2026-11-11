@@ -165,7 +165,7 @@ php artisan vendor:publish --tag=kinetix-config
 # Vue components, stores, and types → resources/js/
 php artisan vendor:publish --tag=kinetix-components
 
-# Translations → lang/{en,es,fr,pt}/kinetix.php
+# Translations → lang/{en,es,de,fr,pt,ja,ru,zh}/kinetix.php
 php artisan vendor:publish --tag=kinetix-translations
 
 # Audio assets → public/vendor/kinetix/
@@ -590,7 +590,7 @@ Notification::make()
 
 ## Multilingual Support (i18n)
 
-Kinetix ships with translations for **English**, **Spanish**, **French**, and **Portuguese**.
+Kinetix ships with translations for **English**, **Spanish**, **German** (formal *Sie*), **French**, **Portuguese**, **Japanese**, **Russian** and **Chinese**.
 
 All strings in the Vue component are driven by `vue-i18n` keys (`t('kinetix.key')`), compiled from PHP array files via `happones/laravel-vue-i18n-generator`.
 
@@ -748,7 +748,7 @@ kinetix/
 │   │   ├── composables/            # useKinetix* composables
 │   │   └── types/                  # Generated/handwritten TS types
 │   ├── boost/skills/               # kinetix-<feature> Boost skills
-│   └── lang/{en,es,fr,pt}/kinetix.php
+│   └── lang/{en,es,de,fr,pt,ja,ru,zh}/kinetix.php
 └── src/
     ├── KinetixServiceProvider.php  # Registers every enabled module
     ├── Data/                       # Spatie Data DTOs serialized to the frontend

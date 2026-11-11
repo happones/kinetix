@@ -34,7 +34,7 @@ updates the other immediately, with no page reload.
 Enable the feature and list your locales (code → native label, shown in its own
 language):
 
-> Kinetix ships its own UI strings in **en, es, fr, pt, zh, ja, ru** — list
+> Kinetix ships its own UI strings in **en, es, de, fr, pt, zh, ja, ru** — list
 > only the locales your app supports (and match
 > `kinetix.translations.locales` so only those catalogs get published).
 
@@ -180,8 +180,8 @@ available. See [Installation](/installation).
 ## Loading locales on demand
 
 The default wiring imports every locale's messages into your entry bundle.
-Kinetix's own strings are about 20 KB gzipped per locale, so a seven-locale app
-ships about 140 KB that most visitors never use. Lazy locales load only the
+Kinetix's own strings are about 20 KB gzipped per locale, so an eight-locale app
+ships about 160 KB that most visitors never use. Lazy locales load only the
 active locale and the fallback before the first paint, and fetch the others when
 the user switches.
 
@@ -419,7 +419,7 @@ Translations still come from the language (`lang/es`). A column's own
 ## Translating labels you declare in PHP (schemas)
 
 Switching the locale only changes what a **translatable** string resolves to. Kinetix
-ships its *own* UI strings already localized (7 locales), but **every display string
+ships its *own* UI strings already localized (8 locales), but **every display string
 YOU set on a Table, Form, Action, Infolist or Resource is your app's copy** — so it
 must go through Laravel's [`__()`](https://laravel.com/docs/localization) helper. A
 raw literal is never translated, no matter which locale is active.
