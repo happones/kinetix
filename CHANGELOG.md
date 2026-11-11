@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.285.1] - 2026-11-11
+
+Re-publish the translations (`--force`) to pick up German.
+
+### Added
+
+- **German.** Kinetix ships `resources/lang/de/kinetix.php`: every key, in the
+  formal *Sie*. `vendor:publish --tag=kinetix-translations` and
+  `kinetix:upgrade` now publish eight locales (en, es, de, fr, pt, ja, ru, zh);
+  an app that kept its own German file gets it replaced on the next upgrade.
+- `locale.locales` lists the eight shipped locales by default, each with its
+  native label.
+
 ## [0.285.0] - 2026-11-11
 
 ### Added
