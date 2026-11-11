@@ -18,6 +18,9 @@ paste of a whole paragraph or a script cannot turn them into a load problem.
     'concurrency'       => env('KINETIX_SEARCH_CONCURRENCY'),   // null = off
     'concurrency_ttl'   => 15,
     'timeout'           => env('KINETIX_SEARCH_TIMEOUT_MS'),    // null = off
+    'team_scope'        => env('KINETIX_SEARCH_TEAM_SCOPE', true),
+    'team_column'       => 'team_id',
+    'schema_cache_ttl'  => 3600,
     'client'            => ['debounce' => 250, 'cache_ttl' => 30, 'cache_entries' => 100],
 ],
 ```
@@ -31,6 +34,9 @@ paste of a whole paragraph or a script cannot turn them into a load problem.
 | `concurrency` | `null` | Lookups one user may have running at once. `null` = off. See [Concurrency](#concurrency). |
 | `concurrency_ttl` | `15` | Seconds a concurrency slot survives a worker that crashed before freeing it. |
 | `timeout` | `null` | Statement budget, in milliseconds, for the select and relation picker queries. `null` = off. See [Query timeout](#query-timeout). |
+| `team_scope` | `true` | With teams on, bounds remote selects and filters to the active team. See [Team scoping](#team-scoping). |
+| `schema_cache_ttl` | `3600` | Seconds the cache store remembers whether a table has the team column. `null` = process memory only. |
+| `team_column` | `team_id` | The column that holds a row's team when the model does not use `ScopedToTeam`. |
 | `client.debounce` | `250` | Milliseconds the inputs wait after the last keystroke. |
 | `client.cache_ttl` | `30` | Seconds the browser reuses an answer for the same term. `0` = no reuse. |
 | `client.cache_entries` | `100` | Answers the browser keeps (least recently used go first). `0` = no reuse. |
@@ -84,6 +90,77 @@ along with a `Retry-After` header. The budget is per user (by IP for a guest)
 and each family counts apart: lookups never spend the password or export
 budgets.
 
+## Team scoping
+
+With teams on (`kinetix.teams`), every `relationship()` select (searchable or
+not, also `CheckboxList` and `Radio`), remote `searchUsing()` select, select
+filter and multi-select filter is bounded to the **active team** without you
+declaring anything. The same bound applies to the preloaded options, the search
+endpoint, the lookup of the selected label, the strict-options validation and
+the preloaded options of `SelectFilter::relationship()`. The team is the
+membership-checked `KinetixTeams::currentTeamKey()`: the `{current_team}`
+segment of the URL when there is one (a segment the user does not belong to
+answers 404), else the user's current team. The endpoint still requires the
+signed descriptor minted for that user and team, so a token from team A replayed
+under team B's URL answers 403.
+
+The bound is chosen in this order:
+
+1. Teams off, `search.team_scope` false, or the field called `->withoutTeamScope()`: no bound.
+2. The field's own `searchScope()` names the team column: yours wins, nothing is added.
+3. A model using `ScopedToTeam` whose module is team-scoped: the team's rows (`forCurrentTeam()`), plus the `NULL` ones when the model declares them shared (`kinetixTeamRowsIncludeGlobal()` returns true: announcements and mail templates do) or the field calls `->teamScopeIncludesGlobal()`. A model whose module is single-tenant is not bounded.
+4. The configured spatie role model with `permission.teams` on: the team's roles plus the global ones (also with no team resolved), the same visibility as the roles screen.
+5. The `search.team_column` column when the table has it: the team's rows **only**; with `->teamScopeIncludesGlobal()` also the rows whose team is `NULL`.
+6. Otherwise (a shared catalog such as countries or currencies): no bound.
+
+It fails closed: when no team resolves, nothing matches (the role model keeps
+its global roles, like the roles screen). Tables that mix team rows and shared
+`NULL` rows (a host catalog of default templates, a host model using
+`ScopedToTeam`) hide the shared rows until the model declares them with
+`kinetixTeamRowsIncludeGlobal()` or the field adds `->teamScopeIncludesGlobal()`.
+A closure or class modifier is applied inside its own group (its `whereNot`
+negations kept), so an `orWhere`, even a leading one, never widens the team
+bound. A `limit()` in the modifier never raises the options cap.
+
+The "has the column" check costs one schema query per table the first time it
+is needed. The answer is then kept in the cache store for
+`kinetix.search.schema_cache_ttl` seconds (default 3600; `null` = process memory
+only) and in the process (cleared between requests and jobs), and forgotten when
+a migration run finishes (`MigrationsEnded`) on that node. On a multi-node deploy,
+the other nodes pick a new column up when the entry expires, or call
+`SearchScope::flush()` once after migrating.
+
+Opt a field out when it is meant to span teams (a platform console):
+
+```php
+Select::make('team_id')
+    ->searchUsing(Team::class)
+    ->withoutTeamScope();          // also on SelectFilter and CheckboxList
+```
+
+The opt-outs are sealed into the descriptor, so the browser can't flip them.
+Bound a cross-team picker yourself with `searchScope()` or a query modifier.
+
+The relation manager attach and associate pickers (and the ids those endpoints
+accept) use the manager's `getRelatedQuery()`: the related resource's
+`getEloquentQuery()` when you override it, else the model query bounded to the
+active team with the same rules. If your resource (or a base resource)
+overrides `getEloquentQuery()`, bound it yourself:
+`SearchScope::bindToTeam($query, [])` applies these same rules (a public,
+stable helper) and `KinetixTeams::currentTeamKey()` gives you the team. A picker of users that
+belongs to a team through a membership pivot (no `team_id` on the users table)
+is not bounded automatically: add a query modifier that joins the pivot.
+
+::: warning Upgrade note
+Apps with teams on and a model with a `team_id` column now only see the active
+team's rows in these selects, filters and relation pickers. A deliberately
+cross-team picker needs `->withoutTeamScope()`, or set
+`KINETIX_SEARCH_TEAM_SCOPE=false`; a mixed table needs
+`->teamScopeIncludesGlobal()`. Apps that replaced the search controller, or
+patched `SelectFilter` or the relation managers, only to bound by team can drop
+those replacements.
+:::
+
 ## Scoping a select filter
 
 A searchable `SelectFilter` or `MultiSelectFilter` queries its model
@@ -93,7 +170,7 @@ model's global scopes. Bound it with `searchScope()`:
 ```php
 SelectFilter::make('project_id')
     ->searchUsing(Project::class, 'name', ['name'])
-    ->searchScope(['team_id' => $request->user()->currentTeam->getKey()]);
+    ->searchScope(['archived' => false]);
 ```
 
 `searchScope()` takes plain equality constraints (`null` becomes

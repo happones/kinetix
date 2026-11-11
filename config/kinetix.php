@@ -1203,6 +1203,21 @@ return [
     | `client` tunes the browser: typing debounce (ms), and how many answers it
     | keeps for how many seconds (0 entries or 0 seconds = no cache).
     |
+    | `team_scope` (teams on only) bounds every `relationship()` select
+    | (searchable or not), remote select, select filter (options, search and
+    | selected label) and the relation manager attach/associate pickers to the
+    | active team: `forCurrentTeam()` for a model using ScopedToTeam (plus the
+    | NULL rows when the model declares them shared, via
+    | `kinetixTeamRowsIncludeGlobal()`), team plus global roles for the
+    | configured role model, else `team_column` (team rows only) when the
+    | model's table has it. Tables without the column are untouched, a field's
+    | own `searchScope()` on that column wins, a platform-wide picker opts out
+    | with `->withoutTeamScope()` (or set this to false), and a host catalog
+    | where NULL means shared uses `->teamScopeIncludesGlobal()`.
+    | `schema_cache_ttl` is how long (seconds) the cache store remembers whether
+    | a table has `team_column` (null = process memory only); a migration run
+    | forgets it on that node.
+    |
     */
 
     'search' => [
@@ -1213,6 +1228,9 @@ return [
         'concurrency'       => env('KINETIX_SEARCH_CONCURRENCY'),
         'concurrency_ttl'   => 15,
         'timeout'           => env('KINETIX_SEARCH_TIMEOUT_MS'),
+        'team_scope'        => env('KINETIX_SEARCH_TEAM_SCOPE', true),
+        'team_column'       => 'team_id',
+        'schema_cache_ttl'  => 3600,
         'client'            => [
             'debounce'      => 250,
             'cache_ttl'     => 30,

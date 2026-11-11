@@ -13,6 +13,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.287.0] - 2026-11-11
+
+Re-publish the components (`--force`) to pick up the token form fix.
+
+### Changed
+
+- **Selects, filters and relation pickers are bounded to the active team by
+  default.** With teams on, every `relationship()` select (searchable or not,
+  also `CheckboxList` and `Radio`, including the strict-options validation),
+  every remote `searchUsing()` select (endpoint and selected label), select and
+  multi-select filters (remote search, selected label and the preloaded
+  `relationship()` options) and the relation manager attach/associate pickers
+  (and their id validation, when the resource does not override
+  `getEloquentQuery()`) only see the active team's rows. The bound is
+  `forCurrentTeam()` for a `ScopedToTeam` model (plus its `NULL` rows when it
+  declares them shared with the new `kinetixTeamRowsIncludeGlobal()`, true for
+  announcements and mail templates), team plus global roles for the configured
+  role model, else the `team_id` column when the table has
+  it (team rows only). Tables without the column are untouched, a
+  `searchScope()` on the team column wins, and with no team resolved nothing
+  matches (the role model keeps its global roles; a `ScopedToTeam` model whose
+  module is single-tenant is not bound). Closure and class modifiers run inside
+  their own group, so an `orWhere` cannot widen the bound. Configure with `kinetix.search.team_scope` (env
+  `KINETIX_SEARCH_TEAM_SCOPE`) and `kinetix.search.team_column`.
+- A searchable `relationship()` select now also applies its own `searchScope()`
+  to its eager options and its strict validation, and a `searchUsing()` select
+  applies it to the selected label.
+- The "table has the team column" check is cached in the store for
+  `kinetix.search.schema_cache_ttl` seconds (default 3600, `null` = process
+  only) and in the process (cleared by the request/job state reset), and
+  forgotten when migrations finish on that node. After migrating a multi-node
+  deploy, other nodes see the column when the entry expires, or call
+  `SearchScope::flush()`.
+- `SearchScope::bindToTeam()` is a public helper for resources that override
+  `getEloquentQuery()`.
+
+### Added
+
+- `->withoutTeamScope()` and `->teamScopeIncludesGlobal()` on `Select`,
+  `CheckboxList` and `SelectFilter` (sealed into the descriptor), for pickers
+  that span teams and for host catalogs where a `NULL` team means shared.
+
+### Security
+
+- Closes the cross-team read of selects, filters and relation pickers in apps
+  that did not declare a scope. The signed descriptor (user and team seal) and
+  the membership check are unchanged and covered by tests.
+
+### Fixed
+
+- **(published)** `KinetixTokenManager`: the "Create token" button no longer opens a form with no default scopes ticked when clicked before the token list has loaded. The button now shows its loading state (disabled, `aria-busy`, label kept) until the list arrives, and still works after a failed load (the error is toasted and the next click retries). If the form is open when the default scopes arrive, they are applied unless the person already ticked or unticked a scope.
+
+### Upgrade notes
+
+- A deliberately cross-team picker (a platform console) must call
+  `->withoutTeamScope()`, or set `KINETIX_SEARCH_TEAM_SCOPE=false`.
+- A table that mixes team rows with shared `NULL` rows Kinetix does not know
+  (a host catalog of defaults) hides the shared rows until the field calls
+  `->teamScopeIncludesGlobal()`, or the model declares them with
+  `kinetixTeamRowsIncludeGlobal()` (announcements, mail templates and the role
+  model already do).
+- A resource (or base resource) that overrides `getEloquentQuery()` owns its
+  scoping: bound it with `SearchScope::bindToTeam($query, [])`.
+- Pickers of users through a membership pivot are not bounded automatically;
+  add a query modifier that joins the pivot.
+- Apps that replaced `SearchController`, patched `SelectFilter` to bound its
+  preloaded options, or overrode relation managers only to bound by team can
+  drop those replacements: a search controller that skips the signed descriptor
+  or the membership check is a cross-team hole. Filter tokens minted before the
+  upgrade are bounded too.
+
 ## [0.286.0] - 2026-11-11
 
 Re-publish the translations and the components (`--force`) to pick up the new

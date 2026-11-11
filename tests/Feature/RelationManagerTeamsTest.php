@@ -23,6 +23,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Schema;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Permission\PermissionServiceProvider;
 
 class RmtTeam extends Model
@@ -182,6 +183,27 @@ class RmtGradesManager extends RelationManager
     }
 }
 
+/** A resource that keeps the stock, unbounded `getEloquentQuery()`. */
+class RmtStockTutorResource extends Resource
+{
+    protected static ?string $model = RmtTutor::class;
+}
+
+class RmtBareTutorsManager extends RmtTutorsManager
+{
+    protected static ?string $relatedResource = null;
+}
+
+class RmtStockTutorsManager extends RmtTutorsManager
+{
+    protected static ?string $relatedResource = RmtStockTutorResource::class;
+}
+
+class RmtBareGradesManager extends RmtGradesManager
+{
+    protected static ?string $relatedResource = null;
+}
+
 /**
  * The relation endpoints under the `{current_team}` segment, with resources
  * shaped like the team scaffold: the team comes from the URL, not the user.
@@ -320,5 +342,52 @@ class RelationManagerTeamsTest extends TestCase
         $tutor = RmtTutor::sole();
         $this->assertSame($this->teamA->id, (int) $tutor->team_id);
         $this->assertSame([$tutor->id], $this->student->tutors()->pluck('rmt_tutors.id')->all());
+    }
+
+    /**
+     * @return array<string, array{class-string<RelationManager>}>
+     */
+    public static function unboundedTutorManagers(): array
+    {
+        return ['no resource' => [RmtBareTutorsManager::class], 'stock resource' => [RmtStockTutorsManager::class]];
+    }
+
+    /**
+     * @param class-string<RelationManager> $manager
+     */
+    #[DataProvider('unboundedTutorManagers')]
+    public function test_an_unbounded_related_query_is_bounded_to_the_active_team(string $manager): void
+    {
+        $mine       = RmtTutor::create(['team_id' => $this->teamA->id, 'name' => 'Ana']);
+        $foreign    = RmtTutor::create(['team_id' => $this->teamB->id, 'name' => 'Carla']);
+        $descriptor = $this->descriptorFor($manager);
+
+        $this->postJson($this->teamRoute('attachable'), ['descriptor' => $descriptor])
+            ->assertOk()
+            ->assertJsonPath('options', [['id' => $mine->id, 'label' => 'Ana']]);
+
+        $this->postJson($this->teamRoute('attach'), ['descriptor' => $descriptor, 'ids' => [$mine->id, $foreign->id]])
+            ->assertOk()
+            ->assertJsonPath('attached', 1);
+
+        $this->assertSame([$mine->id], $this->student->tutors()->pluck('rmt_tutors.id')->all());
+    }
+
+    public function test_the_associate_picker_and_endpoint_are_bounded_without_a_resource(): void
+    {
+        $mine       = RmtGrade::create(['team_id' => $this->teamA->id, 'title' => 'Math']);
+        $foreign    = RmtGrade::create(['team_id' => $this->teamB->id, 'title' => 'History']);
+        $descriptor = $this->descriptorFor(RmtBareGradesManager::class);
+
+        $this->postJson($this->teamRoute('associable'), ['descriptor' => $descriptor])
+            ->assertOk()
+            ->assertJsonCount(1, 'options')
+            ->assertJsonPath('options.0.label', 'Math');
+
+        $this->postJson($this->teamRoute('associate'), ['descriptor' => $descriptor, 'ids' => [$mine->id, $foreign->id]])
+            ->assertOk()
+            ->assertJsonPath('associated', 1);
+
+        $this->assertNull($foreign->fresh()->student_id);
     }
 }

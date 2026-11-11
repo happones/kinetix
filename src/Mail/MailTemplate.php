@@ -32,6 +32,11 @@ class MailTemplate extends Model
         return 'mail_templates';
     }
 
+    public static function kinetixTeamRowsIncludeGlobal(): bool
+    {
+        return true;
+    }
+
     protected $table = 'kinetix_mail_templates';
 
     protected $guarded = [];

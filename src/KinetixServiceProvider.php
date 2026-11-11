@@ -101,6 +101,7 @@ use Happones\Kinetix\Flows\FlowInboxController;
 use Happones\Kinetix\Flows\NodeRegistry;
 use Happones\Kinetix\Forms\FormRecomputeController;
 use Happones\Kinetix\Forms\SearchController;
+use Happones\Kinetix\Forms\SearchScope;
 use Happones\Kinetix\Forms\TableRepeaterController;
 use Happones\Kinetix\Forms\UploadController;
 use Happones\Kinetix\Gdpr\Events\GdprPurged;
@@ -212,6 +213,7 @@ use Happones\Kinetix\Wizards\WizardManager;
 use Illuminate\Contracts\Foundation\CachesRoutes;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Events\MigrationsEnded;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Foundation\Http\Kernel as FoundationHttpKernel;
@@ -3547,6 +3549,8 @@ class KinetixServiceProvider extends ServiceProvider
     protected function registerStateReset(): void
     {
         KinetixStateReset::run(false);
+
+        Event::listen(MigrationsEnded::class, static fn () => SearchScope::flush());
 
         Event::listen(JobProcessing::class, static function (JobProcessing $event): void {
             KinetixStateReset::run(! self::runsInline($event));

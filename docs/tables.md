@@ -466,6 +466,8 @@ Renders as a dropdown select.
   For large related tables prefer `searchUsing()` (options load lazily instead of all at once).
 - `searchable()`: Renders the select dropdown as a searchable combobox.
 - `searchUsing(string $model, string $labelColumn = 'name', array $searchColumns = ['name'], string $valueColumn = 'id', ?string $modifyQueryUsing = null)`: Dynamically queries the model's database table when searching. The selection is securely query-guarded via tokens. The optional last argument is an invokable class that receives the query builder.
+- `withoutTeamScope()`: Opts the filter out of the automatic team bound that remote search applies with teams on (`kinetix.search.team_scope`). See [Search](/search#team-scoping).
+- `teamScopeIncludesGlobal()`: Keeps the rows whose team is `NULL` next to the active team's, for a host catalog where `NULL` means shared. Sealed into the token.
 - `searchScope(array $constraints)`: Bounds the remote search **and** the labels of the already-selected values (`['team_id' => $teamId]`). Declare it in a multi-tenant app whenever the model has no global tenant scope. See [Search](/search#scoping-a-select-filter).
 
 ### 3. `MultiSelectFilter`

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 import { createI18n } from 'vue-i18n';
 
-const load = vi.fn();
+const load = vi.fn().mockResolvedValue(undefined);
 const create = vi.fn().mockResolvedValue({ plainTextToken: 'tok_plain' });
 const remove = vi.fn();
 const tokens = ref<any[]>([]);
@@ -63,9 +63,20 @@ const mountManager = () =>
         },
     });
 
+const mountSettled = async () => {
+    const w = mountManager();
+    await flushPromises();
+
+    return w;
+};
+
+const addButton = (w: ReturnType<typeof mountManager>) =>
+    w.findAll('button').find((b) => b.text() === 'token_add')!;
+
 describe('KinetixTokenManager', () => {
     beforeEach(() => {
         create.mockClear();
+        load.mockReset().mockResolvedValue(undefined);
         tokens.value = [];
         scopes.value = { 'posts.read': 'Read posts' };
         defaultScopes.value = [];
@@ -78,7 +89,7 @@ describe('KinetixTokenManager', () => {
         };
         defaultScopes.value = ['posts.read'];
 
-        const w = mountManager();
+        const w = await mountSettled();
 
         await w
             .findAll('button')
@@ -99,7 +110,7 @@ describe('KinetixTokenManager', () => {
     });
 
     it('needs a scope before it creates a token, when there are scopes to pick', async () => {
-        const w = mountManager();
+        const w = await mountSettled();
         const createButton = () =>
             w.findAll('button').find((b) => b.text() === 'token_create')!;
 
@@ -121,7 +132,7 @@ describe('KinetixTokenManager', () => {
 
     it('sends the chosen expiration date when creating a token', async () => {
         defaultScopes.value = ['posts.read'];
-        const w = mountManager();
+        const w = await mountSettled();
 
         await w
             .findAll('button')
@@ -197,5 +208,85 @@ describe('KinetixTokenManager', () => {
         expect(text).toContain('Expired');
         // Tokens without expiry show no badge (the count of badges is 2).
         expect(w.findAll('.rounded-md.px-1\\.5')).toHaveLength(2);
+    });
+
+    it('keeps the Create button busy until the list has loaded', async () => {
+        let resolve!: () => void;
+        load.mockReturnValue(new Promise<void>((r) => (resolve = r)));
+
+        const w = mountManager();
+        await flushPromises();
+
+        expect(addButton(w).attributes('disabled')).toBeDefined();
+        expect(addButton(w).attributes('aria-busy')).toBe('true');
+        expect(addButton(w).text()).toBe('token_add');
+
+        resolve();
+        await flushPromises();
+
+        expect(addButton(w).attributes('disabled')).toBeUndefined();
+        expect(addButton(w).attributes('aria-busy')).toBeUndefined();
+    });
+
+    it('lets Create work again after a failed load and applies the defaults that arrive', async () => {
+        scopes.value = { 'posts.read': 'Read', 'posts.write': 'Write' };
+        load.mockRejectedValueOnce(new Error('boom'));
+
+        const w = mountManager();
+        await flushPromises();
+
+        expect(addButton(w).attributes('disabled')).toBeUndefined();
+
+        // The retry resolves later; the form is already open by then.
+        let resolve!: () => void;
+        load.mockReturnValueOnce(new Promise<void>((r) => (resolve = r)));
+        await addButton(w).trigger('click');
+
+        expect(load).toHaveBeenCalledTimes(2);
+
+        defaultScopes.value = ['posts.read'];
+        resolve();
+        await flushPromises();
+        await w.get('#token-name').setValue('Late');
+        await w
+            .findAll('button')
+            .find((b) => b.text() === 'token_create')!
+            .trigger('click');
+        await flushPromises();
+
+        expect(create).toHaveBeenCalledWith({
+            name: 'Late',
+            abilities: ['posts.read'],
+            expires_at: null,
+        });
+    });
+
+    it('does not overwrite scopes the person already touched when defaults arrive', async () => {
+        scopes.value = { 'posts.read': 'Read', 'posts.write': 'Write' };
+        load.mockRejectedValueOnce(new Error('boom'));
+
+        const w = mountManager();
+        await flushPromises();
+
+        load.mockReturnValueOnce(new Promise<void>(() => {}));
+        await addButton(w).trigger('click');
+
+        const boxes = w.findAll('label [role="checkbox"], label input');
+        await boxes[1].trigger('click');
+
+        defaultScopes.value = ['posts.read'];
+        await flushPromises();
+        await w.get('#token-name').setValue('Mine');
+        await w
+            .findAll('button')
+            .find((b) => b.text() === 'token_create')!
+            .trigger('click');
+        await flushPromises();
+
+        expect(create).toHaveBeenCalledWith({
+            name: 'Mine',
+            abilities: ['posts.write'],
+            expires_at: null,
+        });
     });
 });

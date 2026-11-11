@@ -70,6 +70,8 @@ class SearchController
             $model::query(),
             is_array($descriptor['scope'] ?? null) ? $descriptor['scope'] : [],
             $descriptor['modifier'] ?? null,
+            ($descriptor['team_scope'] ?? true) !== false,
+            ($descriptor['team_scope_global'] ?? false) === true,
         );
 
         try {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 import {
@@ -8,6 +8,7 @@ import {
 } from '@/composables/useKinetixShadcnVariants';
 import { useKinetixTokens } from '@/composables/useKinetixTokens';
 import type { KinetixToken } from '@/types/kinetix';
+import KinetixButton from './KinetixButton.vue';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 import KinetixDatePicker from './KinetixDatePicker.vue';
 import KinetixLabel from './KinetixLabel.vue';
@@ -26,6 +27,12 @@ const newName = ref('');
 const selectedScopes = ref<string[]>([]);
 const expiresAt = ref<string | null>(null);
 const revealed = ref<string | null>(null);
+
+/** True until the first list request settles, so the scope catalog is known. */
+const listLoading = ref(true);
+const listFailed = ref(false);
+/** Set once the person ticks or unticks a scope; defaults then stop applying. */
+const scopesTouched = ref(false);
 
 /** Expirations start tomorrow (the backend requires a future date). */
 const minExpiration = computed(() => {
@@ -52,15 +59,44 @@ const selectedScopeSet = computed<Set<string>>(
     () => new Set(selectedScopes.value.map((s) => String(s))),
 );
 
-onMounted(load);
+async function reload(): Promise<void> {
+    listLoading.value = true;
+    listFailed.value = false;
+
+    try {
+        await load();
+    } catch (error) {
+        listFailed.value = true;
+        toast.error(
+            error instanceof Error ? error.message : t('kinetix.save_failed'),
+        );
+    } finally {
+        listLoading.value = false;
+    }
+}
+
+onMounted(reload);
+
+// A form opened before the list arrived (a retry after a failed load) picks up
+// the default scopes when they land, unless the person already chose.
+watch(defaultScopes, (next) => {
+    if (creating.value && !scopesTouched.value) {
+        selectedScopes.value = [...next];
+    }
+});
 
 function startCreate(): void {
     creating.value = true;
+    scopesTouched.value = false;
     newName.value = '';
     // The app's default scopes (`kinetix.tokens.default_scopes`), typically
     // the read-only ones, start ticked.
     selectedScopes.value = [...defaultScopes.value];
     expiresAt.value = null;
+
+    if (listFailed.value) {
+        void reload();
+    }
 }
 
 function cancelCreate(): void {
@@ -71,6 +107,7 @@ function cancelCreate(): void {
 }
 
 function toggleScope(name: string, checked: boolean): void {
+    scopesTouched.value = true;
     selectedScopes.value = checked
         ? [...selectedScopes.value, name]
         : selectedScopes.value.filter((s) => s !== name);
@@ -131,14 +168,14 @@ function formatDate(value: string | null): string {
             <h2 class="text-lg font-semibold text-foreground">
                 {{ t('kinetix.tokens_title') }}
             </h2>
-            <button
+            <KinetixButton
                 v-if="!creating"
-                type="button"
-                :class="buttonVariants({ size: 'sm' })"
+                size="sm"
+                :loading="listLoading"
                 @click="startCreate"
             >
                 {{ t('kinetix.token_add') }}
-            </button>
+            </KinetixButton>
         </div>
 
         <!-- Reveal-once banner -->

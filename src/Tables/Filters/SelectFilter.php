@@ -42,6 +42,10 @@ class SelectFilter extends Filter
     /** @var array<string, mixed> */
     protected array $searchScope = [];
 
+    protected bool $teamScoped = true;
+
+    protected bool $teamScopeGlobal = false;
+
     /** @var class-string|null */
     protected ?string $searchModifier = null;
 
@@ -99,6 +103,28 @@ class SelectFilter extends Filter
         return $this;
     }
 
+    /**
+     * Opt this filter out of the automatic team bound (see
+     * `Select::withoutTeamScope()`), sealed into its token.
+     */
+    public function withoutTeamScope(): static
+    {
+        $this->teamScoped = false;
+
+        return $this;
+    }
+
+    /**
+     * Keep the rows with no team visible next to the active team's (see
+     * `Select::teamScopeIncludesGlobal()`), sealed into its token.
+     */
+    public function teamScopeIncludesGlobal(): static
+    {
+        $this->teamScopeGlobal = true;
+
+        return $this;
+    }
+
     public function options(array|Closure|string $options): static
     {
         $this->options = $options;
@@ -143,10 +169,10 @@ class SelectFilter extends Filter
         $relation = (new $this->modelClass)->{$this->relationshipName}();
         $related  = $relation->getRelated();
 
-        $query = $related->newQuery();
+        $query = SearchScope::apply($related->newQuery(), $this->searchScope, null, $this->teamScoped, $this->teamScopeGlobal);
 
         if ($this->modifyRelationshipQuery !== null) {
-            ($this->modifyRelationshipQuery)($query);
+            SearchScope::modify($query, $this->modifyRelationshipQuery);
         }
 
         // Capped: unbounded, a relation over a large table puts every row in
@@ -206,7 +232,7 @@ class SelectFilter extends Filter
 
         $values = is_array($selectedValue) ? $selectedValue : [$selectedValue];
 
-        $rows = SearchScope::apply($this->searchModel::query(), $this->searchScope, $this->searchModifier)
+        $rows = SearchScope::apply($this->searchModel::query(), $this->searchScope, $this->searchModifier, $this->teamScoped, $this->teamScopeGlobal)
             ->whereIn($this->searchValueColumn, $values)
             ->get();
 
@@ -287,7 +313,7 @@ class SelectFilter extends Filter
                 'value'    => $this->searchValueColumn,
                 'scope'    => $this->searchScope,
                 'modifier' => $this->searchModifier,
-            ], DescriptorAudience::Search);
+            ] + ($this->teamScoped ? [] : ['team_scope' => false]) + ($this->teamScopeGlobal ? ['team_scope_global' => true] : []), DescriptorAudience::Search);
         }
 
         return $data;

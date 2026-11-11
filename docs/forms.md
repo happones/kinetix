@@ -864,22 +864,34 @@ the list is truncated and a warning is logged — declare the field `searchable(
 so options are fetched on demand instead of shipping a table to the browser.
 :::
 
-::: warning Scope remote search in a multi-tenant app
-A searchable Select queries the related model directly, so with no bound it will
-happily return every tenant's labels, 20 rows per request. The search descriptor
+## Team scoping
+
+With teams on, every `relationship()` select, searchable or not (also
+`CheckboxList` and `Radio`), and every remote `searchUsing()` select is bounded
+to the **active team** without declaring anything (`kinetix.search.team_scope`):
+the eager options, the search endpoint, the selected label and the strict-options
+validation all use the same bound. Call `->withoutTeamScope()` on a field that
+must span teams, and `->teamScopeIncludesGlobal()` for a host catalog where a
+`NULL` team means "shared". See [Search](/search#team-scoping) for the exact rules.
+
+::: warning Bound the rest of the data in a multi-tenant app
+A searchable Select queries the related model directly. The team is bound for
+you, but anything else that makes a row private (an owner, a visibility flag) is
+yours to bound with `searchScope()` or a query modifier. The search descriptor
 is bound to the user and team it was minted for and expires
-(`kinetix.tables.token_ttl`), but that stops replay — not a legitimate user
-searching too widely. Declare the tenant key:
+(`kinetix.tables.token_ttl`), but that stops replay, not a legitimate user
+searching too widely:
 
 ```php
 Select::make('project_id')
     ->relationship('project', 'name')
     ->searchable()
-    ->searchScope(['team_id' => $request->user()->currentTeam->getKey()]);
+    ->searchScope(['archived' => false]);
 ```
 
-`searchScope()` takes plain equality constraints. For anything else, use the
-invokable query-modifier class shown above.
+`searchScope()` takes plain equality constraints; a constraint on the team
+column replaces the automatic team bound. For anything else, use the invokable
+query-modifier class shown above.
 :::
 
 ::: tip Search limits

@@ -33,6 +33,11 @@ class Announcement extends Model
         return 'announcements';
     }
 
+    public static function kinetixTeamRowsIncludeGlobal(): bool
+    {
+        return true;
+    }
+
     protected $table = 'kinetix_announcements';
 
     protected $guarded = [];

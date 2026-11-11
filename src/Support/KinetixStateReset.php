@@ -8,6 +8,7 @@ use Happones\Kinetix\Announcements\AnnouncementManager;
 use Happones\Kinetix\Billing\PlanCatalog;
 use Happones\Kinetix\Credentials\PasswordHistory;
 use Happones\Kinetix\Credentials\PasswordObserver;
+use Happones\Kinetix\Forms\SearchScope;
 use Happones\Kinetix\Help\HelpManager;
 use Happones\Kinetix\NotificationPreferences\NotificationPreference;
 use Happones\Kinetix\Permissions\PermissionTeam;
@@ -68,6 +69,7 @@ final class KinetixStateReset
         // The password observer memoizes whether the users table carries the
         // policy columns; a migration between requests must be seen.
         PasswordObserver::flush();
+        SearchScope::flushMemo();
         PasswordHistory::flush();
         NotificationPreference::flushOwnerTypeColumn();
 

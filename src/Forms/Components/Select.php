@@ -8,6 +8,7 @@ use Closure;
 use Happones\Kinetix\Data\FormFieldData;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Forms\Rules\InOptions;
+use Happones\Kinetix\Forms\SearchScope;
 use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\Contracts\HasLabel;
 use Happones\Kinetix\Support\Contracts\ResolvesRelationships;
@@ -54,17 +55,48 @@ class Select extends Field implements ResolvesRelationships
      */
     protected array $searchScope = [];
 
+    protected bool $teamScoped = true;
+
+    protected bool $teamScopeGlobal = false;
+
+    /**
+     * Opt this field out of the automatic team bound. With teams on, a remote
+     * select only returns the active team's rows (`kinetix.search.team_scope`);
+     * call this for a picker that is meant to span teams (a platform console),
+     * and bound it yourself with `searchScope()` or a query modifier. Sealed
+     * into the field's descriptor.
+     */
+    public function withoutTeamScope(): static
+    {
+        $this->teamScoped = false;
+
+        return $this;
+    }
+
+    /**
+     * Keep the rows with no team visible next to the active team's, for a
+     * catalog where NULL means "shared by every team". Without it a table
+     * that is not a Kinetix model nor the role model is bounded to the team's
+     * own rows. Sealed into the descriptor.
+     */
+    public function teamScopeIncludesGlobal(): static
+    {
+        $this->teamScopeGlobal = true;
+
+        return $this;
+    }
+
     /**
      * Bound which records remote search may return.
      *
-     * A searchable Select queries the related model directly, so without a bound
-     * it happily returns every tenant's rows 20 labels at a time. Declare the
-     * tenant key here:
+     * With teams on, the active team is bound for you (see
+     * `kinetix.search.team_scope`); a constraint on the team column here wins
+     * over it. Use this for any other equality bound:
      *
      *     Select::make('project_id')
      *         ->relationship('project', 'name')
      *         ->searchable()
-     *         ->searchScope(['team_id' => $request->user()->currentTeam->getKey()])
+     *         ->searchScope(['archived' => false])
      *
      * For anything a plain equality can't express, use a query modifier instead.
      *
@@ -218,13 +250,15 @@ class Select extends Field implements ResolvesRelationships
 
         $query = $owner->{$this->relationshipName}()->getRelated()->newQuery();
 
+        SearchScope::apply($query, $this->searchScope, null, $this->teamScoped, $this->teamScopeGlobal);
+
         if ($this->modifyRelationshipQuery !== null) {
             $modifier = $this->modifyRelationshipQuery instanceof Closure
                 ? $this->modifyRelationshipQuery
                 : ConfigCallback::resolve($this->modifyRelationshipQuery);
 
             if ($modifier !== null) {
-                $modifier($query);
+                SearchScope::modify($query, $modifier);
             }
         }
 
@@ -309,7 +343,17 @@ class Select extends Field implements ResolvesRelationships
      */
     protected function bindDescriptor(array $descriptor): array
     {
-        return SignedDescriptor::bind($descriptor + ['scope' => $this->searchScope], DescriptorAudience::Search);
+        $descriptor += ['scope' => $this->searchScope];
+
+        if (! $this->teamScoped) {
+            $descriptor['team_scope'] = false;
+        }
+
+        if ($this->teamScopeGlobal) {
+            $descriptor['team_scope_global'] = true;
+        }
+
+        return SignedDescriptor::bind($descriptor, DescriptorAudience::Search);
     }
 
     /**
@@ -419,7 +463,9 @@ class Select extends Field implements ResolvesRelationships
             return [];
         }
 
-        $row = $this->searchModel::query()->where($this->searchValueColumn, $value)->first();
+        $row = SearchScope::apply($this->searchModel::query(), $this->searchScope, null, $this->teamScoped, $this->teamScopeGlobal)
+            ->where($this->searchValueColumn, $value)
+            ->first();
 
         if ($row === null) {
             return [];

@@ -67,6 +67,10 @@ routes.
 - **Table**: `Table::searchMinLength(int)` ships `TableData.searchMinLength` (0 = every
   keystroke); a UI hint only, never enforced server-side.
 
+## Team scoping
+
+With teams on, remote selects, checkbox lists and select filters are bounded to the active team by default (`kinetix.search.team_scope`, env `KINETIX_SEARCH_TEAM_SCOPE`, default true) in the endpoint AND the selected-label lookup. Covers `relationship()` eager options (searchable or not, strict validation too), `SelectFilter::relationship()` options, the endpoint and the selected label. Order: teams off / config false / `->withoutTeamScope()` (sealed `team_scope: false`) = none; own `searchScope()` on the team column wins (even for ScopedToTeam); `ScopedToTeam` model = `forCurrentTeam()` (+ NULL rows when `kinetixTeamRowsIncludeGlobal()` is true or opt-in); spatie role model with `permission.teams` = team + global; table has `search.team_column` = `col = currentTeamKey()` only (`->teamScopeIncludesGlobal()`, sealed, adds NULL rows for host catalogs); no column = none; no team resolved = nothing (`1 = 0`). Team = membership-checked `currentTeamKey()` (URL segment, else the user's current team; foreign segment 404). Column check: one schema query per table, cached for `search.schema_cache_ttl` + in-process (state reset), flushed on `MigrationsEnded`; modifiers run in their own group (leading `orWhere` ANDed) (`SearchScope::flush()` in tests). `RelationManager::getRelatedQuery()` applies the same bound unless a resource overrides `getEloquentQuery()`. User pickers through a membership pivot need a modifier. Never replace `SearchController` to scope by team: the descriptor's user/team seal and the membership check go with it.
+
 ## Scoping
 
 A searchable `SelectFilter` / `MultiSelectFilter` queries its model directly:

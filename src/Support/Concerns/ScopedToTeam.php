@@ -25,6 +25,17 @@ trait ScopedToTeam
     abstract public static function kinetixTeamModule(): string;
 
     /**
+     * Whether rows with a NULL `team_id` are shared by every team (a platform
+     * default a team may override) rather than platform-only. Pickers that
+     * list this model (`SearchScope`) show them next to the team's own only
+     * when this is true; a model leaves it false when NULL means "no team".
+     */
+    public static function kinetixTeamRowsIncludeGlobal(): bool
+    {
+        return false;
+    }
+
+    /**
      * Constrain a query to the active team (a no-op when the module is not
      * team-scoped).
      *

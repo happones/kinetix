@@ -15,6 +15,7 @@ use Happones\Kinetix\Actions\ImportAction;
 use Happones\Kinetix\Data\RecordModalsData;
 use Happones\Kinetix\Data\RelationManagerData;
 use Happones\Kinetix\Forms\Form;
+use Happones\Kinetix\Forms\SearchScope;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Notifications\Notification;
 use Happones\Kinetix\Support\AutoLabel;
@@ -213,7 +214,9 @@ abstract class RelationManager implements Arrayable, JsonSerializable
      * relationship — the attach/associate pickers and the ids those endpoints
      * accept. Defaults to the related resource's `getEloquentQuery()` (the
      * same tenant-scoped seam its own pages and modals use), or the bare model
-     * query when no `$relatedResource` is declared. Override to scope it
+     * query when no `$relatedResource` is declared. With teams on, a query that
+     * nothing else bounds (no resource, or a resource with the stock
+     * `getEloquentQuery()`) is bounded to the active team. Override to scope it
      * without a resource:
      *
      *     public function getRelatedQuery(): Builder
@@ -227,9 +230,21 @@ abstract class RelationManager implements Arrayable, JsonSerializable
     {
         $resource = $this->relatedResource();
 
-        return $resource !== null
-            ? $resource::getEloquentQuery()
-            : $this->getRelation()->getRelated()->newQuery();
+        if ($resource === null) {
+            $query = $this->getRelation()->getRelated()->newQuery();
+        } else {
+            $query = $resource::getEloquentQuery();
+
+            // A resource that keeps the stock query has bounded nothing; one
+            // that overrides it owns its scoping.
+            if ((new \ReflectionMethod($resource, 'getEloquentQuery'))->getDeclaringClass()->getName() !== Resource::class) {
+                return $query;
+            }
+        }
+
+        SearchScope::bindToTeam($query, []);
+
+        return $query;
     }
 
     /**
