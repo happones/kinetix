@@ -198,18 +198,24 @@ class RelationManagerController
      * Records that can still be attached: the manager's related query (the
      * related resource's scoped query) minus what's already attached,
      * searchable on the manager's search columns.
+     *
+     * "Already attached" is a pivot subquery, not a plucked id list: the id
+     * list grew with the pivot and blew past the database's bind-parameter
+     * limit on large relations. The subquery keeps the parent constraint, the
+     * relation's wherePivot filters and the morph type.
      */
     public function attachable(Request $request): JsonResponse
     {
         [$relation, $payload, $parent] = $this->resolve($request, 'belongsToMany');
 
+        /** @var BelongsToMany<Model, Model> $relation */
         $manager = $this->manager($payload, $parent);
-        $related = $relation->getRelated();
-
+        // The pivot stores the relation's related key (the primary key unless
+        // `relatedKey` says otherwise), so compare against that column.
         $query = $manager->getRelatedQuery()
             ->whereNotIn(
-                $related->getQualifiedKeyName(),
-                $relation->pluck($related->getQualifiedKeyName()),
+                $relation->getQualifiedRelatedKeyName(),
+                $relation->newPivotQuery()->select($relation->getQualifiedRelatedPivotKeyName()),
             );
 
         return $this->optionsResponse($query, $manager, $request);

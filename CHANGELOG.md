@@ -13,6 +13,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.283.1] - 2026-11-11
+
+### Fixed
+
+- **Relation manager attach picker on large relations.** The "attachable"
+  lookup no longer sends every already-attached id back to the database as
+  bind parameters, which failed once a relation held more rows than the
+  database's parameter limit. The attached set is now a pivot subquery that
+  keeps the parent, `wherePivot` filters and the morph type.
+- **Tag suggestions treat `%` and `_` literally.** Typing either character in
+  the tags input no longer matches every tag.
+- **Inbox search works on SQLite and treats `%` and `_` literally.** The inbox
+  search used a backslash escape that SQLite ignores; it now shares the
+  escaping every other Kinetix search uses.
+- **(published)** **Searchable selects, select/multi-select table filters and
+  checkbox lists keep the latest answer.** A slower response for an older term
+  no longer replaces the results of a newer one: superseded requests are
+  cancelled, and the spinner follows only the latest request. A failed lookup
+  now shows the server's message inside the list instead of failing silently.
+  A custom `fetchOptions` receives an optional `{ signal }` second argument.
+- **(published)** **Relation manager attach/associate picker.** Typing
+  quickly, reopening the picker or switching mode no longer shows stale
+  records; closing the picker cancels the pending lookup.
+- **(published)** **Help Center search** no longer comes back with old results
+  after the query is cleared or shortened; a language change cancels it.
+- **(published)** **Webhook and API logs** no longer mix the rows or
+  pagination of a previous tab, filter, page or search into the current view.
+- **(published)** **Tag suggestions** no longer show matches for an earlier
+  keystroke, and clear when the input is emptied.
+- **(published)** **Inbox conversation list:** a superseded request can no
+  longer hide the loading state or overwrite a newer filter or search.
+
 ## [0.283.0] - 2026-11-09
 
 ### Added

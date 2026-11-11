@@ -63,6 +63,18 @@ const mountLogs = (props: Record<string, unknown> = {}) =>
         global: { plugins: [i18n] },
     });
 
+/** A promise this test settles by hand, to stage out-of-order responses. */
+function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason: unknown) => void;
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+
+    return { promise, resolve, reject };
+}
+
 describe('KinetixIntegrationLogs', () => {
     beforeEach(() => {
         document.body.innerHTML = '';
@@ -80,6 +92,7 @@ describe('KinetixIntegrationLogs', () => {
 
         expect(kinetixFetch).toHaveBeenCalledWith(
             expect.stringContaining('/_kinetix/webhooks/logs'),
+            expect.anything(),
         );
         expect(w.text()).toContain('order.created');
         expect(w.text()).toContain('Billing hook');
@@ -100,6 +113,7 @@ describe('KinetixIntegrationLogs', () => {
 
         expect(kinetixFetch).toHaveBeenCalledWith(
             expect.stringContaining('/_kinetix/api-logs'),
+            expect.anything(),
         );
         expect(w.text()).toContain('/api/v1/orders');
         expect(w.text()).toContain('CI bot');
@@ -143,10 +157,68 @@ describe('KinetixIntegrationLogs', () => {
 
         expect(kinetixFetch).toHaveBeenCalledWith(
             expect.stringContaining('/_kinetix/api-logs'),
+            expect.anything(),
         );
         expect(
             w.findAll('button').filter((b) => b.text() === 'logs_webhooks_tab'),
         ).toHaveLength(0);
+        w.unmount();
+    });
+
+    it('lets only the newest load land when a tab switch outruns the first one', async () => {
+        const slowWebhooks = deferred<unknown>();
+        const fastApi = deferred<unknown>();
+        kinetixFetch.mockReset();
+        kinetixFetch.mockReturnValueOnce(slowWebhooks.promise);
+        kinetixFetch.mockReturnValueOnce(fastApi.promise);
+
+        const w = mountLogs();
+        await flushPromises();
+
+        const apiTab = w
+            .findAll('button')
+            .find((b) => b.text() === 'logs_api_tab')!;
+        await apiTab.trigger('click');
+        await flushPromises();
+
+        fastApi.resolve(API_PAGE);
+        await flushPromises();
+        slowWebhooks.resolve(WEBHOOK_PAGE);
+        await flushPromises();
+
+        expect(w.text()).toContain('/api/v1/orders');
+        // The stale webhook page would have left its "1 / 3" pagination behind.
+        expect(w.text()).not.toContain('1 / 3');
+
+        const firstSignal = (
+            kinetixFetch.mock.calls[0][1] as { signal: AbortSignal }
+        ).signal;
+        expect(firstSignal.aborted).toBe(true);
+        w.unmount();
+    });
+
+    it('never surfaces an unhandled rejection when a superseded load fails', async () => {
+        const unhandled = vi.fn();
+        process.on('unhandledRejection', unhandled);
+
+        const slowWebhooks = deferred<unknown>();
+        kinetixFetch.mockReset();
+        kinetixFetch.mockReturnValueOnce(slowWebhooks.promise);
+        kinetixFetch.mockResolvedValueOnce(API_PAGE);
+
+        const w = mountLogs();
+        await flushPromises();
+        const apiTab = w
+            .findAll('button')
+            .find((b) => b.text() === 'logs_api_tab')!;
+        await apiTab.trigger('click');
+        await flushPromises();
+
+        slowWebhooks.reject(new Error('stale failure'));
+        await flushPromises();
+
+        expect(unhandled).not.toHaveBeenCalled();
+        process.off('unhandledRejection', unhandled);
         w.unmount();
     });
 });

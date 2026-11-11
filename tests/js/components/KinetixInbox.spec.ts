@@ -128,6 +128,18 @@ afterEach(() => {
     document.body.innerHTML = '';
 });
 
+/** A promise this test settles by hand, to stage out-of-order responses. */
+function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason: unknown) => void;
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+
+    return { promise, resolve, reject };
+}
+
 describe('KinetixInbox', () => {
     it('opens a conversation, reads it and clears its unread count', async () => {
         serve({
@@ -501,5 +513,47 @@ describe('KinetixInboxBubble', () => {
         expect(note.text()).toContain('kinetix.inbox_note');
         expect(note.text()).toContain('Grace');
         expect(note.find('[data-test="inbox-reply"]').exists()).toBe(false);
+    });
+
+    it('keeps the list of the newest filter when an older request answers last', async () => {
+        const slow = deferred<typeof index>();
+        const fast = deferred<typeof index>();
+        let calls = 0;
+        fetchMock.mockImplementation(async (url: string) => {
+            if (!url.startsWith('/_kinetix/inbox?')) {
+                throw new Error(`Unexpected ${url}`);
+            }
+
+            calls++;
+
+            if (calls === 1) {
+                return index;
+            }
+
+            return calls === 2 ? slow.promise : fast.promise;
+        });
+
+        const w = mount(KinetixInbox, { global: { plugins: [i18n] } });
+        await flushPromises();
+
+        await w.get('[data-test="inbox-filter-unread"]').trigger('click');
+        await flushPromises();
+        await w.get('[data-test="inbox-filter-archived"]').trigger('click');
+        await flushPromises();
+
+        fast.resolve({
+            ...index,
+            conversations: [conversation({ id: 2, contactName: 'Newest' })],
+        });
+        await flushPromises();
+        slow.resolve({
+            ...index,
+            conversations: [conversation({ id: 3, contactName: 'Stale' })],
+        });
+        await flushPromises();
+
+        expect(w.text()).toContain('Newest');
+        expect(w.text()).not.toContain('Stale');
+        w.unmount();
     });
 });

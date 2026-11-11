@@ -187,4 +187,61 @@ describe('KinetixRelationManagers', () => {
         document.body.innerHTML = '';
         vi.unstubAllGlobals();
     });
+
+    it('keeps the options of the newest lookup when a reopened picker is answered out of order', async () => {
+        const answers: Array<(body: unknown) => void> = [];
+        const signals: AbortSignal[] = [];
+        vi.stubGlobal(
+            'fetch',
+            vi.fn((_url: string, init: RequestInit) => {
+                signals.push(init.signal as AbortSignal);
+
+                return new Promise((resolve) => {
+                    answers.push((body) =>
+                        resolve({
+                            ok: true,
+                            status: 200,
+                            text: () => Promise.resolve(JSON.stringify(body)),
+                        } as unknown as Response),
+                    );
+                });
+            }),
+        );
+        document.cookie = 'XSRF-TOKEN=test-token';
+
+        const wrapper = mount(KinetixRelationManagers, {
+            attachTo: document.body,
+            props: {
+                managers: [manager('posts', { descriptor: 'signed-posts' })],
+            },
+            global: { plugins: [i18n], stubs: { KinetixTable: TableStub } },
+        });
+
+        const open = (mode: 'attach' | 'associate') =>
+            window.dispatchEvent(
+                new CustomEvent(`kinetix:open-${mode}`, {
+                    detail: { relationship: 'posts' },
+                }),
+            );
+
+        open('attach');
+        await wrapper.vm.$nextTick();
+        open('attach');
+        await wrapper.vm.$nextTick();
+
+        expect(answers).toHaveLength(2);
+        expect(signals[0].aborted).toBe(true);
+
+        answers[1]({ options: [{ id: 2, label: 'Fresh option' }] });
+        await new Promise((r) => setTimeout(r, 0));
+        answers[0]({ options: [{ id: 1, label: 'Stale option' }] });
+        await new Promise((r) => setTimeout(r, 0));
+
+        expect(document.body.textContent).toContain('Fresh option');
+        expect(document.body.textContent).not.toContain('Stale option');
+
+        wrapper.unmount();
+        document.body.innerHTML = '';
+        vi.unstubAllGlobals();
+    });
 });

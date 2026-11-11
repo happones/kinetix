@@ -1,6 +1,10 @@
 import { usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { ComputedRef, Ref, WritableComputedRef } from 'vue';
+import {
+    KINETIX_SUPERSEDED,
+    createKinetixLatest,
+} from '@/composables/kinetixLatest';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import type {
     KinetixApiLog,
@@ -58,14 +62,13 @@ export function useKinetixIntegrationLogs(options: {
     const pageNumber = ref(1);
     const lastPage = ref(1);
     const total = ref(0);
-    const loading = ref(false);
+    const latest = createKinetixLatest();
+    const loading = latest.pending;
 
     const webhookLogs = ref<KinetixWebhookLog[]>([]);
     const apiLogs = ref<KinetixApiLog[]>([]);
 
     async function load(): Promise<void> {
-        loading.value = true;
-
         const params = new URLSearchParams({ page: String(pageNumber.value) });
 
         if (result.value !== 'all') {
@@ -76,25 +79,31 @@ export function useKinetixIntegrationLogs(options: {
             params.set('search', search.value.trim());
         }
 
-        try {
-            if (tab.value === 'webhooks') {
-                const res = await kinetixFetch<Paginated<KinetixWebhookLog>>(
-                    `${base.value}/webhooks/logs?${params}`,
-                );
-                webhookLogs.value = res?.data ?? [];
-                lastPage.value = res?.pagination.last_page ?? 1;
-                total.value = res?.pagination.total ?? 0;
-            } else {
-                const res = await kinetixFetch<Paginated<KinetixApiLog>>(
-                    `${base.value}/api-logs?${params}`,
-                );
-                apiLogs.value = res?.data ?? [];
-                lastPage.value = res?.pagination.last_page ?? 1;
-                total.value = res?.pagination.total ?? 0;
-            }
-        } finally {
-            loading.value = false;
+        // Tab, result filter, search and page all trigger a load: only the
+        // newest answer may land, whatever order the responses arrive in.
+        const isWebhooks = tab.value === 'webhooks';
+        const url = isWebhooks
+            ? `${base.value}/webhooks/logs?${params}`
+            : `${base.value}/api-logs?${params}`;
+
+        const res = await latest.run((signal) =>
+            kinetixFetch<Paginated<KinetixWebhookLog | KinetixApiLog>>(url, {
+                signal,
+            }),
+        );
+
+        if (res === KINETIX_SUPERSEDED) {
+            return;
         }
+
+        if (isWebhooks) {
+            webhookLogs.value = (res?.data ?? []) as KinetixWebhookLog[];
+        } else {
+            apiLogs.value = (res?.data ?? []) as KinetixApiLog[];
+        }
+
+        lastPage.value = res?.pagination.last_page ?? 1;
+        total.value = res?.pagination.total ?? 0;
     }
 
     let searchTimer: ReturnType<typeof setTimeout> | undefined;
@@ -116,7 +125,10 @@ export function useKinetixIntegrationLogs(options: {
 
     // A pending search is a read-only fetch, so it is dropped on unmount rather
     // than firing into a component that is already gone.
-    onBeforeUnmount(() => clearTimeout(searchTimer));
+    onBeforeUnmount(() => {
+        clearTimeout(searchTimer);
+        latest.cancel();
+    });
 
     // --- Detail modal --------------------------------------------------------
     const detailWebhook = ref<KinetixWebhookLog | null>(null);

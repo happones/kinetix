@@ -3,6 +3,10 @@ import { X } from '@lucide/vue';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
+import {
+    KINETIX_SUPERSEDED,
+    createKinetixLatest,
+} from '@/composables/kinetixLatest';
 import { tagRemoveButtonClass } from '@/composables/useKinetixShadcnVariants';
 import { useKinetixTags } from '@/composables/useKinetixTags';
 
@@ -45,13 +49,19 @@ const suggestions = ref<string[]>([]);
 const open = ref(false);
 let debounce: ReturnType<typeof setTimeout> | undefined;
 
-onBeforeUnmount(() => clearTimeout(debounce));
+const suggestLatest = createKinetixLatest();
+
+onBeforeUnmount(() => {
+    clearTimeout(debounce);
+    suggestLatest.cancel();
+});
 
 function onInput(): void {
     clearTimeout(debounce);
     const q = input.value.trim();
 
     if (q === '') {
+        suggestLatest.cancel();
         suggestions.value = [];
         open.value = false;
 
@@ -60,7 +70,14 @@ function onInput(): void {
 
     debounce = setTimeout(async () => {
         // Autocomplete is a convenience: a failed lookup just offers nothing.
-        const found = await suggest(q).catch(() => [] as string[]);
+        const found = await suggestLatest
+            .run((signal) => suggest(q, { signal }))
+            .catch(() => [] as string[]);
+
+        if (found === KINETIX_SUPERSEDED) {
+            return;
+        }
+
         suggestions.value = found.filter((s) => !tags.value.includes(s));
         open.value = suggestions.value.length > 0;
     }, 200);
@@ -76,6 +93,7 @@ async function add(name: string): Promise<void> {
     }
 
     input.value = '';
+    suggestLatest.cancel();
     suggestions.value = [];
     open.value = false;
 

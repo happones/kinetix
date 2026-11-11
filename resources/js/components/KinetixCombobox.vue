@@ -15,6 +15,11 @@ import {
 } from 'reka-ui';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import {
+    KINETIX_SUPERSEDED,
+    createKinetixLatest,
+    kinetixLookupErrorMessage,
+} from '@/composables/kinetixLatest';
 import { kinetixOptionList } from '@/composables/kinetixOptions';
 import type { KinetixOptions } from '@/composables/kinetixOptions';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
@@ -40,7 +45,12 @@ const props = withDefaults(
         disabled?: boolean;
         searchToken?: string | null;
         /** A remote source of its own: called (debounced) with the typed term. */
-        fetchOptions?: ((query: string) => Promise<KinetixOption[]>) | null;
+        fetchOptions?:
+            | ((
+                  query: string,
+                  ctx?: { signal: AbortSignal },
+              ) => Promise<KinetixOption[]>)
+            | null;
         /** The selected value's label when it isn't among the loaded options. */
         valueLabel?: string | null;
     }>(),
@@ -64,7 +74,9 @@ const { t } = useI18n();
 const page = usePage<KinetixSharedProps>();
 
 const open = ref(false);
-const loading = ref(false);
+const latest = createKinetixLatest();
+const loading = latest.pending;
+const remoteError = ref<string | null>(null);
 const remote = computed(() => !!props.searchToken || !!props.fetchOptions);
 
 // Values arrive as strings or numbers; the combobox compares strings.
@@ -101,31 +113,47 @@ const selectedLabel = computed(
 );
 
 let debounce: ReturnType<typeof setTimeout> | undefined;
-onBeforeUnmount(() => clearTimeout(debounce));
+onBeforeUnmount(() => {
+    clearTimeout(debounce);
+    latest.cancel();
+});
 
 async function fetchRemote(query: string): Promise<void> {
     if (!props.searchToken && !props.fetchOptions) {
         return;
     }
 
-    loading.value = true;
+    remoteError.value = null;
 
     try {
-        if (props.fetchOptions) {
-            remoteItems.value = await props.fetchOptions(query);
-        } else {
+        const items = await latest.run(async (signal) => {
+            if (props.fetchOptions) {
+                return props.fetchOptions(query, { signal });
+            }
+
             const result = await kinetixFetch<{
                 options: KinetixOptions;
             }>(`/${kinetixRoutePrefix(page)}/forms/search`, {
                 method: 'POST',
                 body: { token: props.searchToken, q: query },
+                signal,
             });
-            remoteItems.value = toList(result?.options);
+
+            return toList(result?.options);
+        });
+
+        if (items === KINETIX_SUPERSEDED) {
+            return;
         }
 
-        labelMap.value = { ...labelMap.value, ...toMap(remoteItems.value) };
-    } finally {
-        loading.value = false;
+        remoteItems.value = items;
+        labelMap.value = { ...labelMap.value, ...toMap(items) };
+    } catch (error) {
+        remoteItems.value = [];
+        remoteError.value = kinetixLookupErrorMessage(
+            error,
+            t('kinetix.action_failed'),
+        );
     }
 }
 
@@ -141,7 +169,14 @@ function onInput(event: Event): void {
 
 // Lazy: load the first page only when a remote combobox is opened.
 watch(open, (isOpen) => {
-    if (isOpen && remote.value && remoteItems.value.length === 0) {
+    if (!isOpen) {
+        clearTimeout(debounce);
+        latest.cancel();
+
+        return;
+    }
+
+    if (remote.value && remoteItems.value.length === 0) {
         fetchRemote('');
     }
 });
@@ -150,7 +185,9 @@ watch(open, (isOpen) => {
 watch(
     () => props.fetchOptions,
     () => {
+        latest.cancel();
         remoteItems.value = [];
+        remoteError.value = null;
     },
 );
 
@@ -223,7 +260,12 @@ const triggerClass =
                 <ComboboxEmpty
                     class="py-6 text-sm text-center text-muted-foreground"
                 >
-                    {{ loading ? '…' : t('kinetix.spotlight_empty') }}
+                    <span v-if="remoteError && !loading" role="alert">
+                        {{ remoteError }}
+                    </span>
+                    <template v-else>
+                        {{ loading ? '…' : t('kinetix.spotlight_empty') }}
+                    </template>
                 </ComboboxEmpty>
 
                 <ComboboxViewport class="max-h-60 p-1 overflow-y-auto">

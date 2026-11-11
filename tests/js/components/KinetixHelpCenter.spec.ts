@@ -77,6 +77,18 @@ const mountCenter = (props: Record<string, unknown> = {}) =>
 // instance can't answer the next test's language change.
 enableAutoUnmount(afterEach);
 
+/** A promise this test settles by hand, to stage out-of-order responses. */
+function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason: unknown) => void;
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+
+    return { promise, resolve, reject };
+}
+
 describe('KinetixHelpCenter', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -155,6 +167,7 @@ describe('KinetixHelpCenter', () => {
 
         expect(fetchMock).toHaveBeenCalledWith(
             '/_kinetix/help/search?q=drag&locale=en',
+            { signal: expect.any(AbortSignal) },
         );
         expect(w.text()).toContain('…drag and drop…');
         vi.useRealTimers();
@@ -219,5 +232,84 @@ describe('KinetixHelpCenter', () => {
 
         expect(w.text()).toContain('EN');
         expect(w.get('[lang="en"]').text()).toContain('Dashboard');
+    });
+
+    it('keeps the newest search when an older one answers last, and cancels on clear', async () => {
+        vi.useFakeTimers();
+        const w = mountCenter();
+        await vi.advanceTimersByTimeAsync(0);
+
+        const slow = deferred<unknown>();
+        const fast = deferred<unknown>();
+        fetchMock.mockReturnValueOnce(slow.promise);
+        fetchMock.mockReturnValueOnce(fast.promise);
+
+        await w.get('input').setValue('dr');
+        await w.get('input').trigger('input');
+        await vi.advanceTimersByTimeAsync(300);
+        await w.get('input').setValue('drag');
+        await w.get('input').trigger('input');
+        await vi.advanceTimersByTimeAsync(300);
+
+        const result = (title: string) => ({
+            results: [
+                {
+                    slug: 's',
+                    title,
+                    group: 'G',
+                    excerpt: title,
+                    locale: 'en',
+                    isFallback: false,
+                },
+            ],
+        });
+
+        fast.resolve(result('Newest hit'));
+        await vi.advanceTimersByTimeAsync(0);
+        slow.resolve(result('Stale hit'));
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(w.text()).toContain('Newest hit');
+        expect(w.text()).not.toContain('Stale hit');
+
+        const signals = fetchMock.mock.calls
+            .filter(([url]) => String(url).includes('/search'))
+            .map(([, options]) => (options as { signal: AbortSignal }).signal);
+        expect(signals[0].aborted).toBe(true);
+        vi.useRealTimers();
+    });
+
+    it('does not let an answer reappear after the box dropped under two characters', async () => {
+        vi.useFakeTimers();
+        const w = mountCenter();
+        await vi.advanceTimersByTimeAsync(0);
+
+        const late = deferred<unknown>();
+        fetchMock.mockReturnValueOnce(late.promise);
+
+        await w.get('input').setValue('drag');
+        await w.get('input').trigger('input');
+        await vi.advanceTimersByTimeAsync(300);
+
+        await w.get('input').setValue('d');
+        await w.get('input').trigger('input');
+        await vi.advanceTimersByTimeAsync(300);
+
+        late.resolve({
+            results: [
+                {
+                    slug: 's',
+                    title: 'Ghost',
+                    group: 'G',
+                    excerpt: 'Ghost hit',
+                    locale: 'en',
+                    isFallback: false,
+                },
+            ],
+        });
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(w.text()).not.toContain('Ghost hit');
+        vi.useRealTimers();
     });
 });

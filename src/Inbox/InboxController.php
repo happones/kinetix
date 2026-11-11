@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Inbox;
 use Happones\Kinetix\Channels\Channel;
 use Happones\Kinetix\Data\ConversationData;
 use Happones\Kinetix\Data\ConversationMessageData;
+use Happones\Kinetix\Query\KinetixQuery;
 use Happones\Kinetix\Support\KinetixTeams;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -277,12 +278,19 @@ class InboxController
      */
     protected function search(Builder $query, string $search): void
     {
-        $like = '%'.addcslashes($search, '%_\\').'%';
+        $search = trim($search);
 
-        $query->where(function (Builder $inner) use ($like): void {
-            $inner->where('contact_name', 'like', $like)
-                ->orWhere('contact_key', 'like', $like)
-                ->orWhereHas('messages', fn (Builder $messages) => $messages->where('body', 'like', $like)->where('direction', '!=', MessageDirection::Note->value));
+        if ($search === '') {
+            return;
+        }
+
+        $query->where(function (Builder $inner) use ($search): void {
+            KinetixQuery::search($inner, $search, ['contact_name', 'contact_key']);
+
+            $inner->orWhereHas('messages', function (Builder $messages) use ($search): void {
+                $messages->where('direction', '!=', MessageDirection::Note->value);
+                KinetixQuery::search($messages, $search, ['body']);
+            });
         });
     }
 

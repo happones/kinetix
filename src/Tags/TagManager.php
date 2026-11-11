@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Tags;
 
+use Happones\Kinetix\Query\KinetixQuery;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -34,9 +35,7 @@ class TagManager
      */
     public function suggest(string $query, int|string|null $teamId = null, int $limit = 10): array
     {
-        return Tag::query()
-            ->where('team_id', $teamId)
-            ->when($query !== '', fn ($q) => $q->where('name', 'like', '%'.trim($query).'%'))
+        return KinetixQuery::search(Tag::query()->where('team_id', $teamId), $query, ['name'])
             ->orderBy('name')
             ->limit($limit)
             ->pluck('name')

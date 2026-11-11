@@ -4,6 +4,10 @@ import { ChevronDown } from '@lucide/vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
+import {
+    KINETIX_SUPERSEDED,
+    createKinetixLatest,
+} from '@/composables/kinetixLatest';
 import { kinetixComponentOf } from '@/composables/kinetixLazy';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import type {
@@ -72,7 +76,8 @@ const isAttachOpen = ref(false);
 const attachOptions = ref<AttachOption[]>([]);
 const attachSelected = ref<Set<number | string>>(new Set());
 const attachSearch = ref('');
-const attachLoading = ref(false);
+const attachLatest = createKinetixLatest();
+const attachLoading = attachLatest.pending;
 const attaching = ref(false);
 const detaching = ref(false);
 
@@ -161,19 +166,24 @@ async function loadAttachable(): Promise<void> {
         return;
     }
 
-    attachLoading.value = true;
-
     try {
-        const response = await kinetixFetch<{ options: AttachOption[] }>(
-            `${relationsUrl.value}/${picker[pickerMode.value].options}`,
-            {
-                method: 'POST',
-                body: {
-                    descriptor: props.manager.descriptor,
-                    search: attachSearch.value,
+        const response = await attachLatest.run((signal) =>
+            kinetixFetch<{ options: AttachOption[] }>(
+                `${relationsUrl.value}/${picker[pickerMode.value].options}`,
+                {
+                    method: 'POST',
+                    body: {
+                        descriptor: props.manager.descriptor,
+                        search: attachSearch.value,
+                    },
+                    signal,
                 },
-            },
+            ),
         );
+
+        if (response === KINETIX_SUPERSEDED) {
+            return;
+        }
 
         attachOptions.value = response?.options ?? [];
     } catch (e) {
@@ -183,10 +193,22 @@ async function loadAttachable(): Promise<void> {
                 ? e.message
                 : t('kinetix.action_failed'),
         );
-    } finally {
-        attachLoading.value = false;
     }
 }
+
+// Closing the picker drops the pending keystroke and the in-flight lookup.
+watch(isAttachOpen, (isOpen) => {
+    if (isOpen) {
+        return;
+    }
+
+    if (searchTimer) {
+        clearTimeout(searchTimer);
+        searchTimer = null;
+    }
+
+    attachLatest.cancel();
+});
 
 function onAttachSearch(): void {
     if (searchTimer) {
@@ -252,7 +274,16 @@ async function submitAttach(pivot?: Record<string, any>): Promise<void> {
 }
 
 function openAttach(mode: PickerMode = 'attach'): void {
+    // A mode switch must not let the previous list answer into the new one.
+    attachLatest.cancel();
+
+    if (searchTimer) {
+        clearTimeout(searchTimer);
+        searchTimer = null;
+    }
+
     pickerMode.value = mode;
+    attachOptions.value = [];
     attachSelected.value = new Set();
     attachSearch.value = '';
     clearPageErrors();
@@ -425,6 +456,11 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    if (searchTimer) {
+        clearTimeout(searchTimer);
+    }
+
+    attachLatest.cancel();
     window.removeEventListener('kinetix:open-attach', onOpenAttach);
     window.removeEventListener('kinetix:open-associate', onOpenAssociate);
     window.removeEventListener('kinetix:detach-relation', onDetachRelation);

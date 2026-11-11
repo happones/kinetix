@@ -79,6 +79,7 @@ export function useKinetixInbox() {
 
     let poll = { list: 15, thread: 5 };
     let listAbort: AbortController | null = null;
+    let listRequest = 0;
     let threadAbort: AbortController | null = null;
     let localCounter = 0;
     let disposed = false;
@@ -147,6 +148,7 @@ export function useKinetixInbox() {
     async function loadList(more = false): Promise<void> {
         listAbort?.abort();
         listAbort = new AbortController();
+        const request = ++listRequest;
         loading.value = true;
         pageNumber.value = more ? pageNumber.value + 1 : 1;
 
@@ -156,7 +158,7 @@ export function useKinetixInbox() {
                 { signal: listAbort.signal },
             );
 
-            if (!data) {
+            if (!data || request !== listRequest) {
                 return;
             }
 
@@ -177,12 +179,17 @@ export function useKinetixInbox() {
             poll = data.poll;
             void subscribe();
         } catch (error) {
-            if (!isKinetixAbort(error)) {
+            // A superseded request's failure no longer matters to the list.
+            if (!isKinetixAbort(error) && request === listRequest) {
                 throw error;
             }
         } finally {
-            loading.value = false;
-            loaded.value = true;
+            // Only the newest request owns the spinner: a superseded one
+            // finishing late must not hide a search that is still in flight.
+            if (request === listRequest) {
+                loading.value = false;
+                loaded.value = true;
+            }
         }
     }
 
@@ -194,10 +201,17 @@ export function useKinetixInbox() {
 
         const params = new URLSearchParams(query());
         params.set('page', '1');
+        // A filter or search change while the poll is in flight makes its
+        // answer belong to the previous list: drop it rather than merge.
+        const request = listRequest;
 
         const data = await kinetixFetch<IndexResponse>(
             `${base()}?${params.toString()}`,
         ).catch(() => null);
+
+        if (request !== listRequest) {
+            return;
+        }
 
         data?.conversations.forEach(putConversation);
     }

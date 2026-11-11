@@ -2,6 +2,10 @@ import { usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import type { Ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import {
+    KINETIX_SUPERSEDED,
+    createKinetixLatest,
+} from '@/composables/kinetixLatest';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
 import type {
     KinetixHelpArticleDetail,
@@ -65,7 +69,8 @@ export function useKinetixHelp() {
     const articleError = ref(false);
 
     const results = ref<KinetixHelpSearchResult[]>([]);
-    const searching = ref(false);
+    const searchLatest = createKinetixLatest();
+    const searching = searchLatest.pending;
 
     /** What has been asked for, so a locale switch can replay it. */
     const loadedSlug: Ref<string | null> = ref(null);
@@ -148,26 +153,28 @@ export function useKinetixHelp() {
         const term = query.trim();
 
         if (term.length < 2) {
+            // Dropping under the minimum cancels the in-flight request, so its
+            // answer can't reappear after the box was cleared.
+            searchLatest.cancel();
             results.value = [];
 
             return;
         }
 
-        searching.value = true;
-
-        try {
-            const data = await kinetixFetch<{
+        const data = await searchLatest.run((signal) =>
+            kinetixFetch<{
                 results: KinetixHelpSearchResult[];
             }>(
                 withLocale(
                     `${base()}/search?q=${encodeURIComponent(term)}`,
                     locale.value,
                 ),
-            );
+                { signal },
+            ),
+        );
 
+        if (data !== KINETIX_SUPERSEDED) {
             results.value = data?.results ?? [];
-        } finally {
-            searching.value = false;
         }
     }
 
@@ -176,6 +183,7 @@ export function useKinetixHelp() {
     // the previous language until a full page load, because an Inertia reload
     // re-renders the page component without re-running onMounted.
     watch(locale, () => {
+        searchLatest.cancel();
         results.value = [];
 
         if (listLoaded.value) {

@@ -150,6 +150,22 @@ class TagsTest extends TestCase
             ->assertJsonPath('tags', ['Livewire']);
     }
 
+    public function test_suggest_treats_like_wildcards_as_literals(): void
+    {
+        $user = $this->user();
+        Tag::create(['name' => '100% done', 'slug' => '100-done']);
+        Tag::create(['name' => 'snake_case', 'slug' => 'snake-case']);
+        Tag::create(['name' => 'snakeXcase', 'slug' => 'snakexcase']);
+        Tag::create(['name' => 'Vue', 'slug' => 'vue']);
+
+        $this->actingAs($user)->getJson('/_kinetix/tags/suggest?q=%25')
+            ->assertOk()->assertJsonPath('tags', ['100% done']);
+        $this->actingAs($user)->getJson('/_kinetix/tags/suggest?q=_')
+            ->assertOk()->assertJsonPath('tags', ['snake_case']);
+        $this->actingAs($user)->getJson('/_kinetix/tags/suggest?q=e_c')
+            ->assertOk()->assertJsonPath('tags', ['snake_case']);
+    }
+
     public function test_index_lists_a_models_tags(): void
     {
         $user    = $this->user();

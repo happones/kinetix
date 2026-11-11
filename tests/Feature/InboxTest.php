@@ -594,6 +594,18 @@ class InboxTest extends TestCase
         $this->actingAs($this->admin())->getJson('/_kinetix/inbox?search=Ada')->assertJsonCount(1, 'conversations');
     }
 
+    public function test_inbox_search_treats_like_wildcards_as_literals(): void
+    {
+        $this->inbound('A1', 'Descuento del 100% hoy');
+        $this->inbound('B1', 'Sin porcentaje', ['key' => ['remoteJid' => '5215588888888@s.whatsapp.net'], 'pushName' => 'Grace']);
+
+        $admin = $this->actingAs($this->admin());
+
+        $admin->getJson('/_kinetix/inbox?search=100%25')->assertOk()->assertJsonCount(1, 'conversations');
+        $admin->getJson('/_kinetix/inbox?search=%25')->assertOk()->assertJsonCount(1, 'conversations');
+        $admin->getJson('/_kinetix/inbox?search=_')->assertOk()->assertJsonCount(0, 'conversations');
+    }
+
     public function test_a_conversation_is_assigned_to_someone_who_sees_its_line(): void
     {
         $this->inbound('A1', 'Hola');

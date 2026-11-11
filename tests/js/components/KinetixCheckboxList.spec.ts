@@ -33,6 +33,18 @@ const mountIt = (props = {}) =>
         global: { plugins: [i18n] },
     });
 
+/** A promise this test settles by hand, to stage out-of-order responses. */
+function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason: unknown) => void;
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+
+    return { promise, resolve, reject };
+}
+
 describe('KinetixCheckboxList', () => {
     it('renders list of checkboxes from options', () => {
         const w = mountIt();
@@ -171,5 +183,59 @@ describe('KinetixCheckboxList', () => {
             // Apple stays; Banana joins; Cherry (filtered out) is untouched.
             expect(w.emitted('update:value')?.at(-1)?.[0]).toEqual(['1', '2']);
         });
+    });
+
+    it('keeps the options of the newest term when an older lookup answers last', async () => {
+        vi.useFakeTimers();
+        const initial = deferred<unknown>();
+        const slow = deferred<unknown>();
+        const fast = deferred<unknown>();
+        fetchMock.mockReset();
+        fetchMock
+            .mockReturnValueOnce(initial.promise)
+            .mockReturnValueOnce(slow.promise)
+            .mockReturnValueOnce(fast.promise);
+
+        const w = mountIt({
+            options: {},
+            searchToken: 'tok',
+            searchable: true,
+        });
+        await vi.advanceTimersByTimeAsync(0);
+
+        const input = w.get('input');
+        await input.setValue('a');
+        await vi.advanceTimersByTimeAsync(250);
+        await input.setValue('ab');
+        await vi.advanceTimersByTimeAsync(250);
+
+        fast.resolve({ options: { '2': 'Newest' } });
+        await vi.advanceTimersByTimeAsync(0);
+        slow.resolve({ options: { '1': 'Stale' } });
+        initial.resolve({ options: { '0': 'Initial' } });
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(w.text()).toContain('Newest');
+        expect(w.text()).not.toContain('Stale');
+        expect(w.text()).not.toContain('Initial');
+        w.unmount();
+        vi.useRealTimers();
+    });
+
+    it('reports a failed lookup inline without an unhandled rejection', async () => {
+        const unhandled = vi.fn();
+        process.on('unhandledRejection', unhandled);
+        fetchMock.mockReset();
+        fetchMock.mockRejectedValue(
+            Object.assign(new Error('Too many requests'), { status: 429 }),
+        );
+
+        const w = mountIt({ options: {}, searchToken: 'tok' });
+        await flushPromises();
+
+        expect(w.get('[role="alert"]').text()).toBe('Too many requests');
+        expect(unhandled).not.toHaveBeenCalled();
+        process.off('unhandledRejection', unhandled);
+        w.unmount();
     });
 });

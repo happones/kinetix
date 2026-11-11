@@ -14,6 +14,7 @@ use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
@@ -35,6 +36,18 @@ class RmaProject extends Model
     public function notes()
     {
         return $this->hasMany(RmaNote::class, 'project_id');
+    }
+
+    public function starredTags()
+    {
+        return $this->belongsToMany(RmaTag::class, 'rma_project_tag', 'project_id', 'tag_id')
+            ->withPivot('role')
+            ->wherePivot('role', 'star');
+    }
+
+    public function labels()
+    {
+        return $this->morphToMany(RmaTag::class, 'taggable', 'rma_taggables', 'taggable_id', 'tag_id');
     }
 }
 
@@ -86,6 +99,16 @@ class TagsManager extends RelationManager
             ->toolbarActions([AttachAction::make()])
             ->recordActions([DetachAction::make()]);
     }
+}
+
+class StarredTagsManager extends TagsManager
+{
+    protected static string $relationship = 'starredTags';
+}
+
+class LabelsManager extends TagsManager
+{
+    protected static string $relationship = 'labels';
 }
 
 class ReadOnlyTagsManager extends TagsManager
@@ -169,6 +192,11 @@ class RelationAttachDetachTest extends TestCase
             $table->string('role')->nullable();
         });
 
+        Schema::create('rma_taggables', function (Blueprint $table) {
+            $table->unsignedBigInteger('tag_id');
+            $table->unsignedBigInteger('taggable_id');
+            $table->string('taggable_type');
+        });
         Schema::create('rma_notes', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('project_id');
@@ -233,6 +261,92 @@ class RelationAttachDetachTest extends TestCase
         )->pluck('label')->all();
 
         $this->assertSame(['vue'], $filtered);
+    }
+
+    public function test_attachable_excludes_attached_records_through_a_pivot_subquery(): void
+    {
+        $user    = RmaUser::create([]);
+        $project = RmaProject::create(['name' => 'Kinetix']);
+        $other   = RmaProject::create(['name' => 'Other']);
+
+        $tags = collect(range(1, 1200))->map(fn (int $i) => ['name' => 'tag-'.$i])->all();
+        DB::table('rma_tags')->insert($tags);
+
+        // Over the bind-parameter limit of a plucked id list.
+        $ids = DB::table('rma_tags')->pluck('id')->all();
+        DB::table('rma_project_tag')->insert(
+            collect(array_slice($ids, 0, 1100))->map(fn (int $id) => ['project_id' => $project->id, 'tag_id' => $id, 'role' => 'x'])->all(),
+        );
+        // Attached to ANOTHER parent only: still offered for this one.
+        DB::table('rma_project_tag')->insert(['project_id' => $other->id, 'tag_id' => $ids[1150], 'role' => 'x']);
+
+        DB::enableQueryLog();
+        $options = $this->postJson(route('kinetix.relations.attachable'), [
+            'descriptor' => $this->descriptorFor($project, $user),
+            'search'     => 'tag-11',
+        ])->assertOk()->json('options');
+
+        $queries = DB::getQueryLog();
+        DB::disableQueryLog();
+
+        $labels = collect($options)->pluck('label')->all();
+
+        // tag-1101..1200 are unattached; tag-1100 and below are attached.
+        $this->assertCount(50, $labels);
+        $this->assertContains('tag-1150', $labels);
+        $this->assertNotContains('tag-1100', $labels);
+        $this->assertNotContains('tag-110', $labels);
+
+        foreach ($queries as $query) {
+            $this->assertLessThan(20, count($query['bindings']), $query['query']);
+        }
+    }
+
+    public function test_attachable_keeps_wherepivot_constraints_in_the_subquery(): void
+    {
+        $user    = RmaUser::create([]);
+        $project = RmaProject::create(['name' => 'Kinetix']);
+
+        $star  = RmaTag::create(['name' => 'starred']);
+        $plain = RmaTag::create(['name' => 'plain']);
+        RmaTag::create(['name' => 'free']);
+        DB::table('rma_project_tag')->insert([
+            ['project_id' => $project->id, 'tag_id' => $star->id, 'role' => 'star'],
+            ['project_id' => $project->id, 'tag_id' => $plain->id, 'role' => 'other'],
+        ]);
+
+        $this->actingAs($user);
+        $descriptor = (string) StarredTagsManager::make($project)->toData()->descriptor;
+
+        $labels = collect($this->postJson(route('kinetix.relations.attachable'), [
+            'descriptor' => $descriptor,
+        ])->assertOk()->json('options'))->pluck('label')->sort()->values()->all();
+
+        // The wherePivot filter applies: only the 'star' row counts as attached.
+        $this->assertSame(['free', 'plain'], $labels);
+    }
+
+    public function test_attachable_keeps_the_morph_type_in_the_subquery(): void
+    {
+        $user    = RmaUser::create([]);
+        $project = RmaProject::create(['name' => 'Kinetix']);
+
+        $mine   = RmaTag::create(['name' => 'mine']);
+        $theirs = RmaTag::create(['name' => 'theirs']);
+        RmaTag::create(['name' => 'free']);
+        DB::table('rma_taggables')->insert([
+            ['tag_id' => $mine->id, 'taggable_id' => $project->id, 'taggable_type' => $project->getMorphClass()],
+            ['tag_id' => $theirs->id, 'taggable_id' => $project->id, 'taggable_type' => 'other-type'],
+        ]);
+
+        $this->actingAs($user);
+        $descriptor = (string) LabelsManager::make($project)->toData()->descriptor;
+
+        $labels = collect($this->postJson(route('kinetix.relations.attachable'), [
+            'descriptor' => $descriptor,
+        ])->assertOk()->json('options'))->pluck('label')->sort()->values()->all();
+
+        $this->assertSame(['free', 'theirs'], $labels);
     }
 
     public function test_attach_links_existing_records_and_ignores_ghost_ids(): void

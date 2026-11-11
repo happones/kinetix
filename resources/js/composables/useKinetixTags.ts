@@ -52,10 +52,18 @@ export function useKinetixTags(
         }
     }
 
-    async function suggest(query: string): Promise<string[]> {
+    /**
+     * Existing tags matching `query`. Pass `options.signal` to cancel a lookup
+     * a newer keystroke has replaced.
+     */
+    async function suggest(
+        query: string,
+        options: { signal?: AbortSignal } = {},
+    ): Promise<string[]> {
         const q = new URLSearchParams({ q: query });
         const data = await kinetixFetch<{ tags: string[] }>(
             `${base()}/suggest?${q.toString()}`,
+            { signal: options.signal },
         );
 
         return data?.tags ?? [];

@@ -30,6 +30,18 @@ const mountIt = () =>
         global: { plugins: [i18n] },
     });
 
+/** A promise this test settles by hand, to stage out-of-order responses. */
+function deferred<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason: unknown) => void;
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+
+    return { promise, resolve, reject };
+}
+
 describe('KinetixTags', () => {
     it('loads and renders the current tags as chips', async () => {
         fetchMock.mockResolvedValueOnce({ tags: ['laravel', 'vue'] });
@@ -187,5 +199,57 @@ describe('KinetixTags refused requests', () => {
 
         expect(w.find('ul').exists()).toBe(false);
         expect(toastError).not.toHaveBeenCalled();
+    });
+
+    it('shows the suggestions of the newest keystroke even when an older lookup answers last', async () => {
+        vi.useFakeTimers();
+        fetchMock.mockReset();
+        fetchMock.mockResolvedValueOnce({ tags: [] }); // initial load
+        const w = mountIt();
+        await vi.advanceTimersByTimeAsync(0);
+
+        const slow = deferred<{ tags: string[] }>();
+        const fast = deferred<{ tags: string[] }>();
+        fetchMock.mockReturnValueOnce(slow.promise);
+        fetchMock.mockReturnValueOnce(fast.promise);
+
+        const input = w.find('input');
+        await input.setValue('l');
+        await vi.advanceTimersByTimeAsync(250);
+        await input.setValue('lar');
+        await vi.advanceTimersByTimeAsync(250);
+
+        fast.resolve({ tags: ['laravel'] });
+        await vi.advanceTimersByTimeAsync(0);
+        slow.resolve({ tags: ['linux'] });
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(w.text()).toContain('laravel');
+        expect(w.text()).not.toContain('linux');
+
+        const first = fetchMock.mock.calls[1][1] as { signal: AbortSignal };
+        expect(first.signal.aborted).toBe(true);
+        vi.useRealTimers();
+    });
+
+    it('drops an in-flight lookup when the input is cleared', async () => {
+        vi.useFakeTimers();
+        fetchMock.mockReset();
+        fetchMock.mockResolvedValueOnce({ tags: [] });
+        const w = mountIt();
+        await vi.advanceTimersByTimeAsync(0);
+
+        const late = deferred<{ tags: string[] }>();
+        fetchMock.mockReturnValueOnce(late.promise);
+
+        const input = w.find('input');
+        await input.setValue('lar');
+        await vi.advanceTimersByTimeAsync(250);
+        await input.setValue('');
+        late.resolve({ tags: ['ghost'] });
+        await vi.advanceTimersByTimeAsync(0);
+
+        expect(w.text()).not.toContain('ghost');
+        vi.useRealTimers();
     });
 });

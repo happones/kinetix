@@ -2,6 +2,11 @@
 import { usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import {
+    KINETIX_SUPERSEDED,
+    createKinetixLatest,
+    kinetixLookupErrorMessage,
+} from '@/composables/kinetixLatest';
 import { kinetixOptionList } from '@/composables/kinetixOptions';
 import type { KinetixOptions } from '@/composables/kinetixOptions';
 import { kinetixFetch, kinetixRoutePrefix } from '@/composables/useKinetixHttp';
@@ -39,7 +44,9 @@ const page = usePage<KinetixSharedProps>();
 const { t } = useI18n();
 
 const searchQuery = ref('');
-const loading = ref(false);
+const latest = createKinetixLatest();
+const loading = latest.pending;
+const remoteError = ref<string | null>(null);
 const remote = computed(() => !!props.searchToken);
 
 const remoteItems = ref<KinetixOption[]>([]);
@@ -101,24 +108,42 @@ const itemsToRender = computed<Array<{ value: string; label: string }>>(() => {
 });
 
 let debounce: ReturnType<typeof setTimeout> | undefined;
-onBeforeUnmount(() => clearTimeout(debounce));
+onBeforeUnmount(() => {
+    clearTimeout(debounce);
+    latest.cancel();
+});
 
 async function fetchRemote(query: string): Promise<void> {
     if (!props.searchToken) {
         return;
     }
 
-    loading.value = true;
+    remoteError.value = null;
 
     try {
-        const result = await kinetixFetch<{ options: KinetixOptions }>(
-            `/${kinetixRoutePrefix(page)}/forms/search`,
-            { method: 'POST', body: { token: props.searchToken, q: query } },
+        const result = await latest.run((signal) =>
+            kinetixFetch<{ options: KinetixOptions }>(
+                `/${kinetixRoutePrefix(page)}/forms/search`,
+                {
+                    method: 'POST',
+                    body: { token: props.searchToken, q: query },
+                    signal,
+                },
+            ),
         );
+
+        if (result === KINETIX_SUPERSEDED) {
+            return;
+        }
+
         remoteItems.value = kinetixOptionList(result?.options);
         remember(remoteItems.value);
-    } finally {
-        loading.value = false;
+    } catch (error) {
+        remoteItems.value = [];
+        remoteError.value = kinetixLookupErrorMessage(
+            error,
+            t('kinetix.action_failed'),
+        );
     }
 }
 
@@ -211,6 +236,14 @@ function toggleValue(val: string, checked: boolean): void {
                 {{ t('kinetix.checkbox_list_loading') }}
             </span>
         </div>
+
+        <p
+            v-if="remoteError && !loading"
+            role="alert"
+            class="text-xs text-destructive"
+        >
+            {{ remoteError }}
+        </p>
 
         <!-- Select all: checked when every option in view is, a dash when
              some are; a click on the dash selects them all. -->
