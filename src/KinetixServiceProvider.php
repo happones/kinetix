@@ -569,13 +569,8 @@ class KinetixServiceProvider extends ServiceProvider
                 OptimizeClearCommand::class,
             ]);
 
-            // `php artisan optimize` / `optimize:clear` run them (Laravel
-            // versions with provider optimize hooks; older 11.x apps add
-            // `kinetix:optimize` to their deploy script).
-            // @phpstan-ignore function.alreadyNarrowedType (absent before Laravel 11.x added it)
-            if (method_exists($this, 'optimizes')) {
-                $this->optimizes(optimize: 'kinetix:optimize', clear: 'kinetix:optimize-clear', key: 'kinetix');
-            }
+            // `php artisan optimize` / `optimize:clear` run them.
+            $this->optimizes(optimize: 'kinetix:optimize', clear: 'kinetix:optimize-clear', key: 'kinetix');
 
             // Publish config
             $this->publishes([

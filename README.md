@@ -133,7 +133,7 @@ Each module ships with a dedicated `docs/<feature>.md` guide, translations
 | Dependency | Version |
 |---|---|
 | PHP | ^8.3 |
-| Laravel | ^11 \| ^12 \| ^13 |
+| Laravel | ^12 \| ^13 |
 | `inertiajs/inertia-laravel` | ^2 \| ^3 |
 | Vue | ^3.5 |
 | `@inertiajs/vue3` | ^3.0 |

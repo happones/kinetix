@@ -393,9 +393,7 @@ which modules are on, like any other route change.
 Permission, spotlight and report classes are found by scanning your app's
 directories. `php artisan kinetix:optimize` writes that list to
 `bootstrap/cache/kinetix-discovery.php`, and `kinetix:optimize-clear` removes
-it. On Laravel versions with provider optimize hooks, `optimize` and
-`optimize:clear` run them for you; otherwise add `kinetix:optimize` to your
-deploy script. Without the file, discovery scans as before, so development
+it. `php artisan optimize` and `optimize:clear` run them for you. Without the file, discovery scans as before, so development
 never sees a stale list. See [Permissions](/permissions).
 
 ### Shared props kept on the client

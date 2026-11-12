@@ -16,9 +16,8 @@ use Illuminate\Console\Command;
 /**
  * Caches the classes Kinetix discovers by scanning directories (permission
  * matrix Resources, Spotlight sources, Reports Center reports), so production
- * requests stop walking those folders. `php artisan optimize` runs it on
- * Laravel versions with provider optimize hooks; add it to the deploy script
- * otherwise. Re-run it after adding a class in production, as with
+ * requests stop walking those folders. `php artisan optimize` runs it.
+ * Re-run it after adding a class in production, as with
  * `config:cache`.
  */
 class OptimizeCommand extends Command

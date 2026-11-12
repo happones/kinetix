@@ -59,4 +59,4 @@ Brief it with: the user's goal in their words, what is already verified (files a
 ## 7. Non-negotiables in every brief
 
 - **Multi-team by default:** a tenant is a team ("empresa"). Every plan, implementation and review states how teams are isolated (see the development skill).
-- Laravel 11 / inertia-laravel 2 floors; config callbacks as callable arrays; Data ↔ TS in step; 7+ locales with vue-i18n `{named}` placeholders; shadcn/reka + a11y rules; no Filament mentions in public docs, skills or published JS comments; a docs page and Boost skill for public API changes.
+- Laravel 12 / inertia-laravel 2 floors; config callbacks as callable arrays; Data ↔ TS in step; 7+ locales with vue-i18n `{named}` placeholders; shadcn/reka + a11y rules; no Filament mentions in public docs, skills or published JS comments; a docs page and Boost skill for public API changes.

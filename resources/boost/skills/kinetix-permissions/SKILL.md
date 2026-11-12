@@ -262,7 +262,7 @@ A role ANOTHER admin changes shows after the TTL or a reload — the server stil
 decides every request. After changing roles in host code, call
 `\Happones\Kinetix\Support\KinetixSharedProps::refresh()`. Default: off.
 
-In production `php artisan optimize` (or `kinetix:optimize` on older 11.x)
+In production `php artisan optimize` (it runs `kinetix:optimize`)
 caches resource discovery; a Resource added afterwards needs the next
 `optimize`, like `config:cache`.
 

@@ -20,8 +20,8 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * A type-ahead aborts the request it superseded, but PHP keeps running it;
  * without a cap a fast typist stacks slow queries on the database. Each user
- * gets N lock slots (plain cache locks: no `Cache::funnel`, so it works on
- * the Laravel 11 floor). The first free slot is taken for the request and
+ * gets N lock slots (plain cache locks, so each slot is released on its own
+ * and an unlocking store simply opts out). The first free slot is taken for the request and
  * released afterwards; with none free the request answers a 429 with
  * `code: busy`, which the client retries once.
  *
