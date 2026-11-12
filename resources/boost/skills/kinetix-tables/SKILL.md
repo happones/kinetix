@@ -147,7 +147,7 @@ simple resources — NOT inside relation managers; `width: '3xl'` sizes the form
 `cursorPaginated()` (seek), `cachedTotal($ttl = true, $minimum = null)` (remember the length-aware
 total per connection + team + user + count SQL/bindings; below the minimum rows never cached; teams
 on with no team resolved = cache untouched; payload `pagination.totalIsApproximate`, footer "about"),
-`simplePaginatedWhileSearching()` (simple mode while a search term is active),
+`searchMode(SearchMode::Prefix|Exact|FullText)` (table default; `Column::searchable(mode:, using:)` overrides, `using` runs inside the grouped OR and must bind the term; Exact skips columns the term cannot match, all skipped = no rows; see kinetix-search), `simplePaginatedWhileSearching()` (simple mode while a search term is active),
 `queryTimeout($ms)` (per-statement budget for count / rows / aggregates, each its own phase:
 count timeout = simple paging, rows timeout = `TableData.timedOut` + no rows + `pagination: null`,
 aggregates timeout = empty + `timed_out: true`; `0` = off; `kinetix.tables.query_timeout`; event

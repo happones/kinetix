@@ -816,6 +816,12 @@ name an arbitrary table/column — same guard as inline table edits), and the
 currently-selected option's label is resolved server-side so it shows immediately.
 Remote search hits `POST {prefix}/forms/search`.
 
+By default the term is matched anywhere in the columns (`LIKE '%term%'`). On a
+large table add `->searchMode(SearchMode::Prefix)` (index-friendly "starts with"),
+`Exact` or `FullText`; the mode is sealed into the token and only changes the
+comparison, never the team or scope bounds. `SelectFilter` has the same method.
+See [Search modes](/search#search-modes) for the indexes each one needs.
+
 #### From a relationship
 
 The relation already names the related model and its key, so `->relationship()`

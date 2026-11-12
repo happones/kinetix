@@ -9,6 +9,7 @@ use Happones\Kinetix\Data\FormFieldData;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Forms\Rules\InOptions;
 use Happones\Kinetix\Forms\SearchScope;
+use Happones\Kinetix\Query\SearchMode;
 use Happones\Kinetix\Support\ConfigCallback;
 use Happones\Kinetix\Support\Contracts\HasLabel;
 use Happones\Kinetix\Support\Contracts\ResolvesRelationships;
@@ -35,6 +36,8 @@ class Select extends Field implements ResolvesRelationships
 
     /** @var array<int, string> */
     protected array $searchColumns = ['name'];
+
+    protected ?SearchMode $searchMode = null;
 
     protected string $searchValueColumn = 'id';
 
@@ -204,6 +207,20 @@ class Select extends Field implements ResolvesRelationships
     }
 
     /**
+     * How the remote search matches the term: `SearchMode::Prefix` for an
+     * index-friendly "starts with", `Exact`, or `FullText`. Sealed into the
+     * token, so the browser cannot choose it; a token without it (minted
+     * before this existed) is `Contains`. Only the comparison changes: the
+     * team and scope bounds of the lookup are untouched.
+     */
+    public function searchMode(SearchMode $mode): static
+    {
+        $this->searchMode = $mode;
+
+        return $this;
+    }
+
+    /**
      * Eagerly load the relation's rows as `key => title`.
      *
      * Capped: a relation with a large table would otherwise put every row in the
@@ -309,7 +326,7 @@ class Select extends Field implements ResolvesRelationships
                 'label'   => $this->searchLabelColumn,
                 'columns' => $this->searchColumns,
                 'value'   => $this->searchValueColumn,
-            ]);
+            ] + $this->modeClaim());
         }
 
         if ($this->relationshipName === null || $this->ownerModel === null || $this->searchable === false) {
@@ -330,7 +347,18 @@ class Select extends Field implements ResolvesRelationships
             'columns'  => [$this->relationshipTitleColumn],
             'value'    => $related->getKeyName(),
             'modifier' => is_string($this->modifyRelationshipQuery) ? $this->modifyRelationshipQuery : null,
-        ]);
+        ] + $this->modeClaim());
+    }
+
+    /**
+     * The sealed search mode claim: absent for the default, so existing tokens
+     * and their descriptors are unchanged.
+     *
+     * @return array<string, string>
+     */
+    protected function modeClaim(): array
+    {
+        return $this->searchMode === null ? [] : ['mode' => $this->searchMode->value];
     }
 
     /**

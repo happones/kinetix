@@ -258,7 +258,7 @@ All column classes inherit from `Column` and reside in the `Happones\Kinetix\Tab
 ### Shared Column Methods
 - `make(string $name)`: Instantiates a column. The name can use dot-notation for relationship fields (e.g. `user.profile.phone`).
 - `label(string $label)`: Customizes the display label in the header. Wrap it in `__()` to keep it translatable — `->label(__('posts.fields.title'))` (see [Localizing labels](/locale#translating-labels-you-declare-in-php-schemas)). Omit it and Kinetix auto-humanizes the column name.
-- `searchable(bool $condition = true)`: Enables search queries against this column.
+- `searchable(bool $condition = true, ?SearchMode $mode = null, ?Closure $using = null)`: Enables search queries against this column. `mode` picks how the term matches (`Contains` by default, `Prefix`, `Exact`, `FullText`); `using` replaces the match with your own closure `fn (Builder $query, string $term) => …` that must bind the term. The table's `searchMode()` sets the default for every column. See [Search modes](/search#search-modes).
 - `sortable(bool $condition = true, ?Closure $using = null)`: Enables active header sorting. The sort key is **allowlisted** against the defined sortable columns, so an arbitrary query-string value can never reach the query. Three modes:
   - Plain column (`TextColumn::make('name')->sortable()`) → `ORDER BY name`.
   - **Relationship column** (`TextColumn::make('author.name')->sortable()`) → sorts by the related column via a correlated subquery (no join, no row duplication). Supports `BelongsTo` and `HasOne`.
@@ -1031,6 +1031,7 @@ Table-level methods control refresh, pagination, and row behavior:
 - `cachedTotal(bool|int $ttlSeconds = true, ?int $minimum = null)`: Remember the length-aware total between requests instead of counting on every page and sort. See [Cached totals](#cached-totals-—-cachedtotal).
 - `simplePaginatedWhileSearching(bool $condition = true)`: Page without the `COUNT(*)` while a search term is active. See [No total while searching](#no-total-while-searching).
 - `queryTimeout(int $milliseconds)`: A per-statement time budget for the table's count, page and aggregate queries. See [Query timeout](#query-timeout).
+- `searchMode(SearchMode $mode)`: How the toolbar search matches by default (`Contains`, `Prefix`, `Exact`, `FullText`); a column overrides it with `searchable(mode: …)`. Prefix lets a B-tree index serve the search on a large table. See [Search modes](/search#search-modes).
 - `defaultPaginationPageOption(int $perPage)`: Sets the initial page size (default `10`).
 - `recordUrl(?Closure $callback, bool $shouldOpenInNewTab = false)`, `openRecordUrlInNewTab()`, `recordAction(string|Closure|null $action)`, `clickableRows(bool $condition = true)`: What a click on the row does. Left alone, a row opens its record through its own `view` / `edit` action. See [Clickable rows](#clickable-rows).
 - `searchMinLength(int $length)`: The fewest characters the toolbar search needs before it reloads the table (default `0`, every keystroke). Clearing the box always reloads, and a request with a shorter `search` is still answered. See [Search](/search#table-search-minimum).

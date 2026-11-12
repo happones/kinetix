@@ -25,6 +25,7 @@ use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Query\KinetixQuery;
 use Happones\Kinetix\Query\QueryBudget;
 use Happones\Kinetix\Query\QueryBudgetExceeded;
+use Happones\Kinetix\Query\SearchMode;
 use Happones\Kinetix\Query\SearchTerm;
 use Happones\Kinetix\Resources\Resource;
 use Happones\Kinetix\Support\DescriptorAudience;
@@ -145,6 +146,9 @@ class Table implements Arrayable, JsonSerializable
     protected bool|int $cachedTotal = false;
 
     protected ?int $cachedTotalMinimum = null;
+
+    /** See {@see SearchMode()}. */
+    protected SearchMode $searchMode = SearchMode::Contains;
 
     /** See {@see simplePaginatedWhileSearching()}. */
     protected bool $simpleWhileSearching = false;
@@ -729,6 +733,46 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * The searchable columns as the `column => mode|closure` map
+     * {@see KinetixQuery::search()} takes. Pivot columns search against the
+     * JOINED pivot table (`pivot.role` is an accessor path, not a relation).
+     *
+     * Keyed by column name, so two searchable columns of the same name would
+     * collapse to one (a table has one column per name).
+     *
+     * @return array<string, SearchMode|Closure>
+     */
+    protected function searchSpecs(): array
+    {
+        $specs = [];
+
+        foreach ($this->columns as $column) {
+            if (! $column->isSearchable()) {
+                continue;
+            }
+
+            $specs[$this->translatePivotColumn($column->getName())] = $column->getSearchUsing()
+                ?? $column->getSearchMode()
+                ?? $this->searchMode;
+        }
+
+        return $specs;
+    }
+
+    /**
+     * How the toolbar search matches by default: `SearchMode::Contains` (the
+     * term anywhere), `Prefix` (index-friendly), `Exact` or `FullText`. A
+     * column overrides it with `searchable(mode: …)`. Only changes the
+     * comparison; the table's own scope and team constraints still wrap it.
+     */
+    public function searchMode(SearchMode $mode): static
+    {
+        $this->searchMode = $mode;
+
+        return $this;
+    }
+
+    /**
      * Whether the resolved query's ordering can be expressed as a cursor.
      *
      * The cursor encodes each ORDER BY column's value from the last row, so a
@@ -1033,13 +1077,15 @@ class Table implements Arrayable, JsonSerializable
             'columns' => array_map(static fn (Column $column): array => [
                 $column->getName(),
                 $column->isSearchable(),
+                $column->getSearchUsing() !== null ? 'custom' : $column->getSearchMode()?->value,
                 array_map(
                     static fn (Summarizer $summarizer): string => $summarizer::class,
                     $column->getSummarizers(),
                 ),
             ], $columns),
-            'filters' => array_map(static fn (Filter $filter): string => $filter->getName(), $this->filters),
-            'stats'   => array_map(static fn (TableStat $stat): array => $stat->signature(), $this->stats),
+            'searchMode' => $this->searchMode->value,
+            'filters'    => array_map(static fn (Filter $filter): string => $filter->getName(), $this->filters),
+            'stats'      => array_map(static fn (TableStat $stat): array => $stat->signature(), $this->stats),
         ];
     }
 
@@ -1569,12 +1615,7 @@ class Table implements Arrayable, JsonSerializable
         $search = $this->param('search');
 
         if ($search !== null && $search !== '') {
-            KinetixQuery::search($query, SearchTerm::from($search), array_values(array_map(
-                // Pivot columns search against the JOINED pivot table —
-                // `pivot.role` is an accessor path, not a relation.
-                fn (Column $column): string => $this->translatePivotColumn($column->getName()),
-                array_filter($this->columns, static fn (Column $column): bool => $column->isSearchable()),
-            )));
+            KinetixQuery::search($query, SearchTerm::from($search), $this->searchSpecs(), $this->searchMode);
         }
 
         // Apply sorting

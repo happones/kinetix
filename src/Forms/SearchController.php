@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Forms;
 use Happones\Kinetix\Query\KinetixQuery;
 use Happones\Kinetix\Query\QueryBudget;
 use Happones\Kinetix\Query\QueryBudgetExceeded;
+use Happones\Kinetix\Query\SearchMode;
 use Happones\Kinetix\Query\SearchTerm;
 use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\DescriptorRejection;
@@ -79,7 +80,7 @@ class SearchController
                 $builder->getModel()->getConnection(),
                 QueryBudget::configured(),
                 fn () => $builder
-                    ->when($query !== '', fn ($b) => KinetixQuery::search($b, $query, $searchColumns))
+                    ->when($query !== '', fn ($b) => KinetixQuery::search($b, $query, $searchColumns, SearchMode::tryFrom((string) ($descriptor['mode'] ?? '')) ?? SearchMode::Contains))
                     ->limit(20)
                     ->get(),
             );

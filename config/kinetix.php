@@ -1244,10 +1244,13 @@ return [
         'concurrency'       => env('KINETIX_SEARCH_CONCURRENCY'),
         'concurrency_ttl'   => 15,
         'timeout'           => env('KINETIX_SEARCH_TIMEOUT_MS'),
-        'team_scope'        => env('KINETIX_SEARCH_TEAM_SCOPE', true),
-        'team_column'       => 'team_id',
-        'schema_cache_ttl'  => 3600,
-        'client'            => [
+        // Language for SearchMode::FullText on PostgreSQL (MySQL and MariaDB
+        // use the index's own parser).
+        'full_text'        => ['language' => env('KINETIX_SEARCH_FULL_TEXT_LANGUAGE', 'english')],
+        'team_scope'       => env('KINETIX_SEARCH_TEAM_SCOPE', true),
+        'team_column'      => 'team_id',
+        'schema_cache_ttl' => 3600,
+        'client'           => [
             'debounce'      => 250,
             'cache_ttl'     => 30,
             'cache_entries' => 100,

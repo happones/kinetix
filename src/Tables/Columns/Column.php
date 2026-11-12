@@ -6,11 +6,13 @@ namespace Happones\Kinetix\Tables\Columns;
 
 use Closure;
 use Happones\Kinetix\Data\ColumnData;
+use Happones\Kinetix\Query\SearchMode;
 use Happones\Kinetix\Support\AutoLabel;
 use Happones\Kinetix\Support\Concerns\HasAuthorization;
 use Happones\Kinetix\Support\OptionList;
 use Happones\Kinetix\Tables\ApiResourceRow;
 use Happones\Kinetix\Tables\Columns\Summarizers\Summarizer;
+use Happones\Kinetix\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
@@ -26,6 +28,10 @@ abstract class Column
     protected string $label;
 
     protected bool $isSearchable = false;
+
+    protected ?SearchMode $searchMode = null;
+
+    protected ?Closure $searchUsing = null;
 
     protected bool $isSortable = false;
 
@@ -92,11 +98,38 @@ abstract class Column
         return $this;
     }
 
-    public function searchable(bool $condition = true): static
+    /**
+     * Include the column in the toolbar search.
+     *
+     * `$mode` overrides how the term is matched for this column (the table's
+     * {@see Table::searchMode()} otherwise). `$using`
+     * replaces the match entirely, like `sortable(using:)`: it runs inside the
+     * search's grouped OR, so it cannot widen past the table's own constraints,
+     * and it must bind the term (never concatenate it into SQL). Only its
+     * `where` constraints count: joins and orders are dropped by the nested
+     * group, so use `whereHas`, `whereExists` or `whereIn` subqueries.
+     * `->searchable(using: fn (Builder $query, string $term) => $query->where('sku', $term))`.
+     *
+     * @param Closure(Builder, string): mixed|null $using
+     */
+    public function searchable(bool $condition = true, ?SearchMode $mode = null, ?Closure $using = null): static
     {
         $this->isSearchable = $condition;
+        $this->searchMode   = $mode;
+        $this->searchUsing  = $using;
 
         return $this;
+    }
+
+    /** The column's own search mode, or null to follow the table. */
+    public function getSearchMode(): ?SearchMode
+    {
+        return $this->searchMode;
+    }
+
+    public function getSearchUsing(): ?Closure
+    {
+        return $this->searchUsing;
     }
 
     /**

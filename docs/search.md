@@ -33,6 +33,7 @@ paste of a whole paragraph or a script cannot turn them into a load problem.
 | `relation_throttle` | `60,1` | The same for the relation manager attach and associate pickers. `null` turns it off. |
 | `concurrency` | `null` | Lookups one user may have running at once. `null` = off. See [Concurrency](#concurrency). |
 | `concurrency_ttl` | `15` | Seconds a concurrency slot survives a worker that crashed before freeing it. |
+| `full_text.language` | `'english'` | Language of `SearchMode::FullText` on PostgreSQL. See [Search modes](#search-modes). |
 | `timeout` | `null` | Statement budget, in milliseconds, for the select and relation picker queries. `null` = off. See [Query timeout](#query-timeout). |
 | `team_scope` | `true` | With teams on, bounds remote selects and filters to the active team. See [Team scoping](#team-scoping). |
 | `schema_cache_ttl` | `3600` | Seconds the cache store remembers whether a table has the team column. `null` = process memory only. |
@@ -281,6 +282,90 @@ The table's count, page and aggregate queries are budgeted separately, with
 [Query timeout](/tables#query-timeout) and, for a total that is not recounted on
 every page, [Cached totals](/tables#cached-totals-—-cachedtotal).
 :::
+
+## Search modes
+
+By default a term is matched with `LIKE '%term%'` (**contains**): it finds the
+term anywhere, and no B-tree index can serve it, so the database reads every row.
+On a large table pick a mode that fits the column:
+
+```php
+use Happones\Kinetix\Query\SearchMode;
+
+Table::make(Customer::query())
+    ->searchMode(SearchMode::Prefix)                                   // every searchable column
+    ->columns([
+        TextColumn::make('name')->searchable(),                        // prefix
+        TextColumn::make('code')->searchable(mode: SearchMode::Exact), // exact
+        TextColumn::make('bio')->searchable(mode: SearchMode::FullText),
+    ]);
+
+Select::make('customer_id')->searchUsing(Customer::class)->searchMode(SearchMode::Prefix);
+SelectFilter::make('customer_id')->searchUsing(Customer::class)->searchMode(SearchMode::Prefix);
+```
+
+| Mode | Predicate | Index it can use |
+| --- | --- | --- |
+| `Contains` (default) | `LIKE '%term%'` | none (a trigram / full-text index at best) |
+| `Prefix` | `LIKE 'term%'` | B-tree on MySQL and MariaDB; `text_pattern_ops` on PostgreSQL (`CREATE INDEX ON t (col text_pattern_ops)`) unless the database uses the C collation |
+| `Exact` | `col = term` | any B-tree / unique index |
+| `FullText` | MySQL / MariaDB `MATCH … AGAINST` (natural language), PostgreSQL `to_tsvector @@ plainto_tsquery` | `FULLTEXT` index; GIN on `to_tsvector('english', col)` |
+
+Wildcards in the term (`%`, `_`) are always literal, in every mode.
+
+- **Prefix only pays off when every searchable column is index-friendly.** The
+  columns are OR-ed together, so one `Contains` column (or a column without an
+  index) makes the whole query scan. Give each a B-tree index, or keep it out of
+  the search.
+- **Exact has a type guard.** A term that cannot be a value of the column is
+  skipped, not sent to the engine: letters or a number past `bigint` against an
+  integer key or cast, a non-finite number against a float / decimal cast, a
+  date that is not strictly `Y-m-d`, `Y-m-d H:i` or `Y-m-d H:i:s` (`2026`,
+  `monday`, `2026-02-30` are refused), a malformed UUID or ULID on a `HasUuids` /
+  `HasUlids` key. An exact search on a datetime matches that exact timestamp
+  (midnight for a date-only term); on a `date` cast it takes no time of day. On
+  PostgreSQL the integer primary key is bound as `bigint`, so a number past
+  `int4` simply does not match; any other integer column is bounded to int4 by
+  the guard (a `smallint` column can still overflow past 32767: use
+  `searchable(using:)` for one). If every column is skipped the search matches **nothing** (it
+  does not fall back to everything); a table with no searchable column at all
+  still ignores the search, as before. A column written `table.column` with the
+  model's own table is guarded like a plain one; a column of another table
+  (a pivot column) is not guarded, and a relation column (`author.name`) is
+  guarded by the related model. Passing anything but a `SearchMode` or a closure
+  as a column's spec throws `InvalidArgumentException`.
+- **Full text** uses the engine's natural-language search only (no boolean
+  operators from the user). It needs the index to exist and uses it only with
+  the same columns: on MySQL and MariaDB the `MATCH` columns must be exactly the
+  index's columns, so a multi-column `FULLTEXT` index cannot serve a single
+  column. Words shorter than the engine's minimum token size
+  (`innodb_ft_min_token_size`, 3 by default) and stopwords never match; on
+  PostgreSQL the language comes from `kinetix.search.full_text.language`
+  (`KINETIX_SEARCH_FULL_TEXT_LANGUAGE`, default `english`) and must match the
+  index expression. On MySQL and MariaDB a column without a `FULLTEXT` index
+  is an error (1191, a 500), not a slow scan: create the index before using the
+  mode. SQLite and SQL Server fall back to `Contains`. Combine it
+  with `->searchMinLength(3)` so short terms do not query at all.
+- **PostgreSQL and non-text columns.** `LIKE` does not exist for numbers, dates
+  or native `uuid` columns there, so `Contains` and `Prefix` on a key or a column
+  with a numeric / date cast compare `cast(col as text)`. Text columns are never
+  cast, so their indexes stay usable. Timestamps (`created_at`, `updated_at`)
+  and declared dates count as dates. Declare the cast (or the key type) on the
+  model: Kinetix does not read the database schema, so an integer column
+  without a cast is not detected and still fails on PostgreSQL.
+- **A custom match.** `->searchable(using: fn (Builder $query, string $term) =>
+  $query->where('sku', $term))` replaces the comparison for one column, like
+  `sortable(using:)`. The closure runs inside the search's grouped OR, so an
+  `orWhere` in it cannot widen past the table's own constraints (a tenant
+  filter), but it must **bind the term**: never concatenate it into SQL. Only its
+  `where` constraints count: joins and orders are dropped by the nested group, so
+  reach other tables with `whereHas`, `whereExists` or `whereIn` subqueries. A
+  closure that adds no constraint matches nothing.
+- **Select and filter tokens seal the mode.** The browser cannot choose it; a
+  token minted before this existed means `Contains`.
+- **Teams.** A mode changes only how the term is compared. It adds no cache key
+  and no data, and the team scope of remote search, the table's base query and
+  every `ScopedToTeam` constraint apply as before.
 
 ## Table search minimum
 

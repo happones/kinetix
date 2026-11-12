@@ -13,6 +13,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.291.0] - 2026-11-12
+
+### Added
+
+- **Search modes.** `Happones\Kinetix\Query\SearchMode` (`Contains`, `Prefix`,
+  `Exact`, `FullText`) chooses how a search term is matched. `Contains` is still
+  the default (`LIKE '%term%'`); `Prefix` (`LIKE 'term%'`) lets a B-tree index
+  serve the search on a large table; `Exact` compares with `=`; `FullText` uses
+  the engine's full-text search (MySQL and MariaDB natural language, PostgreSQL
+  `plainto_tsquery`, `Contains` on SQLite and SQL Server).
+  - `Table::searchMode()` sets the table default, and
+    `Column::searchable(bool $condition = true, ?SearchMode $mode = null, ?Closure $using = null)`
+    overrides it per column (the first argument is unchanged).
+  - `Select::searchMode()` and `SelectFilter::searchMode()` seal the mode into
+    the search token; a token minted before this (no mode) means `Contains`.
+  - `KinetixQuery::search($query, $term, $columns, SearchMode $default)` accepts
+    a plain list as before or a `column => SearchMode|Closure` map.
+  - `Exact` has a type guard: a term that cannot be a value of the column
+    (letters or a number past bigint against an integer key or cast, a
+    non-finite float, a date that is not strictly `Y-m-d[ H:i[:s]]`, a malformed
+    UUID or ULID) skips the column instead of erroring; on PostgreSQL the integer
+    primary key binds as `bigint` and other integer columns are bounded to int4. When every
+    column is skipped the search matches nothing.
+  - `searchable(using:)` replaces the match for one column. The closure runs
+    inside the search's grouped OR, so an `orWhere` in it cannot widen past the
+    table's own constraints (a tenant filter); it must bind the term.
+  - Config: `search.full_text.language` (`KINETIX_SEARCH_FULL_TEXT_LANGUAGE`,
+    default `english`, PostgreSQL only).
+- `tests/Integration/SearchModeEngineTest.php` (runs with `KINETIX_DB_INTEGRATION`):
+  the PostgreSQL `LIKE` on a bigint, escaped wildcards, `EXPLAIN` of a prefix
+  search, full text with its index, and the `Exact` guard.
+- Docs: Search modes in Search (indexes per mode and engine, full-text limits,
+  `using`), Forms and Tables; the `kinetix-search`, `kinetix-tables` and
+  `kinetix-forms` Boost skills cover them. A mode adds no cache key and no data:
+  the team scope of remote search and every tenant constraint apply as before.
+
+### Fixed
+
+- **PostgreSQL:** a `Contains` or `Prefix` search on a key, a numeric or date
+  cast, or a native `uuid` column raised `operator does not exist: bigint ~~
+  unknown` (for example the relation manager pickers' default search on the
+  record key), and so did `created_at` / `updated_at` without a cast. Those
+  columns are now compared as `cast(col as text)` on PostgreSQL only; text columns are never cast, so their indexes stay usable.
+
+### Upgrade notes
+
+- With no mode, a search behaves as in 0.290.x. Nothing published (Vue,
+  TypeScript, translations) changed.
+- A host `Column` subclass that overrides `searchable(bool $condition = true): static`
+  must add the two new parameters (`?SearchMode $mode = null, ?Closure $using = null`),
+  or PHP reports an incompatible signature.
+- In a `KinetixQuery::search()` column list (and so `searchUsing()`,
+  `$recordSelectSearchColumns` and spotlight `searchColumns`), a string value is
+  still a column name searched in the default mode, even under a string key, as
+  before. A value that is neither a string, a `SearchMode` nor a closure now
+  throws `InvalidArgumentException` (it used to be ignored).
+
 ## [0.290.0] - 2026-11-12
 
 ### Added

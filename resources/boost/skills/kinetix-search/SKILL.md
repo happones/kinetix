@@ -40,6 +40,22 @@ For full details, reference `docs/search.md` (published at https://happones.gith
 switch for E2E suites. Values are read per request, so they apply to cached
 routes.
 
+## Search modes
+
+`Happones\Kinetix\Query\SearchMode` (`Contains` default, `Prefix`, `Exact`, `FullText`).
+`KinetixQuery::search($query, $term, $columns, SearchMode $default)` takes a plain list
+(every column in `$default`) or a map `column => SearchMode|Closure` (mixable).
+Contains/Prefix are `LIKE ... ESCAPE '!'` (wildcards literal); Prefix is `'term%'` and index-friendly
+(`text_pattern_ops` on pgsql); Exact is `=` with a type guard (int/numeric/date casts, int keys,
+`HasUuids`/`HasUlids`) that SKIPS a column the term cannot match, and if every column is skipped the
+search matches nothing (`1 = 0`; no columns at all still leaves the query unchanged); FullText is
+`whereFullText` (MySQL/MariaDB natural language, pgsql `plainto_tsquery` with
+`kinetix.search.full_text.language`), Contains on sqlite/sqlsrv. pgsql casts non-text columns
+(key, numeric/date casts, timestamps, native uuid) to text (uncast integer columns are not detected: cast them in the model) for Contains/Prefix. `using` closures
+(`Column::searchable(using:)`) run inside the grouped OR so they cannot widen past the tenant
+constraints (only their wheres count; joins/orders are dropped; one adding no where matches nothing); they must bind the term. A spec that is neither SearchMode nor Closure throws. Exact binds integers as bigint on pgsql and parses dates strictly (`Y-m-d[ H:i[:s]]`); MySQL FullText without a FULLTEXT index = error 1191. `Select`/`SelectFilter::searchMode()` seal `mode` into the
+descriptor (absent = Contains, unknown = Contains). Modes add no keys or data: team scope unchanged.
+
 ## Table search at scale
 
 Tables have their own switches (see `docs/tables.md`): `Table::simplePaginatedWhileSearching()`

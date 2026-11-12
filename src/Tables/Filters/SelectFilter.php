@@ -6,6 +6,7 @@ namespace Happones\Kinetix\Tables\Filters;
 
 use Closure;
 use Happones\Kinetix\Forms\SearchScope;
+use Happones\Kinetix\Query\SearchMode;
 use Happones\Kinetix\Support\Contracts\HasLabel;
 use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\SignedDescriptor;
@@ -36,6 +37,8 @@ class SelectFilter extends Filter
 
     /** @var array<int, string> */
     protected array $searchColumns = ['name'];
+
+    protected ?SearchMode $searchMode = null;
 
     protected string $searchValueColumn = 'id';
 
@@ -81,6 +84,17 @@ class SelectFilter extends Filter
         $this->searchColumns     = $searchColumns;
         $this->searchValueColumn = $valueColumn;
         $this->searchable        = true;
+
+        return $this;
+    }
+
+    /**
+     * How the remote search matches the term (see
+     * {@see SearchMode}); sealed into the token.
+     */
+    public function searchMode(SearchMode $mode): static
+    {
+        $this->searchMode = $mode;
 
         return $this;
     }
@@ -313,7 +327,7 @@ class SelectFilter extends Filter
                 'value'    => $this->searchValueColumn,
                 'scope'    => $this->searchScope,
                 'modifier' => $this->searchModifier,
-            ] + ($this->teamScoped ? [] : ['team_scope' => false]) + ($this->teamScopeGlobal ? ['team_scope_global' => true] : []), DescriptorAudience::Search);
+            ] + ($this->searchMode === null ? [] : ['mode' => $this->searchMode->value]) + ($this->teamScoped ? [] : ['team_scope' => false]) + ($this->teamScopeGlobal ? ['team_scope_global' => true] : []), DescriptorAudience::Search);
         }
 
         return $data;
