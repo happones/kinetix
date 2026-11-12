@@ -905,7 +905,7 @@ defineOptions({
   <!-- The table drives everything: Create (toolbar), View/Edit/Delete (per row)
        open modals hosted inside KinetixTable; drag handles reorder when enabled. -->
   <div class="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-    <KinetixTable :table="table" :heading-level="1" />
+    <KinetixTable :table="table" :heading-level="1" :reload-only="['table']" />
   </div>
 </template>
 VUE;
@@ -936,7 +936,7 @@ defineOptions({
   <!-- The New button + row View/Edit/Delete come from the resource table()
        actions (self-hiding when a route isn't registered). -->
   <div class="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-    <KinetixTable :table="table" :heading-level="1" />
+    <KinetixTable :table="table" :heading-level="1" :reload-only="['table']" />
   </div>
 </template>
 VUE;

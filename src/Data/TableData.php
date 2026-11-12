@@ -79,5 +79,8 @@ class TableData extends Data
         // Fewest characters before the toolbar search reloads (0 = every
         // keystroke; Table::searchMinLength()).
         public int $searchMinLength = 0,
+        // The page query ran past kinetix.tables.query_timeout / ->queryTimeout():
+        // no rows, no pagination — the table shows a retry state instead.
+        public bool $timedOut = false,
     ) {}
 }

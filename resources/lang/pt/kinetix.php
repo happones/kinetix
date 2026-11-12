@@ -22,6 +22,7 @@ return [
     'columns'                           => 'Colunas',
     'per_page'                          => 'Por página:',
     'showing_records'                   => 'Mostrando :from a :to de :total resultados',
+    'showing_records_approximate'       => 'Mostrando :from a :to de aproximadamente :total resultados',
     'no_records'                        => 'Sem resultados',
     'page_of'                           => 'Página :current de :total',
     'page_number'                       => 'Página :current',
@@ -953,6 +954,9 @@ return [
     // Table write endpoints (inline edits, reordering, kanban moves)
     'table_column_not_editable'     => 'Esta coluna não é editável.',
     'table_value_invalid'           => 'O valor não é válido para esta coluna.',
+    'table_timed_out_heading'       => 'Esta lista demorou demais para carregar',
+    'table_timed_out'               => 'Restrinja a pesquisa ou os filtros, ou tente novamente.',
+    'table_retry'                   => 'Tentar novamente',
     'table_group_true'              => 'Sim',
     'table_group_false'             => 'Não',
     'table_bulk_action_not_allowed' => 'Esta ação em massa não é permitida.',

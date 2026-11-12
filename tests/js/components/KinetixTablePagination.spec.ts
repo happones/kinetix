@@ -17,6 +17,8 @@ const i18n = createI18n({
                 page_of: 'Page {current} of {total}',
                 page_number: 'Page {current}',
                 showing_records: 'Showing {from} to {to} of {total} results',
+                showing_records_approximate:
+                    'Showing {from} to {to} of about {total} results',
                 showing_range: 'Showing {from} to {to}',
                 pagination: 'Pagination',
                 first_page: 'First page',
@@ -98,6 +100,24 @@ describe('KinetixTablePagination', () => {
             expect(wrapper.find('[data-testid="page-last"]').exists()).toBe(
                 true,
             );
+        });
+    });
+
+    describe('approximate total', () => {
+        it('words a cached total as "about N"', () => {
+            const text = render({
+                ...lengthAware,
+                totalIsApproximate: true,
+            }).text();
+
+            expect(text).toContain('Showing 11 to 20 of about 25 results');
+            expect(text).toContain('Page 2 of 3');
+        });
+
+        it('keeps the exact wording when the flag is absent or false', () => {
+            expect(
+                render({ ...lengthAware, totalIsApproximate: false }).text(),
+            ).toContain('Showing 11 to 20 of 25 results');
         });
     });
 

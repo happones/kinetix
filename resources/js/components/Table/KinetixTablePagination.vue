@@ -17,6 +17,8 @@ interface PaginationData {
     currentPage: number | null;
     /** Null when the table is simple- or cursor-paginated (no COUNT(*)). */
     total: number | null;
+    /** The total is a cached count, so it is shown as "about N". */
+    totalIsApproximate?: boolean;
     lastPage: number | null;
     from: number | null;
     to: number | null;
@@ -128,11 +130,16 @@ const getPerPageOptions = (options?: number[]) => {
             </span>
             <span v-else-if="!isCountFree && (pagination.total ?? 0) > 0">
                 {{
-                    t('kinetix.showing_records', {
-                        from: pagination.from,
-                        to: pagination.to,
-                        total: pagination.total,
-                    })
+                    t(
+                        pagination.totalIsApproximate
+                            ? 'kinetix.showing_records_approximate'
+                            : 'kinetix.showing_records',
+                        {
+                            from: pagination.from,
+                            to: pagination.to,
+                            total: pagination.total,
+                        },
+                    )
                 }}
             </span>
             <span v-else>{{ t('kinetix.no_records') }}</span>

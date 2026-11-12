@@ -40,6 +40,16 @@ For full details, reference `docs/search.md` (published at https://happones.gith
 switch for E2E suites. Values are read per request, so they apply to cached
 routes.
 
+## Table search at scale
+
+Tables have their own switches (see `docs/tables.md`): `Table::simplePaginatedWhileSearching()`
+drops the `COUNT(*)` while a search term is active (`total`/`lastPage` null),
+`Table::cachedTotal()` keeps a large total per query + team + user (footer says "about"),
+and `Table::queryTimeout()` / `kinetix.tables.query_timeout` budgets the table's count,
+page and aggregate queries separately (`TableData.timedOut`, `Tables\Events\TableQueryTimedOut`
+never carries the term). `<KinetixTable :reload-only="['table']">` makes search keystrokes
+partial reloads (sibling props go stale; the controller prop must be a closure).
+
 ## Contracts
 
 - **Term**: pass every free-text request value through

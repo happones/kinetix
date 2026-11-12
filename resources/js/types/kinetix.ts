@@ -1960,6 +1960,8 @@ export interface KinetixTableData {
         currentPage: number | null;
         /** Null in simple and cursor modes — no COUNT(*) is run. */
         total: number | null;
+        /** True when `total` came from a cached count: show "about N". */
+        totalIsApproximate?: boolean;
         /** Null in simple and cursor modes. */
         lastPage: number | null;
         /** Null in cursor mode — a seek has no offsets to report. */
@@ -1971,6 +1973,11 @@ export interface KinetixTableData {
         /** Cursor mode has no page number, so "can I go back" is explicit. */
         onFirstPage: boolean | null;
     } | null;
+    /**
+     * The list query ran past its time budget: `records` is empty and
+     * `pagination` null. The table shows a retry instead of an empty state.
+     */
+    timedOut?: boolean;
     state: {
         search: string;
         sort: string;

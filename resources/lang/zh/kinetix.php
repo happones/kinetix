@@ -22,6 +22,7 @@ return [
     'columns'                                 => '列',
     'per_page'                                => '每页：',
     'showing_records'                         => '显示第 :from 到 :to 条，共 :total 条结果',
+    'showing_records_approximate'             => '显示第 :from 到 :to 条，共约 :total 条结果',
     'no_records'                              => '无结果',
     'page_of'                                 => '第 :current 页，共 :total 页',
     'page_number'                             => '第 :current 页',
@@ -888,6 +889,9 @@ return [
     // Table write endpoints (inline edits, reordering, kanban moves)
     'table_column_not_editable'     => '此列不可编辑。',
     'table_value_invalid'           => '该值对此列无效。',
+    'table_timed_out_heading'       => '此列表加载时间过长',
+    'table_timed_out'               => '请缩小搜索或筛选范围，或重试。',
+    'table_retry'                   => '重试',
     'table_group_true'              => '是',
     'table_group_false'             => '否',
     'table_bulk_action_not_allowed' => '不允许此批量操作。',

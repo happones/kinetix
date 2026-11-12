@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Tests\Feature;
 use Happones\Kinetix\Tests\TestCase;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Session;
+use Inertia\AlwaysProp;
 use Inertia\Inertia;
 
 class FlashToastTest extends TestCase
@@ -18,6 +19,8 @@ class FlashToastTest extends TestCase
     {
         $shared = Inertia::getShared();
         $toast  = $shared['kinetix_toast'] ?? null;
+
+        $toast = $toast instanceof AlwaysProp ? $toast() : $toast;
 
         return $toast instanceof \Closure ? $toast() : $toast;
     }

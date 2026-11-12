@@ -1885,6 +1885,29 @@ return [
         // make rows inert everywhere; per table: ->clickableRows(false), or
         // ->recordUrl(null) / ->recordAction(null) for one channel.
         'clickable_rows' => env('KINETIX_TABLES_CLICKABLE_ROWS', true),
+
+        // Per-statement time budget (milliseconds) for every table's count,
+        // page and aggregate queries. A cancelled count falls back to simple
+        // paging for that request, a cancelled page shows a "took too long"
+        // state with a retry, cancelled aggregates come back empty. MySQL,
+        // MariaDB and PostgreSQL only; null is off. Per table:
+        // ->queryTimeout(2000) (0 turns it off for that table).
+        'query_timeout' => env('KINETIX_TABLES_QUERY_TIMEOUT_MS'),
+
+        // Settings for Table::cachedTotal(), which remembers a large table's
+        // row total instead of counting it on every page or sort. Nothing is
+        // cached unless a table calls ->cachedTotal().
+        'cached_total' => [
+            // Seconds a total is kept.
+            'ttl' => env('KINETIX_TABLES_CACHED_TOTAL_TTL', 60),
+
+            // Row count from which a total is cached; smaller totals are
+            // always counted fresh and exact.
+            'minimum' => env('KINETIX_TABLES_CACHED_TOTAL_MINIMUM', 10000),
+
+            // Cache store holding the totals; null uses the default store.
+            'store' => env('KINETIX_TABLES_CACHED_TOTAL_STORE'),
+        ],
     ],
 
     'saved_views' => [

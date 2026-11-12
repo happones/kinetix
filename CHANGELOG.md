@@ -13,6 +13,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.290.0] - 2026-11-12
+
+### Added
+
+- **Cached totals.** `Table::cachedTotal(bool|int $ttlSeconds = true, ?int $minimum = null)`
+  remembers a length-aware table's row total, so paging and re-sorting a large
+  list run no `COUNT(*)` within the TTL. The cache key holds the database
+  connection, the team, the user (and the impersonator), and the count
+  statement with its bindings, so one team or user never reads another's total;
+  with teams on and no team resolved nothing is cached (the count runs fresh).
+  Totals below `kinetix.tables.cached_total.minimum` (default `10000`) are never
+  cached; an empty page under a cached total drops the entry and recounts once.
+  The payload gains `TablePaginationData.totalIsApproximate`, and the footer
+  reads "of about N results" while a cached total is shown. Off unless a table
+  calls it. Config: `tables.cached_total.ttl|minimum|store`.
+- `Table::simplePaginatedWhileSearching()`: pages without the `COUNT(*)` while a
+  search term is active, and counts again when the box is cleared.
+- **Table query timeout.** `Table::queryTimeout(int $milliseconds)` and
+  `kinetix.tables.query_timeout` (`KINETIX_TABLES_QUERY_TIMEOUT_MS`, off by
+  default) give a table's count, page and aggregate queries a per-statement
+  budget (MySQL, MariaDB, PostgreSQL), each phase on its own: a cancelled count
+  pages without a total, a cancelled page sets `TableData.timedOut` (no rows,
+  `pagination: null`), cancelled aggregates come back empty with
+  `timed_out: true`. `Happones\Kinetix\Tables\Events\TableQueryTimedOut`
+  (model, phase, timeout, team key) is dispatched on each cancellation and never
+  carries the search term. `kinetix:doctor` flags the timeout on an engine
+  without one, a PostgreSQL read/write split, and an `array` cached-total store.
+- Engine test `tests/Integration/TableQueryBudgetEngineTest.php` (runs with
+  `KINETIX_DB_INTEGRATION`).
+- **(published)** `KinetixTable` takes `reloadOnly: string[]`: the table's own
+  refreshes (search, sort, filters, per-page, paging, polling, inline edits,
+  Retry) become partial reloads with `only`; mutations (bulk actions, record
+  modals, form actions, expired descriptors) still reload fully. Without the
+  prop nothing changes. The poll's `only` is read once, at setup.
+- **(published)** Timed-out lists: when `TableData.timedOut` is set, the table
+  shows a warning alert with a "Try again" button (loading state, honours
+  `reloadOnly`) in place of the empty state, and the timeout is announced to
+  screen readers first.
+- **(published)** `TablePaginationData.totalIsApproximate`: the footer and the
+  announcement say "of about N results". `timedOut` and `totalIsApproximate` are
+  mirrored in `types/kinetix.ts`; the aggregates response type gains
+  `timed_out` (typed only, no UI).
+- 8 locales gain `showing_records_approximate`, `table_timed_out_heading`,
+  `table_timed_out` and `table_retry`.
+- Docs: Cached totals, No total while searching, Query timeout and Partial
+  reloads in Tables; Relation managers, Performance and Search link to them;
+  the `kinetix-tables` and `kinetix-search` Boost skills cover them.
+
+### Changed
+
+- Kinetix now requires Laravel 12 or 13 (`illuminate/support ^12.0|^13.0`).
+  Composer blocks every Laravel 11 release by security advisory, so Laravel 11
+  was no longer installable.
+- `kinetix_toast` and `kinetix_flash` are shared as `Inertia::always()` props, so
+  a toast flashed by an action still arrives on a following partial reload.
+  Full visits are unchanged; code that reads `Inertia::getShared()['kinetix_toast']`
+  directly now gets an `Inertia\AlwaysProp` to invoke.
+- Generated `Index.vue` pages (`kinetix:make-resource`) pass
+  `:reload-only="['table']"`; their controllers already wrap the table in a
+  closure.
+- **(published)** `KinetixRelationManager` and `KinetixRelationManagers` now
+  forward `reloadOnly` to their table. A host that already set `reloadOnly` on a
+  manager (for its own reloads) now also gets partial reloads for the table's
+  search, sort, filters, paging, polling and inline edits; check that the prop
+  list covers what the table reloads. Attach, detach, associate and dissociate
+  already reloaded with `only`; record modals and bulk actions stay full reloads.
+- Every table payload now carries `pagination.totalIsApproximate: false` and
+  `timedOut: false` (additive keys).
+- **(published)** `KinetixTable.vue`, `KinetixTablePagination.vue`,
+  `KinetixRelationManager.vue`, `useKinetixTableQuery.ts`,
+  `useKinetixTableAggregates.ts` and `types/kinetix.ts` changed.
+
+### Upgrade notes
+
+- Requires Laravel 12 or 13. On Laravel 11, stay on 0.289.x (Composer already
+  refuses to install Laravel 11 releases because of security advisories).
+- Re-publish the components and translations
+  (`php artisan vendor:publish --tag=kinetix-components --force` and
+  `--tag=kinetix-translations --force`), then review any local edits to the files above.
+- Everything is opt-in: with no config and no new calls, tables behave as in
+  0.289.0 apart from the two additive payload keys above. To use partial reloads on an existing page, add
+  `:reload-only="['table']"` to its `<KinetixTable>` only where no other prop
+  depends on the table's query string, and make sure the controller wraps the
+  prop in a closure (`'table' => fn () => ...`).
+
 ## [0.289.0] - 2026-11-11
 
 ### Added

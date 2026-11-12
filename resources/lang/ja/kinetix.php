@@ -22,6 +22,7 @@ return [
     'columns'                                 => '列',
     'per_page'                                => '表示件数：',
     'showing_records'                         => ':total 件中 :from〜:to 件を表示',
+    'showing_records_approximate'             => '約 :total 件中 :from〜:to 件を表示',
     'no_records'                              => '結果なし',
     'page_of'                                 => ':total ページ中 :current ページ',
     'page_number'                             => ':current ページ',
@@ -888,6 +889,9 @@ return [
     // Table write endpoints (inline edits, reordering, kanban moves)
     'table_column_not_editable'     => 'この列は編集できません。',
     'table_value_invalid'           => 'この列には無効な値です。',
+    'table_timed_out_heading'       => 'このリストの読み込みに時間がかかりすぎました',
+    'table_timed_out'               => '検索や絞り込みを狭めるか、もう一度お試しください。',
+    'table_retry'                   => '再試行',
     'table_group_true'              => 'はい',
     'table_group_false'             => 'いいえ',
     'table_bulk_action_not_allowed' => 'この一括操作は許可されていません。',

@@ -23,15 +23,19 @@ use Happones\Kinetix\Data\TableStateData;
 use Happones\Kinetix\Forms\Form;
 use Happones\Kinetix\Infolists\Infolist;
 use Happones\Kinetix\Query\KinetixQuery;
+use Happones\Kinetix\Query\QueryBudget;
+use Happones\Kinetix\Query\QueryBudgetExceeded;
 use Happones\Kinetix\Query\SearchTerm;
 use Happones\Kinetix\Resources\Resource;
 use Happones\Kinetix\Support\DescriptorAudience;
+use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Happones\Kinetix\Tables\Columns\Column;
 use Happones\Kinetix\Tables\Columns\IconColumn;
 use Happones\Kinetix\Tables\Columns\ImageColumn;
 use Happones\Kinetix\Tables\Columns\Summarizers\Summarizer;
 use Happones\Kinetix\Tables\Columns\TextColumn;
+use Happones\Kinetix\Tables\Events\TableQueryTimedOut;
 use Happones\Kinetix\Tables\Filters\Filter;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Pagination\Paginator;
@@ -132,6 +136,29 @@ class Table implements Arrayable, JsonSerializable
      * See {@see cursorPaginated()}.
      */
     protected bool $cursorPaginate = false;
+
+    /**
+     * Remember the length-aware total between requests: `true` for the
+     * configured TTL, an int for that many seconds, `false` for off.
+     * See {@see cachedTotal()}.
+     */
+    protected bool|int $cachedTotal = false;
+
+    protected ?int $cachedTotalMinimum = null;
+
+    /** See {@see simplePaginatedWhileSearching()}. */
+    protected bool $simpleWhileSearching = false;
+
+    /** See {@see queryTimeout()}; null follows `kinetix.tables.query_timeout`. */
+    protected ?int $queryTimeout = null;
+
+    /**
+     * The paginators whose total came from the cache, so the footer says
+     * "about".
+     *
+     * @var WeakMap<object, true>|null
+     */
+    protected ?WeakMap $approximateTotals = null;
 
     /**
      * Whole-row click target. Left unset, the row infers one from its `view`
@@ -647,6 +674,61 @@ class Table implements Arrayable, JsonSerializable
     }
 
     /**
+     * Remember the row total between requests, per query, team and user.
+     *
+     * A length-aware table runs a `COUNT(*)` over the filtered set on every
+     * render, so paging or re-sorting a large list pays for the same count
+     * again and again. With this on, the total is kept for `$ttlSeconds` and
+     * the footer reads "about N" while it is served from the cache.
+     *
+     * Totals below `$minimum` rows are never cached: a small count is cheap
+     * and stays exact. The key includes the connection, the team, the user
+     * (and the impersonator), the filters and the search, so one team or user
+     * never reads another's total; with teams on and no team resolved nothing
+     * is cached at all. Ignored in simple and cursor modes, which have no
+     * total.
+     *
+     * @param bool|int $ttlSeconds `true` uses `kinetix.tables.cached_total.ttl`; `false` turns it off
+     * @param int|null $minimum    Row count from which a total is cached; null uses `kinetix.tables.cached_total.minimum`
+     */
+    public function cachedTotal(bool|int $ttlSeconds = true, ?int $minimum = null): static
+    {
+        $this->cachedTotal        = $ttlSeconds;
+        $this->cachedTotalMinimum = $minimum === null ? null : max(0, $minimum);
+
+        return $this;
+    }
+
+    /**
+     * While a search term is active, page without the `COUNT(*)` (simple
+     * mode for that request): a `LIKE` search is the query a large table
+     * counts slowest. Without a search the table pages as configured.
+     */
+    public function simplePaginatedWhileSearching(bool $condition = true): static
+    {
+        $this->simpleWhileSearching = $condition;
+
+        return $this;
+    }
+
+    /**
+     * A time budget, in milliseconds per statement, for this table's count,
+     * page and aggregate queries. A cancelled count falls back to simple
+     * paging for that request; a cancelled page renders a "took too long"
+     * state instead of an error; cancelled aggregates come back empty.
+     *
+     * Only MySQL, MariaDB and PostgreSQL can cancel a statement; elsewhere it
+     * has no effect. `0` switches the budget off for this table; not calling
+     * it follows `kinetix.tables.query_timeout`.
+     */
+    public function queryTimeout(int $milliseconds): static
+    {
+        $this->queryTimeout = max(0, $milliseconds);
+
+        return $this;
+    }
+
+    /**
      * Whether the resolved query's ordering can be expressed as a cursor.
      *
      * The cursor encodes each ORDER BY column's value from the last row, so a
@@ -869,7 +951,7 @@ class Table implements Arrayable, JsonSerializable
      * returns for a table rendered with {@see deferStats()}. Columns are gated
      * first (same as toData) so a user can't read a hidden column's totals.
      *
-     * @return array{stats: array<int, mixed>, summaries: array<string, mixed>, hasSummaries: bool}
+     * @return array{stats: array<int, mixed>, summaries: array<string, mixed>, hasSummaries: bool, timed_out?: true}
      */
     public function aggregates(): array
     {
@@ -884,10 +966,14 @@ class Table implements Arrayable, JsonSerializable
 
         $query = $this->getResolvedQuery();
 
-        [$summaries, $hasSummaries] = $this->computeSummaries($query);
+        try {
+            [$summaries, $hasSummaries, $stats] = $this->aggregatesWithinBudget($query);
+        } catch (QueryBudgetExceeded) {
+            return ['stats' => [], 'summaries' => [], 'hasSummaries' => false, 'timed_out' => true];
+        }
 
         return [
-            'stats'        => $this->computeStats($query),
+            'stats'        => $stats,
             'summaries'    => $summaries,
             'hasSummaries' => $hasSummaries,
         ];
@@ -1212,24 +1298,242 @@ class Table implements Arrayable, JsonSerializable
      * choice included), its page parameter (under the table's `queryPrefix`),
      * and its mode (length-aware, simple or cursor).
      *
+     * With a query timeout a cancelled count falls back to simple paging; a
+     * cancelled page throws {@see QueryBudgetExceeded}.
+     *
      * @template TModel of Model
      *
-     * @param  Builder<TModel>                                                                                                        $query
+     * @param Builder<TModel> $query
+     *
+     * @throws QueryBudgetExceeded
+     *
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, TModel>|Paginator<int, TModel>|CursorPaginator<int, TModel>
      */
     public function paginate(Builder $query): mixed
     {
-        $perPage = $this->resolvePerPage();
+        return $this->paginateQuery($query);
+    }
+
+    /**
+     * Page the query in the table's mode: cursor, simple, or length-aware
+     * with the total from {@see resolveTotal()}. A page query the database
+     * cancels ({@see queryTimeout()}) throws {@see QueryBudgetExceeded}.
+     *
+     * @template TModel of Model
+     *
+     * @param Builder<TModel> $query
+     *
+     * @throws QueryBudgetExceeded
+     *
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, TModel>|Paginator<int, TModel>|CursorPaginator<int, TModel>
+     */
+    protected function paginateQuery(Builder $query): Paginator|CursorPaginator
+    {
+        $perPage  = $this->resolvePerPage();
+        $pageName = $this->queryPrefix.'page';
 
         if ($this->cursorPaginate && $this->supportsCursorPagination($query)) {
             $this->ensureTotalOrder($query);
 
-            return $query->cursorPaginate($perPage, ['*'], $this->queryPrefix.'cursor');
+            return $this->withinBudget($query, 'rows', fn (): CursorPaginator => $query->cursorPaginate($perPage, ['*'], $this->queryPrefix.'cursor'));
         }
 
-        return $this->simplePaginate || $this->cursorPaginate
-            ? $query->simplePaginate($perPage, ['*'], $this->queryPrefix.'page')
-            : $query->paginate($perPage, ['*'], $this->queryPrefix.'page');
+        if ($this->simplePaginate || $this->cursorPaginate || $this->skipsCountWhileSearching()) {
+            return $this->withinBudget($query, 'rows', fn (): Paginator => $query->simplePaginate($perPage, ['*'], $pageName));
+        }
+
+        [$total, $cacheKey] = $this->resolveTotal($query);
+
+        if ($total === null) {
+            return $this->withinBudget($query, 'rows', fn (): Paginator => $query->simplePaginate($perPage, ['*'], $pageName));
+        }
+
+        $paginator = $this->withinBudget($query, 'rows', fn (): Paginator => $query->paginate($perPage, ['*'], $pageName, null, $total));
+
+        if ($cacheKey === null) {
+            return $paginator;
+        }
+
+        if ($paginator->items() === [] && $total > 0) {
+            // The cached total outlived its rows: forget it and count once more.
+            TableTotalCache::forget($cacheKey);
+
+            $fresh = $this->countTotal($query);
+
+            if ($fresh === null) {
+                return $this->withinBudget($query, 'rows', fn (): Paginator => $query->simplePaginate($perPage, ['*'], $pageName));
+            }
+
+            $this->rememberTotal($query, $cacheKey, $fresh);
+
+            return $this->withinBudget($query, 'rows', fn (): Paginator => $query->paginate($perPage, ['*'], $pageName, null, $fresh));
+        }
+
+        $this->approximateTotals ??= new WeakMap;
+        $this->approximateTotals[$paginator] = true;
+
+        return $paginator;
+    }
+
+    /**
+     * The total behind a length-aware pager: from the cache when
+     * {@see cachedTotal()} is on, else counted under the budget. Null means
+     * the count was cancelled and the request pages without a total.
+     *
+     * The second value is the cache key when the total came from the cache.
+     *
+     * @param  Builder<covariant Model>           $query
+     * @return array{0: int|null, 1: string|null}
+     */
+    protected function resolveTotal(Builder $query): array
+    {
+        $key = $this->cachedTotalTtl() === null ? null : TableTotalCache::keyFor($query);
+
+        if ($key !== null) {
+            $cached = TableTotalCache::get($key);
+
+            if ($cached !== null) {
+                return [$cached, $key];
+            }
+        }
+
+        $total = $this->countTotal($query);
+
+        if ($total !== null && $key !== null) {
+            $this->rememberTotal($query, $key, $total);
+        }
+
+        return [$total, null];
+    }
+
+    /**
+     * @param Builder<covariant Model> $query
+     */
+    protected function countTotal(Builder $query): ?int
+    {
+        try {
+            return $this->withinBudget($query, 'count', static fn (): int => $query->toBase()->getCountForPagination());
+        } catch (QueryBudgetExceeded) {
+            return null;
+        }
+    }
+
+    /**
+     * @param Builder<covariant Model> $query
+     */
+    protected function rememberTotal(Builder $query, string $key, int $total): void
+    {
+        $ttl = $this->cachedTotalTtl();
+
+        if ($ttl === null || $total < max(1, $this->cachedTotalMinimum ?? TableTotalCache::defaultMinimum())) {
+            return;
+        }
+
+        TableTotalCache::put($key, $total, $ttl);
+    }
+
+    /** Seconds a total is kept, or null when {@see cachedTotal()} is off. */
+    protected function cachedTotalTtl(): ?int
+    {
+        if ($this->cachedTotal === false) {
+            return null;
+        }
+
+        $ttl = $this->cachedTotal === true ? TableTotalCache::defaultTtl() : $this->cachedTotal;
+
+        return $ttl >= 1 ? $ttl : null;
+    }
+
+    /**
+     * The summaries, the has-summaries flag and the stats, computed in one
+     * budgeted phase. A table with no summarizer and no stat card runs no
+     * aggregate query, so it opens no budget (on PostgreSQL that would be a
+     * transaction for nothing).
+     *
+     * @param Builder<covariant Model> $query
+     *
+     * @throws QueryBudgetExceeded
+     *
+     * @return array{0: array<string, array<int, SummaryData>>, 1: bool, 2: array<int, TableStatData>}
+     */
+    protected function aggregatesWithinBudget(Builder $query): array
+    {
+        $compute = fn (): array => [...$this->computeSummaries($query), $this->computeStats($query)];
+
+        if ($this->stats === [] && ! $this->hasSummarizers()) {
+            return $compute();
+        }
+
+        return $this->withinBudget($query, 'aggregates', $compute);
+    }
+
+    protected function hasSummarizers(): bool
+    {
+        foreach ($this->columns as $column) {
+            if ($column->hasSummarizers()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function skipsCountWhileSearching(): bool
+    {
+        if (! $this->simpleWhileSearching) {
+            return false;
+        }
+
+        $search = $this->param('search');
+
+        return is_string($search) && trim($search) !== '';
+    }
+
+    /** The per-statement budget in milliseconds, or null when it is off. */
+    protected function resolveQueryTimeout(): ?int
+    {
+        if ($this->queryTimeout !== null) {
+            return $this->queryTimeout >= 1 ? $this->queryTimeout : null;
+        }
+
+        $value = config('kinetix.tables.query_timeout');
+
+        return is_numeric($value) && (int) $value >= 1 ? (int) $value : null;
+    }
+
+    /**
+     * Run one phase of the table's queries under the budget. A cancelled
+     * statement dispatches {@see TableQueryTimedOut} and is rethrown.
+     *
+     * @template TReturn
+     *
+     * @param Builder<covariant Model> $query
+     * @param callable(): TReturn      $fn
+     *
+     * @throws QueryBudgetExceeded
+     *
+     * @return TReturn
+     */
+    protected function withinBudget(Builder $query, string $phase, callable $fn): mixed
+    {
+        $ms = $this->resolveQueryTimeout();
+
+        if ($ms === null) {
+            return $fn();
+        }
+
+        try {
+            return QueryBudget::run($query->getQuery()->getConnection(), $ms, $fn);
+        } catch (QueryBudgetExceeded $e) {
+            TableQueryTimedOut::dispatch(
+                $this->getModelClass(),
+                $phase,
+                $ms,
+                KinetixTeams::keyFor('tables'),
+            );
+
+            throw $e;
+        }
     }
 
     /**
@@ -1504,17 +1808,22 @@ class Table implements Arrayable, JsonSerializable
             $hasSummaries = false;
             $stats        = [];
         } else {
-            [$summaries, $hasSummaries] = $this->computeSummaries($query);
-
             // Same window: the KPI cards read the filtered-but-unpaginated set,
             // so they describe the list the user is looking at rather than one
             // page.
-            $stats = $this->computeStats($query);
+            try {
+                [$summaries, $hasSummaries, $stats] = $this->aggregatesWithinBudget($query);
+            } catch (QueryBudgetExceeded) {
+                $summaries    = [];
+                $hasSummaries = false;
+                $stats        = [];
+            }
         }
 
         // Paginate if enabled
         $records    = [];
         $pagination = null;
+        $timedOut   = false;
 
         $perPage = $this->resolvePerPage();
 
@@ -1527,30 +1836,19 @@ class Table implements Arrayable, JsonSerializable
                 $records[] = $this->formatRecord($record, $activeGroup);
             }
         } elseif ($this->isPaginated) {
-            $pageName = $this->queryPrefix.'page';
+            try {
+                $paginator = $this->paginateQuery($query);
 
-            // A cursor can only encode plain-column orders; anything else falls
-            // back to simple pagination rather than paginating wrongly.
-            $useCursor = $this->cursorPaginate && $this->supportsCursorPagination($query);
+                foreach ($paginator->items() as $record) {
+                    $records[] = $this->formatRecord($record, $activeGroup);
+                }
 
-            if ($useCursor) {
-                $this->ensureTotalOrder($query);
+                $pagination = $this->paginationData($paginator);
+            } catch (QueryBudgetExceeded) {
+                $records    = [];
+                $pagination = null;
+                $timedOut   = true;
             }
-
-            // Simple/cursor modes fetch perPage+1 rows to learn whether a next
-            // page exists, instead of running a COUNT(*) over the filtered set.
-            $paginator = match (true) {
-                $useCursor => $query->cursorPaginate($perPage, ['*'], $this->queryPrefix.'cursor'),
-                $this->simplePaginate,
-                $this->cursorPaginate => $query->simplePaginate($perPage, ['*'], $pageName),
-                default               => $query->paginate($perPage, ['*'], $pageName),
-            };
-
-            foreach ($paginator->items() as $record) {
-                $records[] = $this->formatRecord($record, $activeGroup);
-            }
-
-            $pagination = $this->paginationData($paginator);
         } else {
             $items = $query->get();
 
@@ -1639,6 +1937,7 @@ class Table implements Arrayable, JsonSerializable
             defaultGroup: $activeGroup?->getColumn(),
             deferStats: $deferred,
             aggregatesDescriptor: $deferred ? $this->buildAggregatesDescriptor() : null,
+            timedOut: $timedOut,
         );
     }
 
@@ -2637,6 +2936,7 @@ class Table implements Arrayable, JsonSerializable
                 lastPage: $paginator->lastPage(),
                 from: $paginator->firstItem(),
                 to: $paginator->lastItem(),
+                totalIsApproximate: isset($this->approximateTotals[$paginator]),
             ),
             default => new TablePaginationData(
                 perPage: $paginator->perPage(),

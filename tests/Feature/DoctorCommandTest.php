@@ -554,6 +554,47 @@ class DoctorCommandTest extends TestCase
         $this->assertContains('Membership', array_column($payload['findings'], 'section'));
     }
 
+    public function test_a_table_query_timeout_on_sqlite_is_flagged(): void
+    {
+        config()->set('kinetix.tables.query_timeout', 2000);
+
+        $findings = $this->sectionFindings('Table limits');
+
+        $this->assertCount(1, $findings);
+        $this->assertSame('warning', $findings[0]['level']);
+        $this->assertStringContainsString('kinetix.tables.query_timeout', $findings[0]['message']);
+    }
+
+    public function test_the_table_limits_stay_quiet_when_nothing_is_set(): void
+    {
+        $this->assertSame([], $this->sectionFindings('Table limits'));
+    }
+
+    public function test_an_array_store_for_cached_totals_is_flagged_outside_testing(): void
+    {
+        config()->set('kinetix.tables.cached_total.store', 'array');
+        $this->app['env'] = 'production';
+
+        $findings = $this->sectionFindings('Table limits');
+
+        $this->assertCount(1, $findings);
+        $this->assertStringContainsString('cached_total.store', $findings[0]['message']);
+    }
+
+    /**
+     * @return array<int, array{level: string, message: string}>
+     */
+    private function sectionFindings(string $section): array
+    {
+        $this->withoutMockingConsoleOutput();
+        Artisan::call('kinetix:doctor', ['--json' => true]);
+
+        /** @var array{findings: array<int, array{section: string, level: string, message: string}>} $payload */
+        $payload = json_decode(Artisan::output(), true);
+
+        return array_values(array_filter($payload['findings'], static fn (array $finding): bool => $finding['section'] === $section));
+    }
+
     /**
      * @return array<int, array{level: string, message: string}>
      */

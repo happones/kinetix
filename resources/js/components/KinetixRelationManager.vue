@@ -50,10 +50,12 @@ const props = withDefaults(
         /** The tabs host shows the title on the tab — skip the heading. */
         hideTitle?: boolean;
         /**
-         * Inertia prop names to refresh after attach/detach/associate/
-         * dissociate. When set, those writes trigger a PARTIAL reload
-         * (`router.reload({ only })`) instead of a full one. Name the prop(s)
-         * the host page feeds this manager from. Omit to keep the full reload.
+         * Inertia prop names to refresh. When set, attach/detach/associate/
+         * dissociate AND the manager table's own refreshes (search, sort,
+         * filters, paging, polling, inline edits, Retry) are PARTIAL reloads
+         * (`router.reload({ only })`) instead of full ones. Record modals and
+         * bulk actions stay full. Name the prop(s) the host page feeds this
+         * manager from. Omit to keep the full reload.
          */
         reloadOnly?: string[];
     }>(),
@@ -530,7 +532,11 @@ onBeforeUnmount(() => {
                 <div class="h-40 animate-pulse rounded-md bg-muted"></div>
             </div>
 
-            <KinetixTable v-else-if="manager.table" :table="manager.table" />
+            <KinetixTable
+                v-else-if="manager.table"
+                :table="manager.table"
+                :reload-only="reloadOnly"
+            />
         </div>
 
         <!-- Record picker modal (AttachAction / AssociateAction events) on the

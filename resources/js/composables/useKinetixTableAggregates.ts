@@ -12,6 +12,8 @@ interface AggregatesResponse {
     stats: KinetixTableStat[];
     summaries: Record<string, KinetixSummary[]>;
     hasSummaries: boolean;
+    /** The aggregate queries ran past their time budget: stats are empty. */
+    timed_out?: boolean;
 }
 
 export interface UseKinetixTableAggregatesOptions {

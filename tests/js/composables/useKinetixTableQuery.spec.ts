@@ -1,5 +1,14 @@
-import { describe, expect, it } from 'vitest';
-import { buildTableQuery } from '@/composables/useKinetixTableQuery';
+import { mount } from '@vue/test-utils';
+import { defineComponent, ref } from 'vue';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@inertiajs/vue3', () => ({ router: { get: vi.fn() } }));
+
+import { router } from '@inertiajs/vue3';
+import {
+    buildTableQuery,
+    useKinetixTableQuery,
+} from '@/composables/useKinetixTableQuery';
 
 describe('buildTableQuery', () => {
     it('namespaces every reload key with the table prefix', () => {
@@ -76,5 +85,50 @@ describe('buildTableQuery — cursor pagination', () => {
         );
 
         expect(query).not.toHaveProperty('users_cursor');
+    });
+});
+
+describe('useKinetixTableQuery — reloadOnly', () => {
+    const table: any = {
+        queryPrefix: '',
+        state: { search: '', sort: 'id', direction: 'asc', perPage: 10 },
+        pagination: { currentPage: 1 },
+    };
+
+    const reloadWith = (reloadOnly?: () => string[] | undefined) => {
+        let api!: ReturnType<typeof useKinetixTableQuery>;
+
+        mount(
+            defineComponent({
+                setup() {
+                    api = useKinetixTableQuery({
+                        table: () => table,
+                        searchQuery: ref(''),
+                        activeFilters: ref({}),
+                        reloadOnly,
+                    });
+
+                    return () => null;
+                },
+            }),
+        );
+        api.triggerReload({ page: 2 });
+
+        return vi.mocked(router.get).mock.calls.at(-1)![2] as Record<
+            string,
+            unknown
+        >;
+    };
+
+    beforeEach(() => vi.mocked(router.get).mockClear());
+
+    it('sends the named props as `only` on a visit', () => {
+        expect(reloadWith(() => ['table']).only).toEqual(['table']);
+    });
+
+    it('sends no `only` key at all without reloadOnly', () => {
+        expect('only' in reloadWith()).toBe(false);
+        expect('only' in reloadWith(() => undefined)).toBe(false);
+        expect('only' in reloadWith(() => [])).toBe(false);
     });
 });

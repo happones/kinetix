@@ -83,6 +83,11 @@ export interface UseKinetixTableQueryOptions {
     activeFilters: Ref<Record<string, unknown>>;
     /** Debounce window (ms) for typed search input. */
     searchDebounce?: number;
+    /**
+     * Props to refresh on each reload (`only`). Undefined or empty keeps the
+     * full visit — no `only` key is sent at all.
+     */
+    reloadOnly?: () => string[] | undefined;
 }
 
 export interface UseKinetixTableQuery {
@@ -146,6 +151,8 @@ export function useKinetixTableQuery(
             ['search', 'filters', 'perPage', 'sort', 'direction'] as const
         ).some((key) => params[key] !== undefined);
 
+        const only = options.reloadOnly?.();
+
         router.get(
             window.location.pathname,
             buildTableQuery(prefix, merged, window.location.search),
@@ -153,6 +160,7 @@ export function useKinetixTableQuery(
                 preserveState: true,
                 preserveScroll: true,
                 replace: isRefinement,
+                ...(only?.length ? { only } : {}),
                 ...(hooks.onDone
                     ? {
                           onFinish: hooks.onDone,

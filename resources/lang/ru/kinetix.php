@@ -22,6 +22,7 @@ return [
     'columns'                                 => 'Столбцы',
     'per_page'                                => 'На странице:',
     'showing_records'                         => 'Показаны записи с :from по :to из :total',
+    'showing_records_approximate'             => 'Показаны записи с :from по :to из примерно :total',
     'no_records'                              => 'Нет результатов',
     'page_of'                                 => 'Страница :current из :total',
     'page_number'                             => 'Страница :current',
@@ -888,6 +889,9 @@ return [
     // Table write endpoints (inline edits, reordering, kanban moves)
     'table_column_not_editable'     => 'Этот столбец нельзя редактировать.',
     'table_value_invalid'           => 'Значение недопустимо для этого столбца.',
+    'table_timed_out_heading'       => 'Загрузка этого списка заняла слишком много времени',
+    'table_timed_out'               => 'Сузьте поиск или фильтры либо повторите попытку.',
+    'table_retry'                   => 'Повторить',
     'table_group_true'              => 'Да',
     'table_group_false'             => 'Нет',
     'table_bulk_action_not_allowed' => 'Это массовое действие не разрешено.',

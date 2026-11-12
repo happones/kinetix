@@ -144,7 +144,17 @@ cards over the same filtered query), `recordModals(Resource::class)` (in-table m
 simple resources — NOT inside relation managers; `width: '3xl'` sizes the form modal, `sm`…`7xl`, default
 `2xl`; form grids measure the FORM, so inside a modal use `columns(['default' => 1, 'sm' => 12])`, not
 `columns(12)`, which only applies from 1024px), `simplePaginated()` (no COUNT) /
-`cursorPaginated()` (seek), `clientSide()` (TanStack in-browser mode), `writeAbility('ability')` /
+`cursorPaginated()` (seek), `cachedTotal($ttl = true, $minimum = null)` (remember the length-aware
+total per connection + team + user + count SQL/bindings; below the minimum rows never cached; teams
+on with no team resolved = cache untouched; payload `pagination.totalIsApproximate`, footer "about"),
+`simplePaginatedWhileSearching()` (simple mode while a search term is active),
+`queryTimeout($ms)` (per-statement budget for count / rows / aggregates, each its own phase:
+count timeout = simple paging, rows timeout = `TableData.timedOut` + no rows + `pagination: null`,
+aggregates timeout = empty + `timed_out: true`; `0` = off; `kinetix.tables.query_timeout`; event
+`Tables\Events\TableQueryTimedOut` with model/phase/timeoutMs/teamKey, never the search term; only
+MySQL/MariaDB/PostgreSQL cancel), `<KinetixTable :reload-only="['table']">` (the table's own refreshes
+become partial reloads; mutations stay full; opt-in, sibling props go stale, the controller must
+wrap the table prop in a closure; scaffolded Index.vue ships with it), `clientSide()` (TanStack in-browser mode), `writeAbility('ability')` /
 `writeScope([...])` (inline-write policy + bounds), `toolbarLayout('auto'|'inline'|'stacked')`,
 `emptyStateHeading/Description/Icon/Actions()` (custom no-rows card via the shared
 `<KinetixEmptyState>`; actions behave like toolbar actions incl. `->modal()`, unauthorized ones

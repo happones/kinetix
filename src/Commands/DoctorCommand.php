@@ -61,6 +61,7 @@ use Laravel\Socialite\Facades\Socialite;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
+use Throwable;
 
 /**
  * One command that surfaces every Kinetix misconfiguration that otherwise fails
@@ -121,6 +122,7 @@ class DoctorCommand extends Command
         $this->checkConfidentialEnvelopes();
         $this->checkThrottles();
         $this->checkSearchLimits();
+        $this->checkTableLimits();
         $this->checkSharedProps();
         $this->checkDiscoveryManifest();
         $this->checkHostKeyColumns();
@@ -783,7 +785,7 @@ class DoctorCommand extends Command
             return Permission::query()
                 ->where('name', 'like', $feature.'.%')
                 ->exists();
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
     }
@@ -1778,7 +1780,7 @@ class DoctorCommand extends Command
                         $unbound[] = "{$class}::{$column} — {$legacy} v1, {$loose} column-bound";
                     }
                 }
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 continue;
             }
         }
@@ -1901,6 +1903,47 @@ class DoctorCommand extends Command
                 $driver === 'pgsql'
                     ? 'PostgreSQL can only limit a statement inside a transaction, which runs on the write connection: budgeted lookups go to the primary.'
                     : 'The limit is set on the read connection the lookup uses; if that is a pooled proxy (ProxySQL, RDS Proxy) the session may not stick, so verify the timeout fires.');
+        }
+    }
+
+    /**
+     * The table query timeout needs an engine that can cancel a statement,
+     * and the cached totals need a store that is shared between workers.
+     */
+    protected function checkTableLimits(): void
+    {
+        $timeout = config('kinetix.tables.query_timeout');
+
+        if (is_numeric($timeout) && (int) $timeout >= 1) {
+            $name   = (string) config('database.default');
+            $config = config("database.connections.{$name}");
+            $config = is_array($config) ? $config : [];
+            $driver = (string) ($config['driver'] ?? '');
+
+            if (! in_array($driver, ['mysql', 'mariadb', 'pgsql'], true)) {
+                $this->warn_('Table limits', "kinetix.tables.query_timeout is set, but the default connection ({$name}) is {$driver}, which has no statement timeout",
+                    'The budget only applies to MySQL, MariaDB and PostgreSQL; here tables query without one.');
+            } elseif ($driver === 'pgsql' && (isset($config['read']) || isset($config['write']))) {
+                $this->warn_('Table limits', "kinetix.tables.query_timeout is set on a read/write split connection ({$name})",
+                    'PostgreSQL can only limit a statement inside a transaction, which runs on the write connection: budgeted table queries go to the primary.');
+            } else {
+                $this->ok('Table limits', "{$timeout} ms per table statement");
+            }
+        }
+
+        $store = config('kinetix.tables.cached_total.store');
+
+        if (is_string($store) && $store !== '' && ! app()->environment('testing')) {
+            try {
+                $isArray = Cache::store($store)->getStore() instanceof ArrayStore;
+            } catch (Throwable) {
+                $isArray = false;
+            }
+
+            if ($isArray) {
+                $this->warn_('Table limits', "kinetix.tables.cached_total.store ({$store}) is the array cache store",
+                    'The array store lives in one process, so under PHP-FPM a cached total is never reused. Use Redis or another shared store.');
+            }
         }
     }
 

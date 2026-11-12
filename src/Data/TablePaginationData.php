@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Data;
 
+use Happones\Kinetix\Tables\Table;
 use Spatie\LaravelData\Data;
 use Spatie\TypeScriptTransformer\Attributes\TypeScript;
 
@@ -40,5 +41,7 @@ class TablePaginationData extends Data
         public ?string $prevCursor = null,
         /** Cursor mode has no page number, so "can I go back" is explicit. */
         public ?bool $onFirstPage = null,
+        /** The total came from a short-lived cache ({@see Table::cachedTotal()}), so the footer says "about". */
+        public bool $totalIsApproximate = false,
     ) {}
 }

@@ -275,6 +275,13 @@ keep lookups on. `php artisan kinetix:doctor` warns when the default
 connection is split. The budget follows the default connection.
 :::
 
+::: tip Tables have their own budget
+The table's count, page and aggregate queries are budgeted separately, with
+`kinetix.tables.query_timeout` or `Table::queryTimeout()`. See
+[Query timeout](/tables#query-timeout) and, for a total that is not recounted on
+every page, [Cached totals](/tables#cached-totals-—-cachedtotal).
+:::
+
 ## Table search minimum
 
 ```php

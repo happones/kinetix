@@ -149,6 +149,38 @@ Pass `:tabs="false"` to force the stacked layout regardless of count, or use
 the single-section `<KinetixRelationManager :manager="relation" />` directly
 for a fully custom arrangement.
 
+### Partial reloads (`reloadOnly`)
+
+A manager's table refreshes (search, sort, filters, paging, polling, inline
+edits, *Try again*) reload the whole page by default. Pass `reload-only` with
+the prop that carries the manager and it forwards the list to its table, which
+then asks Inertia for only that prop:
+
+```vue
+<KinetixRelationManager :manager="relation" :reload-only="['relation']" />
+```
+
+```php
+return inertia('Users/Edit', [
+    'user'     => $user,
+    'relation' => fn () => PostsRelationManager::make($user)->toArray(),
+]);
+```
+
+A manager that already set `reload-only` (for its own reloads) now also applies
+it to its table's refreshes, so those become partial too: check that the prop
+list covers what the table reloads.
+
+It is opt-in, and every other prop stays as it was during those refreshes, so use
+it only where nothing else on the page depends on the manager's query string, and
+keep the prop a closure so the rest is not evaluated. Attach, detach, associate
+and dissociate reload with the same `only`; record modals and bulk actions still
+reload the whole page. The same caveats are in
+[Partial reloads](tables.md#partial-reloads-—-reloadonly); a manager's table also
+supports [`cachedTotal()`](tables.md#cached-totals-—-cachedtotal),
+[`simplePaginatedWhileSearching()`](tables.md#no-total-while-searching) and
+[`queryTimeout()`](tables.md#query-timeout).
+
 ### Groups (several managers, one tab)
 
 Managers sharing a `$group` label render as **one tab**, their sections

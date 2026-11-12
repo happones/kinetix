@@ -4,6 +4,7 @@ import { ChevronRight, GripVertical } from '@lucide/vue';
 import {
     computed,
     defineAsyncComponent,
+    nextTick,
     onBeforeUnmount,
     onMounted,
     ref,
@@ -43,6 +44,7 @@ import type {
     KinetixTableRecord,
 } from '@/types/kinetix';
 import KinetixActionDropdown from './KinetixActionDropdown.vue';
+import KinetixAlert from './KinetixAlert.vue';
 import KinetixButton from './KinetixButton.vue';
 import KinetixCheckbox from './KinetixCheckbox.vue';
 import KinetixConfirmModal from './KinetixConfirmModal.vue';
@@ -73,6 +75,15 @@ const props = defineProps<{
      * has the one `<h1>` screen readers jump to.
      */
     headingLevel?: 1 | 2 | 3 | 4 | 5 | 6;
+    /**
+     * Props to refresh when the table reloads itself (search, sort, filters,
+     * paging, polling, inline edits, retry) — a partial reload
+     * (`router.reload({ only })`) instead of a full visit. Name the prop the
+     * host page feeds this table from, and wrap it in a closure on the server
+     * so the other props are not evaluated. Omit to keep the full visit.
+     * Mutations (bulk actions, record modals, form actions) always reload fully.
+     */
+    reloadOnly?: string[];
 }>();
 
 // The root is a wrapper holding the stat cards plus the table card, so attrs are
@@ -148,16 +159,25 @@ const { announce } = useKinetixAnnounce();
 const resultsAnnouncement = (): string => {
     const pagination = props.table.pagination;
 
+    if (props.table.timedOut) {
+        return `${t('kinetix.table_timed_out_heading')}. ${t('kinetix.table_timed_out')}`;
+    }
+
     if (props.table.records.length === 0) {
         return t('kinetix.no_records');
     }
 
     if (pagination?.total !== null && pagination?.total !== undefined) {
-        return t('kinetix.showing_records', {
-            from: pagination.from,
-            to: pagination.to,
-            total: pagination.total,
-        });
+        return t(
+            pagination.totalIsApproximate
+                ? 'kinetix.showing_records_approximate'
+                : 'kinetix.showing_records',
+            {
+                from: pagination.from,
+                to: pagination.to,
+                total: pagination.total,
+            },
+        );
     }
 
     if (pagination?.from !== null && pagination?.from !== undefined) {
@@ -179,6 +199,7 @@ watch(
     [
         () => JSON.stringify(props.table.state),
         () => props.table.pagination?.currentPage,
+        () => props.table.timedOut,
     ],
     () => {
         announce(resultsAnnouncement());
@@ -194,7 +215,47 @@ const { triggerReload, onSearchInput } = useKinetixTableQuery({
     table: () => props.table,
     searchQuery,
     activeFilters,
+    reloadOnly: () => props.reloadOnly,
 });
+
+// The partial-reload options every self-refresh shares (poll, inline edit,
+// retry). Empty when no `reloadOnly` was named, so a full visit stays exact.
+const reloadOptions = (): { only?: string[] } =>
+    props.reloadOnly?.length ? { only: props.reloadOnly } : {};
+
+// --- Timed-out list ----------------------------------------------------------
+const retrying = ref(false);
+const tableRegion = ref<HTMLElement | null>(null);
+
+const retryLoad = (): void => {
+    if (retrying.value) {
+        return;
+    }
+
+    retrying.value = true;
+    router.reload({
+        ...reloadOptions(),
+        onFinish: () => {
+            retrying.value = false;
+
+            // The focused Retry button is gone once rows are back: park focus
+            // on the table region instead of letting it fall to <body>.
+            void nextTick(() => {
+                const active = document.activeElement;
+                const focusLost =
+                    !active ||
+                    active === document.body ||
+                    !!tableRegion.value?.contains(active);
+
+                // Only when focus was lost: a user who moved on (say, to the
+                // search box) during the retry keeps where they are.
+                if (!props.table.timedOut && focusLost) {
+                    tableRegion.value?.focus({ preventScroll: true });
+                }
+            });
+        },
+    });
+};
 
 // --- Saved views -------------------------------------------------------------
 const currentViewState = computed(() => ({
@@ -456,7 +517,7 @@ const updateCell = async (
 
         if (data?.status === 'success') {
             // reload() preserves scroll and state by default.
-            router.reload();
+            router.reload(reloadOptions());
         }
     } catch (e) {
         // A refused value (422: the column's rules; 403: no access) must not
@@ -489,7 +550,9 @@ const parsePollInterval = (poll: string | null | undefined): number => {
 };
 
 const pollInterval = parsePollInterval(props.table.poll);
-const poll = usePoll(pollInterval || 60000, {}, { autoStart: false });
+const poll = usePoll(pollInterval || 60000, reloadOptions(), {
+    autoStart: false,
+});
 
 // Aggregates (stats + summaries). Inline ones are read live from the prop;
 // deferred ones (Table::deferStats()) arrive empty with a signed descriptor and
@@ -737,7 +800,13 @@ const totalColumnSpan = computed(
             <!-- HTML Table -->
             <!-- A size container: the empty state below measures the visible
                  width with cqw, not the (wider) table's. -->
-            <div class="kinetix-scroll-x @container/kx-scroll overflow-x-auto">
+            <div
+                ref="tableRegion"
+                tabindex="-1"
+                :role="table.heading ? 'group' : undefined"
+                :aria-label="table.heading ?? undefined"
+                class="kinetix-scroll-x @container/kx-scroll overflow-x-auto outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset"
+            >
                 <table class="min-w-full divide-y divide-border">
                     <KinetixTableHead
                         :columns-to-render="columnsToRender"
@@ -1042,8 +1111,33 @@ const totalColumnSpan = computed(
                                             : 'px-6 py-12 text-sm text-center text-muted-foreground'
                                     "
                                 >
+                                    <KinetixAlert
+                                        v-if="table.timedOut"
+                                        color="warning"
+                                        variant="soft"
+                                        role="none"
+                                        class="text-start"
+                                        :title="
+                                            t('kinetix.table_timed_out_heading')
+                                        "
+                                        :description="
+                                            t('kinetix.table_timed_out')
+                                        "
+                                    >
+                                        <template #actions>
+                                            <KinetixButton
+                                                variant="outline"
+                                                size="sm"
+                                                :loading="retrying"
+                                                :disabled="retrying"
+                                                @click="retryLoad"
+                                            >
+                                                {{ t('kinetix.table_retry') }}
+                                            </KinetixButton>
+                                        </template>
+                                    </KinetixAlert>
                                     <KinetixEmptyState
-                                        v-if="table.emptyState"
+                                        v-else-if="table.emptyState"
                                         :icon="table.emptyState.icon"
                                         :title="
                                             table.emptyState.heading ??

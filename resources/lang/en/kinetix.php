@@ -22,6 +22,7 @@ return [
     'columns'                           => 'Columns',
     'per_page'                          => 'Per page:',
     'showing_records'                   => 'Showing :from to :to of :total results',
+    'showing_records_approximate'       => 'Showing :from to :to of about :total results',
     'no_records'                        => 'No results',
     'page_of'                           => 'Page :current of :total',
     'page_number'                       => 'Page :current',
@@ -979,6 +980,9 @@ return [
     // Table write endpoints (inline edits, reordering, kanban moves)
     'table_column_not_editable'     => 'This column is not editable.',
     'table_value_invalid'           => 'The value is not valid for this column.',
+    'table_timed_out_heading'       => 'This list took too long to load',
+    'table_timed_out'               => 'Narrow the search or filters, or try again.',
+    'table_retry'                   => 'Try again',
     'table_group_true'              => 'Yes',
     'table_group_false'             => 'No',
     'table_bulk_action_not_allowed' => 'This bulk action is not allowed.',

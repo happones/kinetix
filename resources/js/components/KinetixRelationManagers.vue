@@ -39,9 +39,11 @@ const props = withDefaults(
         /** Auto-tab when more than one manager (default). false = stack. */
         tabs?: boolean;
         /**
-         * Inertia prop names to refresh after a write, forwarded to each
-         * manager (see `KinetixRelationManager`'s `reloadOnly`). Omit to keep
-         * the full reload.
+         * Inertia prop names to refresh, forwarded to each manager (see
+         * `KinetixRelationManager`'s `reloadOnly`): relation writes and the
+         * tables' own search, sort, filters, paging, polling, inline edits and
+         * Retry reload only these props; record modals and bulk actions stay
+         * full. Omit to keep the full reload.
          */
         reloadOnly?: string[];
     }>(),

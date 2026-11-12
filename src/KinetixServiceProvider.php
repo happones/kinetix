@@ -2806,10 +2806,12 @@ class KinetixServiceProvider extends ServiceProvider
         });
 
         // One-shot toast flashed by a controller (`->with('kinetix_toast', …)`).
+        // Shared as `always`, so a partial reload (`only: ['table']`) still
+        // delivers it instead of letting the session flash expire unseen.
         // Accepts a plain string (→ success) or ['type' => …, 'message' => …];
         // the uuid lets the client fire the SAME message twice in a row.
         // <KinetixToaster /> watches this prop and shows the toast.
-        Inertia::share('kinetix_toast', function () {
+        Inertia::share('kinetix_toast', Inertia::always(function () {
             $toast = session('kinetix_toast');
 
             if ($toast === null) {
@@ -2831,7 +2833,7 @@ class KinetixServiceProvider extends ServiceProvider
                 'message' => $toast['message'],
                 'id'      => (string) Str::uuid(),
             ];
-        });
+        }));
 
         // Alerts that outlive one page (KinetixFlash::alert()->keep() /
         // ->untilDismissed()); one-shot toasts and alerts ride Inertia's own
@@ -2840,7 +2842,7 @@ class KinetixServiceProvider extends ServiceProvider
 
         // One-shot toasts and alerts on an inertia-laravel without a flash
         // channel (< 2.0.16). Null on anything newer, where they ride `flash`.
-        Inertia::share('kinetix_flash', fn (): ?array => KinetixFlash::legacyPayload());
+        Inertia::share('kinetix_flash', Inertia::always(fn (): ?array => KinetixFlash::legacyPayload()));
 
         // The alerts this user closed for good, so a `permanent` <KinetixAlert>
         // never renders again on any device. Null = the module is off, which

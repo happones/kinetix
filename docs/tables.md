@@ -1028,6 +1028,9 @@ Table-level methods control refresh, pagination, and row behavior:
 - `paginated(bool|array $options)`: Toggles pagination or sets the page-size options. Pass `false` to disable pagination (the full result set is rendered), or an array of integers to override the selectable per-page options (default `[5, 10, 25, 50]`).
 - `simplePaginated(bool $simple = true)`: Paginate **without counting** the result set. See [Large tables](#large-tables-—-simplepaginated).
 - `cursorPaginated(bool $cursor = true)`: Seek-based pagination — no `OFFSET`, constant cost at any depth. See [Deep pagination](#deep-pagination-—-cursorpaginated).
+- `cachedTotal(bool|int $ttlSeconds = true, ?int $minimum = null)`: Remember the length-aware total between requests instead of counting on every page and sort. See [Cached totals](#cached-totals-—-cachedtotal).
+- `simplePaginatedWhileSearching(bool $condition = true)`: Page without the `COUNT(*)` while a search term is active. See [No total while searching](#no-total-while-searching).
+- `queryTimeout(int $milliseconds)`: A per-statement time budget for the table's count, page and aggregate queries. See [Query timeout](#query-timeout).
 - `defaultPaginationPageOption(int $perPage)`: Sets the initial page size (default `10`).
 - `recordUrl(?Closure $callback, bool $shouldOpenInNewTab = false)`, `openRecordUrlInNewTab()`, `recordAction(string|Closure|null $action)`, `clickableRows(bool $condition = true)`: What a click on the row does. Left alone, a row opens its record through its own `view` / `edit` action. See [Clickable rows](#clickable-rows).
 - `searchMinLength(int $length)`: The fewest characters the toolbar search needs before it reloads the table (default `0`, every keystroke). Clearing the box always reloads, and a request with a shorter `search` is still answered. See [Search](/search#table-search-minimum).
@@ -1244,6 +1247,144 @@ effect when it was issued. Change the sort or the filters and that position is
 meaningless — Kinetix drops the cursor automatically whenever search, sort,
 filters or page size change, restarting from the first page.
 :::
+
+### Cached totals — `cachedTotal()`
+
+Even with a count you want, paging through a big list should not pay for it
+again on every click. `cachedTotal()` keeps the total for a short time:
+
+```php
+Table::make(AuditEntry::query())->cachedTotal();          // config TTL (60 s)
+Table::make(AuditEntry::query())->cachedTotal(120, 50000); // 2 min, only from 50,000 rows
+```
+
+- Paging and re-sorting reuse the cached total: **zero** `COUNT(*)` within the TTL.
+- While a total is served from the cache the payload sets
+  `pagination.totalIsApproximate` and the footer reads *Showing 1 to 10 of about
+  4,231 results*. A total counted fresh is exact.
+- Totals **below the minimum** (`kinetix.tables.cached_total.minimum`, default
+  `10000`) are never cached: a small count is cheap, so it stays exact and fresh.
+- A page that comes back empty under a cached total (rows were deleted since)
+  drops the entry and recounts once.
+- A total of `0` is never cached, whatever the minimum, and a query whose
+  bindings cannot be encoded as JSON (binary values) is never cached.
+- Ignored in `simplePaginated()` and `cursorPaginated()`, which have no total.
+- Off unless a table calls it. Nothing is invalidated on writes: the total is
+  allowed to be up to one TTL stale, which is what "about" says.
+
+#### Who shares a cached total
+
+The key is the identity of the question, so a total is never served to someone
+it was not computed for: the database connection, the **team**, the **user** (and
+the impersonator, while impersonating), and the exact count statement with its
+bindings, so every search term and filter value has its own entry.
+
+With teams on and **no team resolved**, nothing is cached: the cache is neither
+read nor written and the count runs fresh (fail closed). Teams off behaves as one
+shared tenant.
+
+| Key | Default | |
+|---|---|---|
+| `kinetix.tables.cached_total.ttl` | `60` | Seconds a total is kept (`KINETIX_TABLES_CACHED_TOTAL_TTL`). |
+| `kinetix.tables.cached_total.minimum` | `10000` | Row count from which a total is cached. |
+| `kinetix.tables.cached_total.store` | `null` | Cache store; `null` is the default store. Use a store shared between workers (Redis): the `array` store never reuses a total under PHP-FPM, and `kinetix:doctor` flags it. |
+
+### No total while searching
+
+A `LIKE` search is the query a large table counts slowest. Keep the total for
+the plain list and drop it only while the user is searching:
+
+```php
+Table::make(Customer::query())->simplePaginatedWhileSearching();
+```
+
+With a non-blank search term the request pages like `simplePaginated()` (no
+`COUNT(*)`, `total` and `lastPage` are `null`); clear the box and the table
+counts again. Combine it with `cachedTotal()` for a list that is fast both ways.
+
+### Query timeout
+
+A table can give each of its queries a time budget, so one pathological filter
+cannot hold a database worker for minutes:
+
+```php
+Table::make(AuditEntry::query())->queryTimeout(2000); // milliseconds per statement
+```
+
+```php
+// config/kinetix.php (or KINETIX_TABLES_QUERY_TIMEOUT_MS) — every table
+'tables' => ['query_timeout' => 2000],
+```
+
+Each phase has its own budget and its own fallback, so a slow one never takes the
+page down with it:
+
+| Phase | When it is cancelled |
+|---|---|
+| Count | The request pages **without a total** (simple paging); rows still load. |
+| Page (rows) | The payload has `timedOut: true`, no rows and `pagination: null`; the table shows a *This list took too long to load* alert with a **Try again** button. Rows shown earlier are not kept. |
+| Aggregates (stats and summaries) | They come back empty; the deferred endpoint answers `{ …, "timed_out": true }`. The rows still load. |
+
+On PostgreSQL a budget needs a transaction, so each budgeted phase (count, page,
+aggregates) runs on the **write** connection; with `'sticky' => true` the later
+reads of that request go to the primary too. A table with no summarizer and no
+stat card opens no aggregates budget.
+
+`->queryTimeout(0)` switches the budget off for one table; a table that does not
+call it follows the config. It works on MySQL, MariaDB and PostgreSQL (the same
+engine support and caveats as the [search budget](/search#query-timeout)); on
+SQLite and SQL Server it has no effect and `kinetix:doctor` says so. `paginate()`
+on your own query ([a list your controller fetches](#a-list-your-controller-fetches))
+applies the count fallback, but a cancelled page throws
+`Happones\Kinetix\Query\QueryBudgetExceeded` for you to handle.
+
+Every cancellation dispatches `Happones\Kinetix\Tables\Events\TableQueryTimedOut`
+with the `model`, the `phase` (`count`, `rows` or `aggregates`), the `timeoutMs`
+and the `teamKey` (null with teams off). It never carries the search term or any
+filter value, so it is safe to log:
+
+```php
+Event::listen(TableQueryTimedOut::class, fn ($e) => Log::warning('Slow table', [
+    'model' => $e->model, 'phase' => $e->phase, 'team' => $e->teamKey,
+]));
+```
+
+### Partial reloads — `reloadOnly`
+
+Every search keystroke, sort, filter, page step and poll reloads the page, and an
+Inertia page re-evaluates **every** prop (shared props included) each time. When
+the table is the only thing that changes, ask for just the table:
+
+```vue
+<KinetixTable :table="table" :reload-only="['table']" />
+```
+
+The table's own refreshes (search, sort, filters, per-page, paging, polling,
+inline edits and *Try again*) become partial reloads with `only: ['table']`.
+Mutations (bulk actions, record modals, form actions, a refreshed expired
+descriptor) still reload the whole page. A table without the prop behaves exactly
+as before. The scaffolded `Index.vue` pages ship with it already.
+
+::: warning Sibling props go stale
+A partial reload leaves every other prop as it was. Use it only where no other
+prop depends on the table's query string (counts in a header, a stats card
+outside the table), and wrap the table prop in a closure in the controller, so a
+partial reload does not evaluate the rest:
+
+```php
+return inertia('Posts/Index', [
+    'table' => fn () => PostResource::table(Table::make($query))->toArray(),
+]);
+```
+
+The prop name in `reload-only` must match the key your controller uses. The poll
+interval's `only` is read once, when the table mounts.
+:::
+
+Kinetix keeps the one-shot toast and flash alert as `always` props, so a toast
+flashed by an action still arrives on a following partial reload. The team is
+re-resolved from the URL on every request, so a partial reload never crosses
+teams; switching team is a full visit.
 
 ---
 

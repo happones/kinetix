@@ -381,6 +381,23 @@ user keeps in flight (Redis recommended), `kinetix.search.timeout` gives
 their queries a time budget on MySQL, MariaDB and PostgreSQL, and the browser
 reuses recent answers (`kinetix.search.client`). See [Search](/search).
 
+### Big tables
+
+Three opt-in switches keep a table over hundreds of thousands of rows
+responsive; see [Tables](/tables) for each:
+
+- `Table::cachedTotal()` remembers the `COUNT(*)` for a minute, per query, team
+  and user, so paging and re-sorting run no count (the footer says "about").
+- `Table::simplePaginatedWhileSearching()` drops the count while a search term is
+  active.
+- `Table::queryTimeout()` / `kinetix.tables.query_timeout` cancels a statement
+  that runs too long: a slow count falls back to simple paging, slow rows show a
+  retry state, slow aggregates come back empty.
+
+On the browser side, `<KinetixTable :reload-only="['table']">` turns the table's
+own refreshes into partial reloads, so a keystroke no longer re-evaluates the
+shared props.
+
 ### Cached routes
 
 When routes are cached (`php artisan route:cache`, or `optimize`), Kinetix
