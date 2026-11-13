@@ -1,12 +1,36 @@
-# Kinetix agent workflow (REQUIRED)
+# Kinetix development (REQUIRED)
 
-Kinetix work runs through the agent team in `.claude/agents/`; the main session orchestrates, briefs, verifies and releases. Activate the `kinetix-workflow` skill for the full procedure.
+Kinetix (`happones/kinetix`, namespace `Happones\Kinetix`) is an Open Source Laravel package: an admin and app-building toolkit on Inertia + Vue 3. One session does the whole job — plan, implement, review, verify and release — with no project subagents. Activate the `kinetix-workflow` skill for the full procedure.
 
-- **Plan:** a new feature, module, public API change or cross-cutting refactor starts with `kinetix-architect`. A small, local bug fix may skip the architect.
-- **Implement:** `kinetix-backend` (PHP, routes, Data, tests) and `kinetix-frontend` (Vue, TS, a11y, vitest) implement the approved plan, in parallel when the contract is fixed. The main session does not hand-write large implementations.
-- **Review:** `kinetix-reviewer` reviews every change before it is tagged, without exception. CHANGES REQUESTED → the implementers fix → re-review (a focused one is enough) → only then release.
+- **Plan before code** for a new feature or module, a public API change (PHP, TS, config, Data), a behaviour change, a cross-cutting refactor, or anything touching tenancy or security: write the plan in the session scratchpad (`.claude/skills/kinetix-workflow/references/planning.md`) and settle the user's decisions first. A small local bug fix with an obvious cause skips the plan.
+- **Implement in contract order:** backend Data classes and `resources/js/types/kinetix.ts` first, then the Vue side, with tests alongside.
+- **Review before every tag, without exception:** a separate review pass over the full diff against `.claude/skills/kinetix-workflow/references/review-checklist.md`, written down as findings by severity; fix every blocking finding and re-check it before releasing.
 - **Verify before tagging:** full PHP suite, PHP 8.3 prefer-lowest in docker, phpstan, `pint --test` twice, vue-tsc, full vitest, `trail check`. Then commit on main, push, tag (tags are immutable — fix forward).
-- **Every brief, plan and review is multi-team:** a tenant is a team ("empresa" to the user and consuming apps); see "Multi-team by default" in `.agents/skills/kinetix-development/SKILL.md`.
+- **Multi-team by default:** a tenant is a team ("empresa" to the user and consuming apps). Every plan, change and review states how teams are isolated.
+
+## Rules live next to the code
+
+Each area has its own `CLAUDE.md`, loaded when you work in that directory. Keep a rule in the file of the area it governs; put it here only when it applies to the whole repository.
+
+| Directory | Rules for |
+|---|---|
+| `src/` | PHP: public API, providers, routes, authorization, queries, Data contracts, tenancy |
+| `resources/js/` | Vue 3 + TS: components, composables, Inertia, a11y, bundle, published-file contract |
+| `tests/` | PHPUnit under testbench, engine integration tests, vitest specs |
+| `database/` | migrations: numbering, team columns, indexes, publish tags |
+| `docs/` | public docs pages and their Boost skills |
+
+The module-by-module conventions (tables, forms, notifications, billing…) and the REQUIRED rule sets (accessibility, bundle, server performance, endpoint security) are in `.agents/skills/kinetix-development/SKILL.md`.
+
+## Repository-wide rules
+
+- Code, comments, commits and docs in English. Public docs, skills, README and published `resources/js` comments never mention Filament.
+- Floors: PHP ^8.3, Laravel `^12.0|^13.0`, inertia-laravel `^2.0|^3.0`, testbench `^10|^11`. Any API of a multi-major dependency must exist at the lowest allowed version.
+- Every user-facing string ships in every locale under `resources/lang/` (8 today: de, en, es, fr, ja, pt, ru, zh).
+- Never touch the user's uncommitted files: `.gitignore`, `AGENTS.md`, `.ignore`, `.kiro/`, untracked `.trail/` files.
+- Commits never carry a Co-Authored-By trailer; never `--no-verify`.
+- Before binding any port (gallery, docker, test server), check `~/.claude/bin/cccwebenvdev-ports` and never use one it lists. Engine containers run on a private docker network with no published ports.
+- The Boost block below is written for host applications. In this repository there is no Sail, tests are PHPUnit under Orchestra Testbench (not Pest), and the commands in the area `CLAUDE.md` files win.
 
 <laravel-boost-guidelines>
 === foundation rules ===

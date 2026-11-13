@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.291.1] - 2026-11-12
+
+### Changed
+
+- **Smaller install archive.** The Packagist archive no longer ships the
+  repository's contributor tooling (`.claude/`, `CLAUDE.md` files). No runtime
+  or published file changed; nothing to do on upgrade.
+
 ## [0.291.0] - 2026-11-12
 
 ### Added

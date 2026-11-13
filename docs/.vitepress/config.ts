@@ -17,6 +17,8 @@ export default withMermaid(
     lang: "en-US",
     cleanUrls: true,
     lastUpdated: true,
+    // Contributor rules for this folder, not a docs page.
+    srcExclude: ["CLAUDE.md"],
     // Live component demos: Kinetix components import from `@`, Inertia, the
     // Kinetix HTTP composable and Echo. Alias the last three to the gallery's
     // stubs so a component mounts in the docs with no backend, and load the
