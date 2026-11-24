@@ -31,9 +31,11 @@ class ConfidentialEncryptExistingCommand extends Command
 
     public function handle(): int
     {
-        $modelClass = $this->argument('model');
+        // The raw input value: argument()'s declared type differs across
+        // Laravel versions, the Symfony accessor's doesn't.
+        $modelClass = (string) $this->input->getArgument('model');
 
-        if (! is_string($modelClass) || ! class_exists($modelClass) || ! is_subclass_of($modelClass, Model::class)) {
+        if (! class_exists($modelClass) || ! is_subclass_of($modelClass, Model::class)) {
             $this->error("[{$modelClass}] is not a valid Eloquent model class.");
 
             return self::FAILURE;

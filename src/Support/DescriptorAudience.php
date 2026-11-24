@@ -27,6 +27,7 @@ enum DescriptorAudience: string
     case TableRepeater     = 'form.table-repeater';
     case Search            = 'form.search';
     case Upload            = 'form.upload';
+    case UploadReceipt     = 'form.upload-receipt';
     case AddressLocations  = 'form.address-locations';
     case CalendarMove      = 'calendar.move';
     case KanbanMove        = 'kanban.move';

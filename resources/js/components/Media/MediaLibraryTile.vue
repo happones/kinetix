@@ -73,6 +73,8 @@ const humanSize = computed<string>(() => {
                 v-if="isImage"
                 :src="thumbUrl"
                 :alt="item.name"
+                loading="lazy"
+                decoding="async"
                 class="size-full object-cover"
             />
             <span

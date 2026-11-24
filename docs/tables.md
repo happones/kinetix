@@ -325,6 +325,8 @@ Displays image thumbnail previews:
 - `size(int|string $size)`: Dimensions in pixels (defaults to 40px).
 - `defaultImageUrl(string|Closure $url)`: Fallback URL if state is null.
 - `disk(string $disk)`: Resolve stored paths through a specific disk (e.g. `'s3'`). Defaults to the global `kinetix.filesystem.disk` (`public`). Stored paths become public URLs via `Storage::disk($disk)->url()`; values that are already absolute (`http(s)://`, `//`, `/…`, `data:`) pass through untouched.
+- `visibility('public'|'private')`: `private` resolves stored paths through temporary signed URLs (S3, or a local disk with `serve` on) instead of plain URLs, for a private bucket. Defaults to `kinetix.filesystem.visibility`. Each URL is reused for half of `kinetix.filesystem.temporary_url_ttl` (30 minutes), so the browser cache keeps hitting across page views; it costs one cache read per row.
+- Thumbnails load lazily (`loading="lazy"`, `decoding="async"`), carry the column label as `alt`, and reserve their box with `width`/`height` when `size()` is a number of pixels.
 - `preview(bool $condition = true, bool $gallery = true)`: Makes the thumbnail a button that opens the [lightbox](/lightbox) (zoom, pan, full screen, download). With `$gallery` the column's images on the page browse as one gallery; `preview(gallery: false)` opens each on its own. Requires `<KinetixFilePreview />` mounted once in the layout.
 
 ### 4. `ColorColumn`

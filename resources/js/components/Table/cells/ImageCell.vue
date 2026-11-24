@@ -17,6 +17,12 @@ const size = computed(() => {
 
     return { width: pixels, height: pixels };
 });
+/** Intrinsic size attributes (reserve the box before the image loads); numeric sizes only. */
+const dimension = computed(() => {
+    const raw = String(props.col.size || 40);
+
+    return /^\d+$/.test(raw) ? Number(raw) : undefined;
+});
 const shape = computed(() =>
     props.col.isCircular ? 'rounded-full' : 'rounded-lg border border-border',
 );
@@ -43,14 +49,23 @@ const group = computed(() =>
             <img
                 :src="url"
                 :alt="col.label"
+                :width="dimension"
+                :height="dimension"
+                loading="lazy"
+                decoding="async"
                 class="object-cover"
                 :class="shape"
                 :style="size"
             />
         </KinetixLightboxImage>
         <img
-            v-else
-            :src="record.values[col.name]"
+            v-else-if="url"
+            :src="url"
+            :alt="col.label"
+            :width="dimension"
+            :height="dimension"
+            loading="lazy"
+            decoding="async"
             class="object-cover"
             :class="shape"
             :style="size"

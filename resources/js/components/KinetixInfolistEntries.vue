@@ -412,6 +412,8 @@ const isEmpty = (value: unknown) =>
                 <img
                     :src="String(entry.state)"
                     :alt="entry.label ?? ''"
+                    loading="lazy"
+                    decoding="async"
                     class="shadow-sm object-cover ring-1 ring-border"
                     :class="entry.isCircular ? 'rounded-full' : 'rounded-lg'"
                     :style="{
@@ -424,6 +426,8 @@ const isEmpty = (value: unknown) =>
                 v-else-if="entry.type === 'image'"
                 :src="String(entry.state)"
                 :alt="entry.label ?? ''"
+                loading="lazy"
+                decoding="async"
                 class="shadow-sm object-cover ring-1 ring-border"
                 :class="entry.isCircular ? 'rounded-full' : 'rounded-lg'"
                 :style="{

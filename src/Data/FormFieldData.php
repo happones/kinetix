@@ -79,6 +79,8 @@ class FormFieldData extends Data
         public bool $isImage = false,
         public ?int $maxFiles = null,
         public ?string $uploadToken = null,
+        /** File upload: stored path => the URL it previews through (resolved on its disk). */
+        public ?array $previewUrls = null,
         // Media library specific
         public ?string $mediaCollection = null,
         public ?array $mediaConversions = null,

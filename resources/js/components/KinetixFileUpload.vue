@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
 import { UploadCloud, X, FileText, Loader2 } from '@lucide/vue';
-import { computed, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { fileAccept, fileProblem } from '@/composables/kinetixFieldConstraints';
 import type { KinetixFieldConstraints } from '@/composables/kinetixFieldConstraints';
@@ -20,6 +20,11 @@ const props = withDefaults(
         routePrefix?: string | null;
         /** The field's rules: types, size and dimensions checked before upload. */
         constraints?: KinetixFieldConstraints | null;
+        /**
+         * Stored path => the URL it previews through, resolved by the server on
+         * the field's disk (any driver, temporary URLs for private files).
+         */
+        previewUrls?: Record<string, string> | null;
     }>(),
     {
         value: null,
@@ -31,6 +36,7 @@ const props = withDefaults(
         disabled: false,
         routePrefix: null,
         constraints: null,
+        previewUrls: null,
     },
 );
 
@@ -82,12 +88,28 @@ const canAddMore = computed(() => {
     return !props.maxFiles || paths().length < props.maxFiles;
 });
 
-const previewUrl = (path: string): string => {
+/**
+ * Files uploaded in this session: the URL the server previews each through,
+ * and the receipt that lets this session (and only it) delete the file again.
+ */
+const uploaded = reactive<
+    Record<string, { url: string | null; receipt: string | null }>
+>({});
+
+const previewUrl = (path: string): string | null => {
     if (/^https?:\/\//.test(path) || path.startsWith('/')) {
         return path;
     }
 
-    return `/storage/${path}`;
+    const fromServer = uploaded[path]?.url ?? props.previewUrls?.[path];
+
+    if (fromServer) {
+        return fromServer;
+    }
+
+    // Rendered without server-resolved URLs (a standalone use): the public
+    // disk's conventional location.
+    return props.previewUrls === null ? `/storage/${path}` : null;
 };
 
 const basename = (path: string): string => path.split('/').pop() ?? path;
@@ -97,12 +119,22 @@ const uploadOne = async (file: File): Promise<string | null> => {
     body.append('file', file);
     body.append('token', props.uploadToken);
 
-    const result = await kinetixFetch<{ path?: string }>(
-        `/${prefix.value}/uploads/store`,
-        { method: 'POST', body },
-    );
+    const result = await kinetixFetch<{
+        path?: string;
+        url?: string;
+        receipt?: string;
+    }>(`/${prefix.value}/uploads/store`, { method: 'POST', body });
 
-    return result?.path ?? null;
+    if (!result?.path) {
+        return null;
+    }
+
+    uploaded[result.path] = {
+        url: result.url ?? null,
+        receipt: result.receipt ?? null,
+    };
+
+    return result.path;
 };
 
 const onSelect = async (event: Event) => {
@@ -170,13 +202,22 @@ const onSelect = async (event: Event) => {
 const remove = async (path: string) => {
     errorMessage.value = null;
 
-    try {
-        await kinetixFetch(`/${prefix.value}/uploads/delete`, {
-            method: 'POST',
-            body: { path, token: props.uploadToken },
-        });
-    } catch {
-        // Even if the server-side delete fails, drop it from the field value.
+    // Only a file uploaded in this session is deleted right away. A stored
+    // one just leaves the value: the record decides when the form is saved,
+    // so cancelling the edit keeps the file.
+    const receipt = uploaded[path]?.receipt;
+
+    if (receipt) {
+        try {
+            await kinetixFetch(`/${prefix.value}/uploads/delete`, {
+                method: 'POST',
+                body: { receipt },
+            });
+        } catch {
+            // Even if the server-side delete fails, drop it from the field value.
+        }
+
+        delete uploaded[path];
     }
 
     const next = paths().filter((p) => p !== path);
@@ -227,9 +268,13 @@ const remove = async (path: string) => {
         <div v-if="paths().length > 0" class="gap-3 flex flex-wrap">
             <div v-for="path in paths()" :key="path" class="relative">
                 <img
-                    v-if="isImage"
-                    :src="previewUrl(path)"
+                    v-if="isImage && previewUrl(path)"
+                    :src="previewUrl(path) ?? undefined"
                     :alt="basename(path)"
+                    width="80"
+                    height="80"
+                    loading="lazy"
+                    decoding="async"
                     class="h-20 w-20 rounded-lg border border-input object-cover"
                 />
                 <div

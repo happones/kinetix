@@ -64,7 +64,7 @@ use Happones\Kinetix\Media\KinetixMedia;
 $form->fill(['gallery' => KinetixMedia::items($product, 'images', 'thumb')]);
 
 // save (adds new, removes deleted, reorders) — no-op without spatie.
-// Pass the field's directory(): new files must be the user's own uploads there.
+// Pass the field's directory(): new files must be the user's own uploads there (current team too).
 KinetixMedia::sync($product, 'images', $state['gallery'], directory: 'products');
 ```
 

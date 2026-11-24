@@ -52,6 +52,7 @@ final class KinetixThrottle
         'kinetix-search'               => ['search.throttle', '120,1', null],
         'kinetix-relation-picker'      => ['search.relation_throttle', '60,1', null],
         'kinetix-notification-routing' => ['notification_routing.preview_throttle', '30,1', null],
+        'kinetix-uploads'              => ['filesystem.upload_throttle', '60,1', null],
     ];
 
     /**

@@ -89,6 +89,22 @@ class DoctorCommandTest extends TestCase
             ->assertFailed();
     }
 
+    public function test_private_files_on_a_disk_without_temporary_urls_are_flagged(): void
+    {
+        config()->set('kinetix.filesystem.visibility', 'private');
+        config()->set('filesystems.disks.plain', ['driver' => 'local', 'root' => sys_get_temp_dir()]);
+        config()->set('kinetix.filesystem.disk', 'plain');
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain("can't make temporary URLs");
+
+        config()->set('filesystems.disks.plain.serve', true);
+        app('filesystem')->forgetDisk('plain');
+
+        $this->artisan('kinetix:doctor')
+            ->expectsOutputToContain('shown through temporary URLs');
+    }
+
     public function test_membership_without_attach_member_is_an_error(): void
     {
         config()->set('kinetix.membership.enabled', true);

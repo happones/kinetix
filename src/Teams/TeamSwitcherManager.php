@@ -6,13 +6,13 @@ namespace Happones\Kinetix\Teams;
 
 use BackedEnum;
 use Happones\Kinetix\Support\ConfigCallback;
+use Happones\Kinetix\Support\KinetixDisk;
 use Happones\Kinetix\Support\KinetixTeams;
 use Happones\Kinetix\Support\KinetixTrans;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use UnitEnum;
 
@@ -331,7 +331,7 @@ class TeamSwitcherManager
 
         $disk = config('kinetix.team_switcher.logo.disk');
 
-        return is_string($disk) && $disk !== '' ? Storage::disk($disk)->url($value) : Storage::url($value);
+        return KinetixDisk::url(is_string($disk) && $disk !== '' ? $disk : (string) config('filesystems.default'), $value, KinetixDisk::isPrivate());
     }
 
     /**

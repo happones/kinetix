@@ -1943,6 +1943,7 @@ FileUpload::make('attachments')
 | Method | Description |
 |---|---|
 | `->disk(string)` | Storage disk; defaults to the global `kinetix.filesystem.disk` (`public`). Set to any disk (e.g. `s3`). |
+| `->visibility('public'\|'private')` | Stored visibility. `private` also previews through temporary signed URLs. Defaults to `kinetix.filesystem.visibility`, else the disk's own default. |
 | `->directory(string)` | Target directory (default `uploads`) |
 | `->multiple(bool = true)` | Accept multiple files (value becomes an array) |
 | `->image()` | Restrict to images and render thumbnail previews |
@@ -1957,7 +1958,46 @@ image field is refused with a message naming the file and why, the others in
 the same pick still upload, and the picker only offers the accepted types. The
 server validates again.
 
-**Security:** the storage config (disk, directory, constraints) is signed into an encrypted `uploadToken` sent to the client; the upload endpoint (`uploads/store`) decrypts it, re-validates the file against the constraints, and stores it — the client can never choose an arbitrary disk/directory. A matching `uploads/delete` endpoint removes a file, constrained to the configured directory. Rendering and upload state live in `KinetixFileUpload.vue`. Pre-existing values render their preview via the `public` disk URL convention (`/storage/{path}`) or any absolute URL.
+**Any disk, public or private.** Previews never guess a URL: the server resolves
+each stored path on the field's disk (`Storage::disk($disk)->url()`), so S3, a
+CDN `url` or any custom disk previews correctly, on create and on edit. A
+`private` field (or `kinetix.filesystem.visibility = 'private'`) is stored
+privately and previewed through a temporary signed URL — S3, or a local disk
+with `serve` on — valid for `kinetix.filesystem.temporary_url_ttl` minutes (30)
+and reused for half of that, so the browser cache keeps hitting. A private field
+only signs the path the record stores and the current user's own uploads, never
+a path sent back by the browser. A disk without temporary URLs falls back to its
+plain URL.
+
+```php
+FileUpload::make('id_card')
+    ->image()
+    ->disk('s3')
+    ->visibility('private');
+```
+
+**Removing a file.** The X on a file the user uploaded in this form deletes it
+right away. On a file the record already stores it only removes it from the
+value: the record changes when the form is saved, so cancelling the edit keeps
+the file. Deleting the old file after a save is your controller's call.
+
+**Teams and users.** Uploads land in `{directory}/{team}/{user}/` (both
+segments hashed). The team segment follows `kinetix.teams`; set
+`kinetix.filesystem.teams = false` to drop it, and
+`kinetix.filesystem.scope_uploads_by_user = false` to drop the user one. A file
+uploaded in one team can't be attached in another, and a request that resolves
+no team uploads nothing.
+
+**Security:** the storage config (disk, directory, visibility, constraints) is
+signed into an encrypted `uploadToken` bound to the user, the team and an
+expiry; the upload endpoint (`uploads/store`) decrypts it, re-validates the
+file against the constraints, and stores it — the client can never choose an
+arbitrary disk/directory. Each upload answers a **receipt** naming that one
+file; `uploads/delete` deletes only with that receipt, so a session can remove
+what it uploaded and nothing else (not a record's stored file, not another
+user's upload — even with user scoping off). Uploads are throttled per user by
+`kinetix.filesystem.upload_throttle` (`'60,1'`, `false` = off), answering a
+localized 429. Rendering and upload state live in `KinetixFileUpload.vue`.
 
 ---
 

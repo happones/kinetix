@@ -219,6 +219,26 @@ describe('KinetixTableCell component map', () => {
         expectBlank(mountCell({ type: 'image' }));
     });
 
+    it('loads image cells lazily, labelled, with their box reserved', () => {
+        const img = mountCell(
+            { type: 'image', label: 'Photo', size: 48 },
+            { field: '/a.png' },
+        ).get('img');
+
+        expect(img.attributes('alt')).toBe('Photo');
+        expect(img.attributes('loading')).toBe('lazy');
+        expect(img.attributes('decoding')).toBe('async');
+        expect(img.attributes('width')).toBe('48');
+        expect(img.attributes('height')).toBe('48');
+
+        // A CSS size (e.g. '3rem') can't be an intrinsic attribute.
+        const css = mountCell(
+            { type: 'image', size: '3rem' },
+            { field: '/a.png' },
+        ).get('img');
+        expect(css.attributes('width')).toBeUndefined();
+    });
+
     it('resolves color to ColorCell only when the record carries a value', () => {
         const withColor = mountCell({ type: 'color' }, { field: '#ff0000' });
         expect(withColor.findComponent(ColorCell).exists()).toBe(true);

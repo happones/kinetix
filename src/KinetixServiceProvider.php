@@ -3518,6 +3518,7 @@ class KinetixServiceProvider extends ServiceProvider
             ->prefix("{$prefix}/uploads")
             ->group(function () {
                 Route::post('store', [UploadController::class, 'store'])
+                    ->middleware(KinetixThrottle::middleware('kinetix-uploads'))
                     ->name('kinetix.uploads.store');
 
                 Route::post('delete', [UploadController::class, 'delete'])

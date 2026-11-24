@@ -13,6 +13,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.292.0] - 2026-11-24
+
+### Added
+
+- **Private files.** `FileUpload::visibility('public'|'private')`,
+  `ImageColumn::visibility()` and `ImageEntry::visibility()`, plus a global
+  `kinetix.filesystem.visibility` (null = each disk's default). A private file
+  is stored privately and shown through a temporary signed URL (S3, or a local
+  disk with `serve` on), valid for `kinetix.filesystem.temporary_url_ttl`
+  minutes (30) and reused for half of that so the browser cache keeps hitting.
+  `kinetix:doctor` warns when private files sit on a disk that can't make
+  temporary URLs.
+- **Upload throttle.** `kinetix.filesystem.upload_throttle` (`'60,1'`, `false`
+  = off) limits uploads per user, answering the localized 429 the other
+  limiters use.
+- `FormFieldData::$previewUrls`: stored path => preview URL, resolved on the
+  field's disk.
+
+### Fixed
+
+- **FileUpload previews on any disk** **(published)**. `KinetixFileUpload.vue`
+  previewed every stored path as `/storage/{path}`, so an `s3` (or any
+  non-`public`) field showed broken images on create and edit. Previews now use
+  the URL the server resolves on the field's disk; a path it can't preview
+  shows a file tile instead of a guess.
+- **Removing a stored file no longer deletes it before saving**
+  **(published)**. The X on a file the record already stores deleted it from
+  disk at once, so cancelling the edit left the record pointing at a missing
+  file. It now only leaves the value; files uploaded in the same form are still
+  deleted right away.
+- Table and infolist images, media tiles and upload previews load lazily
+  (`loading="lazy"`, `decoding="async"`); image cells carry the column label as
+  `alt` and reserve their box with `width`/`height` when `size()` is in pixels
+  **(published)**.
+
+### Security
+
+- **Uploads can only be deleted by the session that uploaded them.** Each
+  upload answers a receipt (bound to the user, team and expiry) naming that one
+  file, and `uploads/delete` now requires it instead of the field token and a
+  path. Before, any user holding a field token could delete any file in that
+  field's directory when `scope_uploads_by_user` was off, and their own
+  already-attached files in any case.
+- **Uploads are foldered per team.** With teams on, uploads land in
+  `{directory}/{team}/{user}/` (hashed), a request that resolves no team
+  uploads nothing, and `KinetixMedia::keep()` / `sync()` only adopt files
+  uploaded in the current team. `kinetix.filesystem.teams` (null = follow
+  `kinetix.teams`) turns the team segment off.
+
+### Upgrade notes
+
+- Re-publish the components (`kinetix-components`): the old
+  `KinetixFileUpload.vue` sends `uploads/delete` the field token and a path,
+  which now answers 422 and deletes nothing.
+- Deleting a record's previous file after a save stays your controller's job;
+  Kinetix no longer deletes it when the user clicks the X.
+- With teams on, new uploads go to a team subfolder. Stored paths keep working;
+  a form opened before the upgrade and saved after it must re-upload a file it
+  uploaded before the upgrade.
+- With teams on, `KinetixMedia::keep()` / `sync()` called where no team resolves
+  (a console command, a job) no longer adopt new uploads; existing items are
+  kept as before.
+- New config keys (`visibility`, `temporary_url_ttl`, `upload_throttle`,
+  `teams` under `filesystem`) have safe defaults; add them to a published
+  config only if you want to change them.
+
 ## [0.291.1] - 2026-11-12
 
 ### Changed

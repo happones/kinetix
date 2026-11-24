@@ -38,7 +38,7 @@ Pick by the DATA and whether it should be editable inline — do not default eve
 | Array (TagsInput / CheckboxList / multi-Select / JSON cast) | `TextColumn->badge()` = one pill per item; `->separator(', ')` = imploded text | — |
 | RichEditor HTML | `TextColumn->html()` (trusted!) or `->html()->limit(n)` (tags stripped, then cut) | — |
 | Color | `ColorColumn` (`->copyable()`) | — |
-| Image / avatar / SignaturePad | `ImageColumn` (`->circular()`, `->disk('s3')`, `->preview()`) | — |
+| Image / avatar / SignaturePad | `ImageColumn` (`->circular()`, `->disk('s3')`, `->visibility('private')` for temporary signed URLs, `->preview()`) | — |
 | 0–100 metric / capacity / quota | `ProgressColumn` (`->maxValue()`, `->color(fn …)`) | — |
 | Rating | `TextColumn->formatStateUsing(fn ($v) => str_repeat('★', (int) $v))` — no dedicated column | — |
 | Link per cell | `TextColumn->url(fn ($record) => …)` (whole ROW: inferred from the `view`/`edit` action, or `Table::recordUrl()`) | — |

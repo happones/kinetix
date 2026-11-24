@@ -240,6 +240,7 @@ const DELEGATE_FIELDS: Record<string, Delegate> = {
             maxFiles: c.maxFiles,
             disabled: c.isDisabled,
             constraints: c.constraints,
+            previewUrls: c.previewUrls ?? null,
         }),
     },
     'media-library': {

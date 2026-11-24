@@ -73,8 +73,9 @@ class MediaManager
         $disk ??= (string) config('kinetix.filesystem.disk', 'public');
 
         // A new file can only be one the current user just uploaded for this
-        // field: their own upload directory, never anywhere on the disk.
-        $uploads = UploadDirectory::for($directory, auth()->user()?->getAuthIdentifier());
+        // field, in this team: their own upload directory, never anywhere on
+        // the disk. With no team resolved no new file is adopted (fail closed).
+        $uploads = UploadDirectory::teamMissing() ? null : UploadDirectory::current($directory);
 
         // `$items` reflects submitted form state, so both the ids and the paths in
         // it are client-controlled. Existing media is therefore matched against
@@ -100,7 +101,7 @@ class MediaManager
                 continue;
             }
 
-            if (is_string($path) && $path !== '' && UploadDirectory::contains($uploads, $path)) {
+            if ($uploads !== null && is_string($path) && $path !== '' && UploadDirectory::contains($uploads, $path)) {
                 $media        = $record->addMediaFromDisk($path, $disk)->toMediaCollection($collection);
                 $orderedIds[] = $media->getKey();
             }
@@ -125,7 +126,8 @@ class MediaManager
      * The submitted items safe to store in your own column, when spatie isn't
      * in play: an item already stored ($current, matched by path) keeps its
      * stored data; a new one must be a file the current user uploaded for this
-     * field (their upload directory) that exists. URL, size and mime come
+     * field (their upload directory, in the current team when uploads are
+     * team-scoped) that exists. URL, size and mime come
      * from the disk, never the request; the name is only a label, so the
      * original file name the upload reported is kept (see displayName()).
      * Order follows $items.
@@ -137,7 +139,7 @@ class MediaManager
     public function keep(array $items, array $current = [], ?string $directory = null, ?string $disk = null): array
     {
         $disk ??= (string) config('kinetix.filesystem.disk', 'public');
-        $uploads = UploadDirectory::for($directory, auth()->user()?->getAuthIdentifier());
+        $uploads = UploadDirectory::teamMissing() ? null : UploadDirectory::current($directory);
         $storage = Storage::disk($disk);
         $stored  = collect($current)->filter(fn ($item): bool => is_array($item) && is_string($item['path'] ?? null))->keyBy('path');
         $kept    = [];
@@ -155,7 +157,7 @@ class MediaManager
                 continue;
             }
 
-            if (UploadDirectory::contains($uploads, $path) && $storage->exists($path)) {
+            if ($uploads !== null && UploadDirectory::contains($uploads, $path) && $storage->exists($path)) {
                 $kept[$path] = [
                     'path' => $path,
                     'url'  => $storage->url($path),

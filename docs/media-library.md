@@ -135,7 +135,7 @@ KinetixMedia::sync($product, 'images', $state['gallery'], directory: 'products')
 `sync()` adds newly uploaded files, removes the ones the user deleted, and
 persists the new order — all on the bound collection. Pass the field's
 `directory()`: a new file is only accepted from the current user's uploads for
-it (when the field has no directory, the default `uploads` applies). It's a **no-op** when
+it, in the current team when uploads are team-scoped (when the field has no directory, the default `uploads` applies). It's a **no-op** when
 spatie isn't installed (or the record isn't `HasMedia`), so the same form code is
 safe either way.
 

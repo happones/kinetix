@@ -41,6 +41,7 @@ const icon = computed(() => resolveIcon(props.team?.logoIcon ?? null));
             v-if="showLogo"
             :src="team!.logo!"
             alt=""
+            decoding="async"
             class="size-full rounded-md object-cover"
             @error="failed = true"
         />

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Happones\Kinetix\Support;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -36,6 +37,40 @@ class KinetixDisk
     public static function privateName(): string
     {
         return (string) config('kinetix.filesystem.private_disk', 'local');
+    }
+
+    /**
+     * Whether files shown through Kinetix should be reached by temporary signed
+     * URLs: an explicit component visibility wins, else the global
+     * `kinetix.filesystem.visibility`.
+     */
+    public static function isPrivate(?string $visibility = null): bool
+    {
+        return ($visibility ?? config('kinetix.filesystem.visibility')) === 'private';
+    }
+
+    /**
+     * The URL a stored file is shown through. A private file gets a temporary
+     * signed URL when the disk can mint one (S3, a local disk with `serve`),
+     * reused for half its lifetime so the browser cache keeps hitting; any
+     * other file, or a disk without temporary URLs, gets its plain URL.
+     */
+    public static function url(string $disk, string $path, bool $private = false): string
+    {
+        $storage = Storage::disk($disk);
+
+        if (! $private || ! $storage->providesTemporaryUrls()) {
+            return $storage->url($path);
+        }
+
+        $ttl = config('kinetix.filesystem.temporary_url_ttl', 30);
+        $ttl = is_numeric($ttl) && (int) $ttl > 1 ? (int) $ttl : 30;
+
+        return Cache::remember(
+            'kinetix:temporary-url:'.sha1($disk.'|'.$path.'|'.$ttl),
+            now()->addMinutes(intdiv($ttl, 2)),
+            static fn (): string => $storage->temporaryUrl($path, now()->addMinutes($ttl)),
+        );
     }
 
     /**

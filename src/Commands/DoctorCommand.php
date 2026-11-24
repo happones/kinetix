@@ -33,6 +33,7 @@ use Happones\Kinetix\Support\DialCodes;
 use Happones\Kinetix\Support\DiscoveryManifest;
 use Happones\Kinetix\Support\HostKeyColumns;
 use Happones\Kinetix\Support\HostKeys;
+use Happones\Kinetix\Support\KinetixDisk;
 use Happones\Kinetix\Support\KinetixLookupSlots;
 use Happones\Kinetix\Support\KinetixSharedProps;
 use Happones\Kinetix\Support\KinetixTeams;
@@ -55,6 +56,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Laravel\Socialite\Facades\Socialite;
@@ -121,6 +123,7 @@ class DoctorCommand extends Command
         $this->checkTokenTeamColumn();
         $this->checkConfidentialEnvelopes();
         $this->checkThrottles();
+        $this->checkPrivateFiles();
         $this->checkSearchLimits();
         $this->checkTableLimits();
         $this->checkSharedProps();
@@ -1820,6 +1823,34 @@ class DoctorCommand extends Command
         }
 
         return $models;
+    }
+
+    /**
+     * Private files are shown through temporary URLs: a default disk that can't
+     * mint one serves plain URLs that a private bucket answers with 403.
+     */
+    protected function checkPrivateFiles(): void
+    {
+        if (! KinetixDisk::isPrivate()) {
+            return;
+        }
+
+        $disk = KinetixDisk::name();
+
+        try {
+            $storage = Storage::disk($disk);
+        } catch (Throwable) {
+            return;
+        }
+
+        if ($storage->providesTemporaryUrls()) {
+            $this->ok('Files', "private files on \"{$disk}\" are shown through temporary URLs");
+
+            return;
+        }
+
+        $this->warn_('Files', "kinetix.filesystem.visibility is private but disk \"{$disk}\" can't make temporary URLs",
+            'Images and previews fall back to plain URLs, which a private disk refuses. Use S3 (or a compatible driver), or turn on `serve` for a local disk.');
     }
 
     /**

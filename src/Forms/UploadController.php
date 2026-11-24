@@ -7,6 +7,7 @@ namespace Happones\Kinetix\Forms;
 use Closure;
 use Happones\Kinetix\Support\DescriptorAudience;
 use Happones\Kinetix\Support\DescriptorRejection;
+use Happones\Kinetix\Support\KinetixDisk;
 use Happones\Kinetix\Support\SignedDescriptor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -42,44 +43,67 @@ class UploadController
             return response()->json(['message' => $validator->errors()->first('file')], 422);
         }
 
-        $disk      = (string) ($config['disk'] ?? config('kinetix.filesystem.disk', 'public'));
-        $directory = $this->directoryFor($config, $request);
+        if (UploadDirectory::teamMissing($request)) {
+            return response()->json(['message' => __('kinetix.upload_invalid_field')], 403);
+        }
 
-        $path = $request->file('file')->store($directory, $disk);
+        $disk       = (string) ($config['disk'] ?? config('kinetix.filesystem.disk', 'public'));
+        $visibility = is_string($config['visibility'] ?? null) ? $config['visibility'] : null;
+        $directory  = $this->directoryFor($config, $request);
+        $options    = ['disk' => $disk];
+
+        if ($visibility !== null) {
+            $options['visibility'] = $visibility;
+        }
+
+        $path = $request->file('file')->store($directory, $options);
+
+        if ($path === false) {
+            return response()->json(['message' => __('kinetix.upload_failed')], 500);
+        }
 
         return response()->json([
             'path' => $path,
-            'url'  => Storage::disk($disk)->url($path),
+            'url'  => KinetixDisk::url($disk, $path, KinetixDisk::isPrivate($visibility)),
             'name' => $request->file('file')->getClientOriginalName(),
+            // Only the uploader's own session can remove this file again: the
+            // receipt names this exact path, bound to the user, team and expiry.
+            'receipt' => SignedDescriptor::seal(['disk' => $disk, 'path' => $path], DescriptorAudience::UploadReceipt),
         ]);
     }
 
     /**
-     * Delete a previously uploaded file, constrained to the field's directory.
+     * Delete a file this user just uploaded, named by the receipt the upload
+     * returned. A file without a receipt — a record's stored file, someone
+     * else's upload — is never deleted here: removing it from a field only
+     * changes the field's value, and the record decides on save.
      */
     public function delete(Request $request): JsonResponse
     {
         $request->validate([
-            'path'  => ['required', 'string'],
-            'token' => ['required', 'string'],
+            'receipt' => ['required', 'string'],
         ]);
 
-        $config = $this->config($request);
+        $receipt = SignedDescriptor::open($request->string('receipt')->toString());
 
-        if ($config instanceof JsonResponse) {
-            return $config;
+        if ($receipt === null) {
+            return response()->json(['message' => __('kinetix.upload_invalid_path')], 403);
         }
 
-        $disk = (string) ($config['disk'] ?? config('kinetix.filesystem.disk', 'public'));
+        $rejection = SignedDescriptor::rejection($receipt, $request, DescriptorAudience::UploadReceipt);
 
-        // The directory is per-user when upload scoping is on, so this prefix
-        // check is also the ownership check: one user cannot name another user's
-        // path. Without scoping, every upload shares one flat directory and any
-        // authenticated user could delete any file in it.
-        $directory = $this->directoryFor($config, $request);
-        $path      = $request->string('path')->toString();
+        if ($rejection !== null) {
+            return response()->json([
+                'message' => $rejection === DescriptorRejection::Expired
+                    ? __('kinetix.form_session_expired')
+                    : __('kinetix.upload_invalid_path'),
+            ], 403);
+        }
 
-        if (! str_starts_with($path, $directory.'/') || str_contains($path, '..')) {
+        $disk = $receipt['disk'] ?? null;
+        $path = $receipt['path'] ?? null;
+
+        if (! is_string($disk) || ! is_string($path) || $path === '' || str_contains($path, '..')) {
             return response()->json(['message' => __('kinetix.upload_invalid_path')], 403);
         }
 
@@ -205,14 +229,16 @@ class UploadController
     }
 
     /**
-     * The directory an upload is stored in — namespaced per user when
-     * `kinetix.filesystem.scope_uploads_by_user` is on, which is what makes one
-     * user unable to address (and therefore delete) another's files.
+     * The directory an upload is stored in — namespaced per team when uploads
+     * are team-scoped and per user when `kinetix.filesystem.scope_uploads_by_user`
+     * is on ({@see UploadDirectory}).
      *
      * @param array<string, mixed> $config
      */
     protected function directoryFor(array $config, Request $request): string
     {
-        return UploadDirectory::for($config['directory'] ?? null, $request->user()?->getAuthIdentifier());
+        $directory = $config['directory'] ?? null;
+
+        return UploadDirectory::current(is_string($directory) ? $directory : null, $request);
     }
 }

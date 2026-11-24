@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Happones\Kinetix\Infolists\Components;
 
 use Closure;
+use Happones\Kinetix\Support\KinetixDisk;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Storage;
+use InvalidArgumentException;
 
 class ImageEntry extends Entry
 {
@@ -21,6 +22,9 @@ class ImageEntry extends Entry
     /** Null = fall back to the global `kinetix.filesystem.disk` config. */
     protected ?string $disk = null;
 
+    /** Null = the global `kinetix.filesystem.visibility`. */
+    protected ?string $visibility = null;
+
     protected function getType(): string
     {
         return 'image';
@@ -33,6 +37,22 @@ class ImageEntry extends Entry
     public function disk(string $disk): static
     {
         $this->disk = $disk;
+
+        return $this;
+    }
+
+    /**
+     * 'private' shows stored paths through temporary signed URLs (S3, or a
+     * local disk with `serve` on) instead of plain public URLs. Defaults to
+     * `kinetix.filesystem.visibility`.
+     */
+    public function visibility(string $visibility): static
+    {
+        if (! in_array($visibility, ['public', 'private'], true)) {
+            throw new InvalidArgumentException("Visibility must be 'public' or 'private', got '{$visibility}'.");
+        }
+
+        $this->visibility = $visibility;
 
         return $this;
     }
@@ -103,7 +123,7 @@ class ImageEntry extends Entry
 
         $disk = $this->disk ?? (string) config('kinetix.filesystem.disk', 'public');
 
-        return Storage::disk($disk)->url($value);
+        return KinetixDisk::url($disk, $value, KinetixDisk::isPrivate($this->visibility));
     }
 
     protected function getExtraData(?Model $record = null): array

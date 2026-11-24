@@ -95,6 +95,27 @@ return [
         // Extensions refused by a FileUpload field that declares no accept():
         // anything a browser would execute if served from the app's own origin.
         // A field that explicitly accepts one of these overrides the list.
+        // Who may read the user-facing files Kinetix links to. null keeps each
+        // disk's own default (and plain URLs). 'private' makes FileUpload store
+        // privately and every Kinetix image/preview URL a temporary signed one
+        // (S3, or a local disk with `serve` on) — for a private bucket. Each
+        // component can override it with ->visibility('public'|'private').
+        'visibility' => env('KINETIX_FILESYSTEM_VISIBILITY'),
+
+        // Lifetime (minutes) of the temporary URLs private files are shown
+        // through. The same URL is reused for half of it, so the browser cache
+        // still hits across page views.
+        'temporary_url_ttl' => env('KINETIX_TEMPORARY_URL_TTL', 30),
+
+        // Uploads each user may send per window ('attempts,minutes'); false
+        // turns the limit off. Every upload counts, successful ones included.
+        'upload_throttle' => env('KINETIX_UPLOAD_THROTTLE', '60,1'),
+
+        // Group uploads by team (empresa) as well as by user: a team's files
+        // stay in their own folder, and a file uploaded in one team can't be
+        // attached to a record in another. null follows `kinetix.teams`.
+        'teams' => null,
+
         'upload_blocked_extensions' => [
             'html', 'htm', 'xhtml', 'shtml', 'svg', 'xml', 'xsl',
             'js', 'mjs', 'cjs', 'jsx', 'vue',
